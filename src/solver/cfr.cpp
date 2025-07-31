@@ -5,6 +5,7 @@
 #include "game/game_utils.hpp"
 #include "solver/node.hpp"
 #include "solver/tree.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <array>
 #include <bit>
@@ -47,7 +48,7 @@ float cfrDecision(
         return decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.numActions) + actionIndex;
     };
 
-    auto calculateCurrentStrategy = [&decisionNode, &tree, &getTrainingDataIndex](std::uint16_t trainingDataSet) -> std::vector<float> {
+    auto calculateCurrentStrategy = [&decisionNode, &tree, &getTrainingDataIndex](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
         float totalPositiveRegret = 0.0f;
         for (int i = 0; i < decisionNode.numActions; ++i) {
             float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
@@ -57,7 +58,7 @@ float cfrDecision(
         }
 
         assert(decisionNode.numActions > 0);
-        std::vector<float> currentStrategy(decisionNode.numActions, 1.0f / decisionNode.numActions);
+        FixedVector<float, MaxNumActions> currentStrategy(decisionNode.numActions, 1.0f / decisionNode.numActions);
         if (totalPositiveRegret > 0.0f) {
             for (int i = 0; i < decisionNode.numActions; ++i) {
                 float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
@@ -75,10 +76,10 @@ float cfrDecision(
 
     const CardSet& currentPlayerHand = playerHands[getPlayerID(decisionNode.player)];
     std::uint16_t trainingDataSet = rules.mapHandToIndex(decisionNode.player, currentPlayerHand);
-    std::vector<float> currentPlayerStrategy = calculateCurrentStrategy(trainingDataSet);
+    FixedVector<float, MaxNumActions> currentPlayerStrategy = calculateCurrentStrategy(trainingDataSet);
 
     float currentPlayerExpectedValue = 0.0f;
-    std::vector<float> currentPlayerActionUtility(decisionNode.numActions);
+    FixedVector<float, MaxNumActions> currentPlayerActionUtility(decisionNode.numActions, 0.0f);
     for (int i = 0; i < decisionNode.numActions; ++i) {
         std::array<float, 2> newPlayerWeights = playerWeights;
         newPlayerWeights[getPlayerID(decisionNode.player)] *= currentPlayerStrategy[i];

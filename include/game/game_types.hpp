@@ -1,6 +1,8 @@
 #ifndef GAME_TYPES_HPP
 #define GAME_TYPES_HPP
 
+#include "game/nl_holdem_config.hpp"
+
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -10,7 +12,9 @@ using ActionID = std::uint8_t;
 using CardID = std::uint8_t;
 using CardSet = std::uint64_t;
 
-static constexpr std::uint8_t StandardDeckSize = 52;
+static constexpr std::uint8_t StandardDeckSize = nl_holdem::DeckSize;
+static constexpr std::uint8_t MaxNumDealCards = nl_holdem::MaxNumDealCards;
+static constexpr std::uint8_t MaxNumActions = nl_holdem::MaxNumActions;
 
 enum class Player : std::uint8_t {
     P0,
