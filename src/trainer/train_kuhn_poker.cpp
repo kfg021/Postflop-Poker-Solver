@@ -2,11 +2,14 @@
 
 #include "game/game_types.hpp"
 #include "game/kuhn_poker.hpp"
+#include "solver/cfr.hpp"
 #include "solver/tree.hpp"
 #include "io/output.hpp"
 
 #include <cassert>
+#include <iomanip>
 #include <iostream>
+#include <vector>
 
 void trainKuhnPoker(int iterations) {
     assert(iterations > 0);
@@ -28,26 +31,19 @@ void trainKuhnPoker(int iterations) {
     tree.buildFullTree();
     std::cout << "Finished initializing tree.\n\n" << std::flush;
 
-    //     std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
-    //     auto initialSetups = kuhnPokerGame.getInitialSetups();
+    std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
+    std::vector<InitialSetup> initialSetups = kuhnPokerRules.getInitialSetups();
 
-    //     float player0ExpectedValueSum = 0.0f;
-    //     for (int i = 0; i < iterations; ++i) {
-    //         for (const auto& setup : initialSetups) {
-    //             float cfrResult = cfr(
-    //                 getRootIndex(tree),
-    //                 tree,
-    //                 setup.playerWeights,
-    //                 setup.playerHands,
-    //                 {},
-    //                 kuhnPokerGame
-    //             );
-    //             player0ExpectedValueSum += setup.matchupProbability * cfrResult;
-    //         }
-    //     }
+    float player0ExpectedValueSum = 0.0f;
+    for (int i = 0; i < iterations; ++i) {
+        for (const InitialSetup& setup : initialSetups) {
+            float cfrResult = cfr(kuhnPokerRules, setup.playerHands, setup.playerWeights, tree.getRootNode(), tree);
+            player0ExpectedValueSum += setup.matchupProbability * cfrResult;
+        }
+    }
 
-    //     std::cout << "Finished training.\n";
-    //     std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValueSum / iterations << "\n\n";
+    std::cout << "Finished training.\n";
+    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValueSum / iterations << "\n\n";
 
     //     std::cout << "Strategies:\n\n";
     //     printStrategy(tree, kuhnPokerGame);

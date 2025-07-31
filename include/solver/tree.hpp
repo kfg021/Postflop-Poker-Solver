@@ -22,6 +22,7 @@ public:
     std::size_t getTreeSkeletonSize() const;
     std::size_t estimateFullTreeSize() const;
     void buildFullTree();
+    Node getRootNode() const;
 
     std::vector<Node> allNodes;
     std::vector<ActionID> allActions;

@@ -202,7 +202,8 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
 
     ShowdownNode showdownNode{
         .board = state.currentBoard,
-        .reward = reward
+        .reward = reward,
+        .street = state.currentStreet
     };
 
     allNodes.emplace_back(showdownNode);
@@ -217,4 +218,9 @@ void Tree::buildFullTree() {
 
     allRegretSums.assign(trainingDataLength, 0.0f);
     allRegretSums.shrink_to_fit();
+}
+
+Node Tree::getRootNode() const {
+    assert(isTreeSkeletonBuilt() && isFullTreeBuilt());
+    return allNodes.back();
 }

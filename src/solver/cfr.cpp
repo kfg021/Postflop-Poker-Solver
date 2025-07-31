@@ -58,10 +58,10 @@ float cfrDecision(
 
         assert(decisionNode.numActions > 0);
         std::vector<float> currentStrategy(decisionNode.numActions, 1.0f / decisionNode.numActions);
-        if (totalPositiveRegret > 0) {
+        if (totalPositiveRegret > 0.0f) {
             for (int i = 0; i < decisionNode.numActions; ++i) {
                 float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
-                if (regretSum > 0) {
+                if (regretSum > 0.0f) {
                     currentStrategy[i] = regretSum / totalPositiveRegret;
                 }
                 else {
@@ -77,7 +77,7 @@ float cfrDecision(
     std::uint16_t trainingDataSet = rules.mapHandToIndex(decisionNode.player, currentPlayerHand);
     std::vector<float> currentPlayerStrategy = calculateCurrentStrategy(trainingDataSet);
 
-    float currentPlayerExpectedValue = 0.0;
+    float currentPlayerExpectedValue = 0.0f;
     std::vector<float> currentPlayerActionUtility(decisionNode.numActions);
     for (int i = 0; i < decisionNode.numActions; ++i) {
         std::array<float, 2> newPlayerWeights = playerWeights;
