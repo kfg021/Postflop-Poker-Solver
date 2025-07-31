@@ -62,9 +62,4 @@ struct InitialSetup {
     float matchupProbability;
 };
 
-struct StateType {
-    NodeType nodeType;
-    std::vector<ActionID> validActions;
-};
-
 #endif // GAME_TYPES_HPP
