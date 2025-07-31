@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
-#include <variant>
 #include <vector>
 
 class Tree {
@@ -24,11 +23,20 @@ public:
     void buildFullTree();
     Node getRootNode() const;
 
+    // Using SoA instead of AoS for performacne
+
+    // Vector containing all nodes
     std::vector<Node> allNodes;
-    std::vector<ActionID> allActions;
-    std::vector<std::size_t> allNextNodeIndices;
+
+    // Data for chance nodes
+    std::vector<CardID> allChanceCards;
+    std::vector<std::size_t> allChanceNextNodeIndices;
+
+    // Data for decision nodes
+    std::vector<ActionID> allDecisions;
+    std::vector<std::size_t> allDecisionNextNodeIndices;
     std::vector<float> allStrategySums;
-    std::vector<float> allRegretSums;
+    std::vector<float> allRegretSums; 
     std::size_t trainingDataLength;
 
 private:

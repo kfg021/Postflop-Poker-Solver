@@ -3,6 +3,7 @@
 
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <array>
 #include <cstdint>
@@ -14,9 +15,8 @@ public:
     GameState getInitialGameState() const override;
     NodeType getNodeType(const GameState& state) const override;
     ActionType getActionType(ActionID actionID) const override;
-    std::vector<ActionID> getValidActions(const GameState& state) const override;
+    FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
-    CardID getCardCorrespondingToChance(ActionID actionID) const override;
     std::vector<InitialSetup> getInitialSetups() const override;
     Player getShowdownWinner(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
     CardSet getDeck() const override;

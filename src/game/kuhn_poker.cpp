@@ -2,6 +2,7 @@
 
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <cassert>
 #include <cstdint>
@@ -62,7 +63,7 @@ ActionType KuhnPoker::getActionType(ActionID actionID) const {
     return ActionType::Decision;
 }
 
-std::vector<ActionID> KuhnPoker::getValidActions(const GameState& state) const {
+FixedVector<ActionID, MaxNumActions>  KuhnPoker::getValidActions(const GameState& state) const {
     NodeType nodeType = getNodeType(state);
     assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
 
@@ -112,12 +113,6 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
     }
 
     return nextState;
-}
-
-CardID KuhnPoker::getCardCorrespondingToChance(ActionID actionID) const {
-    // Kuhn poker has no chance nodes
-    assert(false);
-    return 0;
 }
 
 std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {

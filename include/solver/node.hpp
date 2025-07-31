@@ -13,25 +13,25 @@ struct ChanceNode {
     // State of the board before the next card is dealt
     CardSet board;
 
-    // Offset into the allActions and allNextNodeIndices vectors
-    std::size_t actionsOffset;
+    // Offset into the allChanceCards and allChanceNextNodeIndices vectors
+    std::size_t chanceDataOffset;
 
     // Equal to the number of different cards that could come on the turn / river given the current board
-    std::uint8_t numActions;
+    std::uint8_t chanceDataSize;
 };
 
 struct DecisionNode {
     // Offset into the allStrategySums and allRegretSums vectors 
     std::size_t trainingDataOffset;
 
-    // Offset into the allActions and allNextNodeIndices vectors
-    std::size_t actionsOffset;
+    // Offset into the allDecisions and allDecisionNextNodeIndices vectors
+    std::size_t decisionDataOffset;
 
     // There is one set of training data for each hand in the current player's range
     std::uint16_t numTrainingDataSets;
 
     // Equal to the number of actions that can be taken from this node by the player
-    std::uint8_t numActions;
+    std::uint8_t decisionDataSize;
 
     // Which player is currently taking an action
     Player player;

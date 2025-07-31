@@ -26,17 +26,20 @@ void Tree::buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint
     std::size_t root = createNodeRecursive(rules, rules.getInitialGameState(), rangeSizes, actionHistory, nodeIndexMap);
     assert(root == allNodes.size() - 1);
 
+    // Free unnecessary memory - vectors are done growing
     allNodes.shrink_to_fit();
-    allActions.shrink_to_fit();
-    allNextNodeIndices.shrink_to_fit();
+    allChanceCards.shrink_to_fit();
+    allChanceNextNodeIndices.shrink_to_fit();
+    allDecisions.shrink_to_fit();
+    allDecisionNextNodeIndices.shrink_to_fit();
 }
 
 std::size_t Tree::getTreeSkeletonSize() const {
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
-    std::size_t actionsHeapSize = allActions.capacity() * sizeof(ActionID);
-    std::size_t childrenHeapSize = allNextNodeIndices.capacity() * sizeof(std::size_t);
-    return treeStackSize + nodesHeapSize + actionsHeapSize + childrenHeapSize;
+    std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID)) + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
+    std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID)) + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t));
+    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
@@ -94,43 +97,48 @@ std::size_t Tree::createChanceNodeRecursive(
     std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
 ) {
     // Recurse to child nodes
-    std::vector<ActionID> validActions = rules.getValidActions(state);
-    std::vector<std::size_t> nextNodeIndices;
-    nextNodeIndices.reserve(validActions.size());
-    for (ActionID actionID : validActions) {
-        assert(rules.getActionType(actionID) == ActionType::Chance);
+    FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
 
-        CardID cardID = rules.getCardCorrespondingToChance(actionID);
-        CardSet newBoard = state.currentBoard | (1 << cardID);
+    // There should only be one action and it should be a chance action
+    assert(validActions.size() == 1 && rules.getActionType(validActions[0]) == ActionType::Chance);
 
-        GameState newState = {
-            .currentBoard = newBoard,
-            .playerTotalWagers = state.playerTotalWagers,
-            .deadMoney = state.deadMoney,
-            .playerToAct = Player::P0, // Player 0 always starts a new betting round
-            .lastAction = actionID,
-            .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
-            .isStartOfStreet = true,
-        };
+    FixedVector<CardID, MaxNumDealCards> nextCards;
+    FixedVector<std::size_t, MaxNumDealCards> nextNodeIndices;
+    for (CardID cardID = 0; cardID < StandardDeckSize; ++cardID) {
+        if (!setContainsCard(state.currentBoard, cardID)) {
+            CardSet newBoard = state.currentBoard | cardIDToSet(cardID);
+            
+            GameState newState = {
+                .currentBoard = newBoard,
+                .playerTotalWagers = state.playerTotalWagers,
+                .deadMoney = state.deadMoney,
+                .playerToAct = Player::P0, // Player 0 always starts a new betting round
+                .lastAction = validActions[0],
+                .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
+                .isStartOfStreet = true,
+            };
 
-        actionHistory.push_back(actionID);
-        std::size_t nextNodeIndex = createNodeRecursive(rules, newState, rangeSizes, actionHistory, nodeIndexMap);
-        actionHistory.pop_back();
+            // TODO: Also need a fixed vector of chance cards for hashing
+            actionHistory.push_back(validActions[0]);
+            std::size_t nextNodeIndex = createNodeRecursive(rules, newState, rangeSizes, actionHistory, nodeIndexMap);
+            actionHistory.pop_back();
 
-        nextNodeIndices.push_back(nextNodeIndex);
+            nextCards.pushBack(cardID);
+            nextNodeIndices.pushBack(nextNodeIndex);
+        }
     }
-    assert(nextNodeIndices.size() == validActions.size());
+    assert(nextCards.size() == nextNodeIndices.size());
 
     // Fill in current node information
     ChanceNode chanceNode = {
         .board = state.currentBoard,
-        .actionsOffset = allActions.size(),
-        .numActions = static_cast<std::uint8_t>(validActions.size())
+        .chanceDataOffset = allChanceCards.size(),
+        .chanceDataSize = static_cast<std::uint8_t>(nextCards.size())
     };
 
     // Update tree information
-    allActions.insert(allActions.end(), validActions.begin(), validActions.end());
-    allNextNodeIndices.insert(allNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
+    allChanceCards.insert(allChanceCards.end(), nextCards.begin(), nextCards.end());
+    allChanceNextNodeIndices.insert(allChanceNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
 
     allNodes.emplace_back(chanceNode);
     return allNodes.size() - 1;
@@ -144,9 +152,8 @@ std::size_t Tree::createDecisionNodeRecursive(
     std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
 ) {
     // Recurse to child nodes
-    std::vector<ActionID> validActions = rules.getValidActions(state);
-    std::vector<std::size_t> nextNodeIndices;
-    nextNodeIndices.reserve(validActions.size());
+    FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
+    FixedVector<ActionID, MaxNumActions> nextNodeIndices;
     for (ActionID actionID : validActions) {
         assert(rules.getActionType(actionID) == ActionType::Decision);
 
@@ -156,24 +163,24 @@ std::size_t Tree::createDecisionNodeRecursive(
         std::size_t nextNodeIndex = createNodeRecursive(rules, newState, rangeSizes, actionHistory, nodeIndexMap);
         actionHistory.pop_back();
 
-        nextNodeIndices.push_back(nextNodeIndex);
+        nextNodeIndices.pushBack(nextNodeIndex);
     }
     assert(nextNodeIndices.size() == validActions.size());
 
     // Fill in current node information
     DecisionNode decisionNode = {
         .trainingDataOffset = trainingDataLength,
-        .actionsOffset = allActions.size(),
+        .decisionDataOffset = allDecisions.size(),
         .numTrainingDataSets = rangeSizes[getPlayerID(state.playerToAct)],
-        .numActions = static_cast<std::uint8_t>(validActions.size()),
+        .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
         .player = state.playerToAct
     };
 
     // Update tree information
-    std::uint32_t nodeTrainingDataLength = static_cast<uint32_t>(decisionNode.numTrainingDataSets) * decisionNode.numActions;
+    std::uint32_t nodeTrainingDataLength = static_cast<uint32_t>(decisionNode.numTrainingDataSets) * decisionNode.decisionDataSize;
     trainingDataLength += nodeTrainingDataLength;
-    allActions.insert(allActions.end(), validActions.begin(), validActions.end());
-    allNextNodeIndices.insert(allNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
+    allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
+    allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
 
     allNodes.emplace_back(decisionNode);
     return allNodes.size() - 1;

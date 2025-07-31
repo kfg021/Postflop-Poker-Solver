@@ -2,6 +2,7 @@
 #define GAME_RULES_HPP
 
 #include "game/game_types.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <cstdint>
 #include <string>
@@ -15,9 +16,8 @@ public:
     virtual GameState getInitialGameState() const = 0;
     virtual NodeType getNodeType(const GameState& state) const = 0;
     virtual ActionType getActionType(ActionID actionID) const = 0;
-    virtual std::vector<ActionID> getValidActions(const GameState& state) const = 0;
+    virtual FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const = 0;
     virtual GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const = 0;
-    virtual CardID getCardCorrespondingToChance(ActionID actionID) const = 0;
 
     // Functions for the CFR algorithm
     virtual std::vector<InitialSetup> getInitialSetups() const = 0;

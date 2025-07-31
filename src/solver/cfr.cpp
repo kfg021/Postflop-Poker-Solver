@@ -23,12 +23,12 @@ float cfrChance(
     CardSet availableCards = rules.getDeck() & ~(playerHands[0] | playerHands[1] | chanceNode.board);
 
     float player0ExpectedValueSum = 0.0f;
-    for (int i = 0; i < chanceNode.numActions; ++i) {
-        ActionID actionID = tree.allActions[chanceNode.actionsOffset + i];
-        std::size_t nextNodeIndex = tree.allNextNodeIndices[chanceNode.actionsOffset + i];
+    for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
+        CardID nextCard = tree.allChanceCards[chanceNode.chanceDataOffset + i];
+        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        if (setContainsCard(availableCards, rules.getCardCorrespondingToChance(actionID))) {
+        if (setContainsCard(availableCards, nextCard)) {
             player0ExpectedValueSum += cfr(rules, playerHands, playerWeights, tree.allNodes[nextNodeIndex], tree);
         }
     }
@@ -45,22 +45,23 @@ float cfrDecision(
 ) {
     auto getTrainingDataIndex = [&decisionNode](std::uint16_t trainingDataSet, std::uint8_t actionIndex) -> std::size_t {
         assert(trainingDataSet < decisionNode.numTrainingDataSets);
-        return decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.numActions) + actionIndex;
+        return decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize) + actionIndex;
     };
 
     auto calculateCurrentStrategy = [&decisionNode, &tree, &getTrainingDataIndex](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
         float totalPositiveRegret = 0.0f;
-        for (int i = 0; i < decisionNode.numActions; ++i) {
+        for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
             float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
             if (regretSum > 0.0f) {
                 totalPositiveRegret += regretSum;
             }
         }
 
-        assert(decisionNode.numActions > 0);
-        FixedVector<float, MaxNumActions> currentStrategy(decisionNode.numActions, 1.0f / decisionNode.numActions);
+        std::uint8_t numActions = decisionNode.decisionDataSize;
+        assert(numActions > 0);
+        FixedVector<float, MaxNumActions> currentStrategy(numActions, 1.0f / numActions);
         if (totalPositiveRegret > 0.0f) {
-            for (int i = 0; i < decisionNode.numActions; ++i) {
+            for (int i = 0; i < numActions; ++i) {
                 float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
                 if (regretSum > 0.0f) {
                     currentStrategy[i] = regretSum / totalPositiveRegret;
@@ -77,14 +78,15 @@ float cfrDecision(
     const CardSet& currentPlayerHand = playerHands[getPlayerID(decisionNode.player)];
     std::uint16_t trainingDataSet = rules.mapHandToIndex(decisionNode.player, currentPlayerHand);
     FixedVector<float, MaxNumActions> currentPlayerStrategy = calculateCurrentStrategy(trainingDataSet);
+    std::uint8_t numActions = decisionNode.decisionDataSize;
 
     float currentPlayerExpectedValue = 0.0f;
-    FixedVector<float, MaxNumActions> currentPlayerActionUtility(decisionNode.numActions, 0.0f);
-    for (int i = 0; i < decisionNode.numActions; ++i) {
+    FixedVector<float, MaxNumActions> currentPlayerActionUtility(numActions, 0.0f);
+    for (int i = 0; i < numActions; ++i) {
         std::array<float, 2> newPlayerWeights = playerWeights;
         newPlayerWeights[getPlayerID(decisionNode.player)] *= currentPlayerStrategy[i];
 
-        std::size_t nextNodeIndex = tree.allNextNodeIndices[decisionNode.actionsOffset + i];
+        std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
         float player0ExpectedValue = cfr(rules, playerHands, newPlayerWeights, tree.allNodes[nextNodeIndex], tree);
@@ -92,7 +94,7 @@ float cfrDecision(
         currentPlayerExpectedValue += currentPlayerActionUtility[i] * currentPlayerStrategy[i];
     }
 
-    for (int i = 0; i < decisionNode.numActions; ++i) {
+    for (int i = 0; i < numActions; ++i) {
         float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
         std::size_t trainingIndex = getTrainingDataIndex(trainingDataSet, i);
         tree.allRegretSums[trainingIndex] += playerWeights[getOpposingPlayerID(decisionNode.player)] * regret;
