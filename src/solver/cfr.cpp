@@ -44,15 +44,16 @@ float cfrDecision(
     Tree& tree
 ) {
     auto calculateCurrentStrategy = [&decisionNode, &tree](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
+        std::uint8_t numActions = decisionNode.decisionDataSize;
+        
         float totalPositiveRegret = 0.0f;
-        for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
+        for (int i = 0; i < numActions; ++i) {
             float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
             if (regretSum > 0.0f) {
                 totalPositiveRegret += regretSum;
             }
         }
 
-        std::uint8_t numActions = decisionNode.decisionDataSize;
         assert(numActions > 0);
         FixedVector<float, MaxNumActions> currentStrategy(numActions, 1.0f / numActions);
         if (totalPositiveRegret > 0.0f) {
