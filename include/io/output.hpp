@@ -1,17 +1,11 @@
 #ifndef OUTPUT_HPP
 #define OUTPUT_HPP
 
-#include <cstddef>
-#include <ostream>
+#include "game/game_rules.hpp"
+#include "solver/tree.hpp"
+
 #include <string>
 
-struct DataSize {
-    float value;
-    std::string units;
-
-    friend std::ostream& operator<<(std::ostream& os, const DataSize& size);
-};
-
-DataSize getSizeString(std::size_t bytes);
+void outputStrategyToJSON(const IGameRules& rules, const Tree& tree, const std::string& filePath);
 
 #endif // OUTPUT_HPP

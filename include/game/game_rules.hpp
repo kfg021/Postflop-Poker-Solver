@@ -27,6 +27,7 @@ public:
 
     // Utility functions
     virtual std::string getActionName(ActionID actionID) const = 0;
+    virtual std::string getHandName(std::uint16_t handIndex) const = 0;
 };
 
 #endif // GAME_RULES_HPP

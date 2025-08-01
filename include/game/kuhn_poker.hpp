@@ -22,6 +22,7 @@ public:
     CardSet getDeck() const override;
     std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
     std::string getActionName(ActionID actionID) const override;
+    std::string getHandName(std::uint16_t handIndex) const override;
 };
 
 #endif // KUHN_POKER_HPP

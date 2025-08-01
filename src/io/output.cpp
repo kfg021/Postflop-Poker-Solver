@@ -1,29 +1,96 @@
 #include "io/output.hpp"
 
-#include <cstddef>
-#include <iomanip>
-#include <ostream>
+#include "game/game_rules.hpp"
+#include "game/game_types.hpp"
+#include "game/game_utils.hpp"
+#include "solver/tree.hpp"
 
-std::ostream& operator<<(std::ostream& os, const DataSize& size) {
-    os << std::fixed << std::setprecision(2) << size.value << ' ' << size.units;
-    return os;
+#include <nlohmann/json.hpp>
+
+#include <cassert>
+#include <cstdint>
+#include <fstream>
+#include <iostream>
+#include <string>
+
+using json = nlohmann::ordered_json;
+
+json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree);
+
+json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, const Tree& tree) {
+    json j;
+    j["Node Type"] = "Chance";
+    // TODO: Finish chance nodes
+    return j;
 }
 
-DataSize getSizeString(std::size_t bytes) {
-    static constexpr std::size_t GB = (1 << 30);
-    static constexpr std::size_t MB = (1 << 20);
-    static constexpr std::size_t KB = (1 << 10);
+json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
+    json j;
+    j["Node Type"] = "Decision";
+    j["Player"] = getPlayerID(decisionNode.player);
 
-    if (bytes >= GB) {
-        return { static_cast<float>(bytes) / GB, "GB" };
+    j["Valid Actions"] = {};
+    for(int i = 0; i < decisionNode.decisionDataSize; ++i) {
+        ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + i];
+        j["Valid Actions"].push_back(rules.getActionName(actionID));
     }
-    else if (bytes >= MB) {
-        return { static_cast<float>(bytes) / MB, "MB" };
+
+    auto& strategy = j["Strategy"];
+    for (int i = 0; i < decisionNode.numTrainingDataSets; ++i) {
+        auto averageStrategy = getAverageStrategy(decisionNode, tree, i);
+        for (int j = 0; j < decisionNode.decisionDataSize; ++j) {
+            ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + j];    
+            strategy[rules.getHandName(i)][rules.getActionName(actionID)] = averageStrategy[j];
+        }
     }
-    else if (bytes >= KB) {
-        return { static_cast<float>(bytes) / KB, "KB" };
+
+
+    auto& children = j["Children"];
+    for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
+        ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + i];
+        std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
+        assert(nextNodeIndex < tree.allNodes.size());
+        children[rules.getActionName(actionID)] = buildJSON(rules, tree.allNodes[nextNodeIndex], tree);
     }
-    else {
-        return { static_cast<float>(bytes), "bytes" };
+
+    return j;
+}
+
+json buildJSONFold(const FoldNode& foldNode) {
+    json j;
+    j["Node Type"] = "Fold";
+    j["Winning Player"] = getPlayerID(foldNode.remainingPlayer);
+    j["Reward"] = foldNode.remainingPlayerReward;
+    return j;
+}
+
+json buildJSONShowdown(const ShowdownNode& showdownNode) {
+    json j;
+    j["Node Type"] = "Showdown";
+    j["Reward"] = showdownNode.reward;
+    return j;
+}
+
+json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree) {
+    switch (node.nodeType) {
+        case NodeType::Chance:
+            return buildJSONChance(rules, node.chanceNode, tree);
+        case NodeType::Decision:
+            return buildJSONDecision(rules, node.decisionNode, tree);
+        case NodeType::Fold:
+            return buildJSONFold(node.foldNode);
+        case NodeType::Showdown:
+            return buildJSONShowdown(node.showdownNode);
+        default:
+            assert(false);
+            return json{};
     }
+}
+
+void outputStrategyToJSON(const IGameRules& rules, const Tree& tree, const std::string& filePath) {
+    std::ofstream file(filePath);
+    assert(file.is_open());
+
+    json j = buildJSON(rules, tree.getRootNode(), tree);
+    file << j.dump(4) << std::endl;
 }

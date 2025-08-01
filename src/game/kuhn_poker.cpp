@@ -171,3 +171,9 @@ std::string KuhnPoker::getActionName(ActionID actionID) const {
             return "???";
     }
 }
+
+std::string KuhnPoker::getHandName(std::uint16_t handIndex) const {
+    static const std::array<std::string, 3> HandNames = { "Jack", "Queen", "King" };
+    assert(handIndex < 3);
+    return HandNames[handIndex];
+}

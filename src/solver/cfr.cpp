@@ -43,15 +43,10 @@ float cfrDecision(
     const DecisionNode& decisionNode,
     Tree& tree
 ) {
-    auto getTrainingDataIndex = [&decisionNode](std::uint16_t trainingDataSet, std::uint8_t actionIndex) -> std::size_t {
-        assert(trainingDataSet < decisionNode.numTrainingDataSets);
-        return decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize) + actionIndex;
-    };
-
-    auto calculateCurrentStrategy = [&decisionNode, &tree, &getTrainingDataIndex](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
+    auto calculateCurrentStrategy = [&decisionNode, &tree](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
         float totalPositiveRegret = 0.0f;
         for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
-            float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
+            float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
             if (regretSum > 0.0f) {
                 totalPositiveRegret += regretSum;
             }
@@ -62,7 +57,7 @@ float cfrDecision(
         FixedVector<float, MaxNumActions> currentStrategy(numActions, 1.0f / numActions);
         if (totalPositiveRegret > 0.0f) {
             for (int i = 0; i < numActions; ++i) {
-                float regretSum = tree.allRegretSums[getTrainingDataIndex(trainingDataSet, i)];
+                float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
                 if (regretSum > 0.0f) {
                     currentStrategy[i] = regretSum / totalPositiveRegret;
                 }
@@ -96,7 +91,7 @@ float cfrDecision(
 
     for (int i = 0; i < numActions; ++i) {
         float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
-        std::size_t trainingIndex = getTrainingDataIndex(trainingDataSet, i);
+        std::size_t trainingIndex = getTrainingDataIndex(decisionNode, trainingDataSet, i);
         tree.allRegretSums[trainingIndex] += playerWeights[getOpposingPlayerID(decisionNode.player)] * regret;
         tree.allStrategySums[trainingIndex] += playerWeights[getPlayerID(decisionNode.player)] * currentPlayerStrategy[i];
 

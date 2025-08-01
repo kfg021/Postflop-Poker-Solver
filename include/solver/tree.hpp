@@ -4,6 +4,7 @@
 #include "game/game_types.hpp"
 #include "game/game_rules.hpp"
 #include "solver/node.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <array>
 #include <cstddef>
@@ -39,17 +40,17 @@ public:
     std::size_t trainingDataLength;
 
 private:
-    std::size_t createNodeRecursive(
+    std::size_t createNode(
         const IGameRules& rules,
         const GameState& state,
         const std::array<std::uint16_t, 2>& rangeSizes
     );
-    std::size_t createChanceNodeRecursive(
+    std::size_t createChanceNode(
         const IGameRules& rules,
         const GameState& state,
         const std::array<std::uint16_t, 2>& rangeSizes
     );
-    std::size_t createDecisionNodeRecursive(
+    std::size_t createDecisionNode(
         const IGameRules& rules,
         const GameState& state,
         const std::array<std::uint16_t, 2>& rangeSizes
@@ -57,5 +58,8 @@ private:
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
 };
+
+std::size_t getTrainingDataIndex(const DecisionNode& decisionNode, std::uint16_t trainingDataSet, std::uint8_t actionIndex);
+FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree, std::uint16_t trainingDataSet);
 
 #endif // TREE_HPP

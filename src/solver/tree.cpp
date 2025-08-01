@@ -3,6 +3,7 @@
 #include "game/game_types.hpp"
 #include "game/game_rules.hpp"
 #include "game/game_utils.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <array>
 #include <cassert>
@@ -19,7 +20,7 @@ bool Tree::isFullTreeBuilt() const {
 }
 
 void Tree::buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes) {
-    std::size_t root = createNodeRecursive(rules, rules.getInitialGameState(), rangeSizes);
+    std::size_t root = createNode(rules, rules.getInitialGameState(), rangeSizes);
     assert(root == allNodes.size() - 1);
 
     // Free unnecessary memory - vectors are done growing
@@ -44,7 +45,7 @@ std::size_t Tree::estimateFullTreeSize() const {
     return getTreeSkeletonSize() + trainingDataHeapSize;
 }
 
-std::size_t Tree::createNodeRecursive(
+std::size_t Tree::createNode(
     const IGameRules& rules,
     const GameState& state,
     const std::array<std::uint16_t, 2>& rangeSizes
@@ -52,10 +53,10 @@ std::size_t Tree::createNodeRecursive(
     std::size_t nodeIndex;
     switch (rules.getNodeType(state)) {
         case NodeType::Chance:
-            nodeIndex = createChanceNodeRecursive(rules, state, rangeSizes);
+            nodeIndex = createChanceNode(rules, state, rangeSizes);
             break;
         case NodeType::Decision:
-            nodeIndex = createDecisionNodeRecursive(rules, state, rangeSizes);
+            nodeIndex = createDecisionNode(rules, state, rangeSizes);
             break;
         case NodeType::Fold:
             nodeIndex = createFoldNode(state);
@@ -72,7 +73,7 @@ std::size_t Tree::createNodeRecursive(
     return nodeIndex;
 }
 
-std::size_t Tree::createChanceNodeRecursive(
+std::size_t Tree::createChanceNode(
     const IGameRules& rules,
     const GameState& state,
     const std::array<std::uint16_t, 2>& rangeSizes
@@ -100,7 +101,7 @@ std::size_t Tree::createChanceNodeRecursive(
             };
 
             nextCards.pushBack(cardID);
-            nextNodeIndices.pushBack(createNodeRecursive(rules, newState, rangeSizes));
+            nextNodeIndices.pushBack(createNode(rules, newState, rangeSizes));
         }
     }
     assert(nextCards.size() == nextNodeIndices.size());
@@ -120,7 +121,7 @@ std::size_t Tree::createChanceNodeRecursive(
     return allNodes.size() - 1;
 }
 
-std::size_t Tree::createDecisionNodeRecursive(
+std::size_t Tree::createDecisionNode(
     const IGameRules& rules,
     const GameState& state,
     const std::array<std::uint16_t, 2>& rangeSizes
@@ -132,7 +133,7 @@ std::size_t Tree::createDecisionNodeRecursive(
         assert(rules.getActionType(actionID) == ActionType::Decision);
 
         GameState newState = rules.getNewStateAfterDecision(state, actionID);
-        nextNodeIndices.pushBack(createNodeRecursive(rules, newState, rangeSizes));
+        nextNodeIndices.pushBack(createNode(rules, newState, rangeSizes));
     }
     assert(nextNodeIndices.size() == validActions.size());
 
@@ -199,4 +200,25 @@ void Tree::buildFullTree() {
 Node Tree::getRootNode() const {
     assert(isTreeSkeletonBuilt() && isFullTreeBuilt());
     return allNodes.back();
+}
+
+std::size_t getTrainingDataIndex(const DecisionNode& decisionNode, std::uint16_t trainingDataSet, std::uint8_t actionIndex) {
+    assert(trainingDataSet < decisionNode.numTrainingDataSets);
+    return decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize) + actionIndex;
+}
+
+FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree, std::uint16_t trainingDataSet) {
+    std::uint8_t numActions = decisionNode.decisionDataSize;
+    float total = 0.0f;
+    for (int i = 0; i < numActions; ++i) {
+        total += tree.allStrategySums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
+    }
+    assert(total != 0.0f);
+
+    FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
+    for (int i = 0; i < numActions; ++i) {
+        averageStrategy[i] = tree.allStrategySums[getTrainingDataIndex(decisionNode, trainingDataSet, i)] / total;
+    }
+
+    return averageStrategy;
 }

@@ -2,9 +2,10 @@
 
 #include "game/game_types.hpp"
 #include "game/kuhn_poker.hpp"
+#include "io/output.hpp"
 #include "solver/cfr.hpp"
 #include "solver/tree.hpp"
-#include "io/output.hpp"
+#include "util/size_string.hpp"
 
 #include <cassert>
 #include <iomanip>
@@ -17,21 +18,21 @@ void trainKuhnPoker(int iterations) {
     KuhnPoker kuhnPokerRules;
     Tree tree;
 
-    // std::cout << "Building tree...\n" << std::flush;
+    std::cout << "Building tree...\n" << std::flush;
 
     static constexpr std::array<std::uint16_t, 2> RangeSizes = { 3, 3 }; // Jack, Queen, or King is possible for each player
     tree.buildTreeSkeleton(kuhnPokerRules, RangeSizes);
 
-    // std::cout << "Finished building tree.\n";
-    // std::cout << "Number of nodes: " << tree.allNodes.size() << "\n";
-    // std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
-    // std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n" << std::flush;
+    std::cout << "Finished building tree.\n";
+    std::cout << "Number of nodes: " << tree.allNodes.size() << "\n";
+    std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
+    std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n" << std::flush;
 
-    // std::cout << "Initializing tree...\n" << std::flush;
+    std::cout << "Initializing tree...\n" << std::flush;
     tree.buildFullTree();
-    // std::cout << "Finished initializing tree.\n\n" << std::flush;
+    std::cout << "Finished initializing tree.\n\n" << std::flush;
 
-    // std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
+    std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
     std::vector<InitialSetup> initialSetups = kuhnPokerRules.getInitialSetups();
 
     float player0ExpectedValueSum = 0.0f;
@@ -42,9 +43,8 @@ void trainKuhnPoker(int iterations) {
         }
     }
 
-    // std::cout << "Finished training.\n";
+    std::cout << "Finished training.\n";
     std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValueSum / iterations << "\n\n";
 
-    //     std::cout << "Strategies:\n\n";
-    //     printStrategy(tree, kuhnPokerGame);
+    outputStrategyToJSON(kuhnPokerRules, tree, "output.json");
 }
