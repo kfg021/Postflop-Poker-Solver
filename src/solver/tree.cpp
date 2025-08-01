@@ -8,8 +8,6 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <string_view>
-#include <unordered_map>
 #include <vector>
 
 bool Tree::isTreeSkeletonBuilt() const {
@@ -21,9 +19,7 @@ bool Tree::isFullTreeBuilt() const {
 }
 
 void Tree::buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes) {
-    std::vector<ActionID> actionHistory;
-    std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash> nodeIndexMap;
-    std::size_t root = createNodeRecursive(rules, rules.getInitialGameState(), rangeSizes, actionHistory, nodeIndexMap);
+    std::size_t root = createNodeRecursive(rules, rules.getInitialGameState(), rangeSizes);
     assert(root == allNodes.size() - 1);
 
     // Free unnecessary memory - vectors are done growing
@@ -48,29 +44,18 @@ std::size_t Tree::estimateFullTreeSize() const {
     return getTreeSkeletonSize() + trainingDataHeapSize;
 }
 
-std::size_t Tree::ActionHistoryHash::operator()(const std::vector<ActionID>& actionHistory) const {
-    // Hash by treating vector as a string view
-    return std::hash<std::string_view>{}(std::string_view(reinterpret_cast<const char*>(actionHistory.data()), actionHistory.size()));
-}
-
 std::size_t Tree::createNodeRecursive(
     const IGameRules& rules,
     const GameState& state,
-    const std::array<std::uint16_t, 2>& rangeSizes,
-    std::vector<ActionID>& actionHistory,
-    std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
+    const std::array<std::uint16_t, 2>& rangeSizes
 ) {
-    if (auto it = nodeIndexMap.find(actionHistory); it != nodeIndexMap.end()) {
-        return it->second;
-    }
-
     std::size_t nodeIndex;
     switch (rules.getNodeType(state)) {
         case NodeType::Chance:
-            nodeIndex = createChanceNodeRecursive(rules, state, rangeSizes, actionHistory, nodeIndexMap);
+            nodeIndex = createChanceNodeRecursive(rules, state, rangeSizes);
             break;
         case NodeType::Decision:
-            nodeIndex = createDecisionNodeRecursive(rules, state, rangeSizes, actionHistory, nodeIndexMap);
+            nodeIndex = createDecisionNodeRecursive(rules, state, rangeSizes);
             break;
         case NodeType::Fold:
             nodeIndex = createFoldNode(state);
@@ -84,17 +69,13 @@ std::size_t Tree::createNodeRecursive(
             break;
     }
 
-    assert(nodeIndexMap.find(actionHistory) == nodeIndexMap.end());
-    nodeIndexMap.emplace(actionHistory, nodeIndex);
     return nodeIndex;
 }
 
 std::size_t Tree::createChanceNodeRecursive(
     const IGameRules& rules,
     const GameState& state,
-    const std::array<std::uint16_t, 2>& rangeSizes,
-    std::vector<ActionID>& actionHistory,
-    std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
+    const std::array<std::uint16_t, 2>& rangeSizes
 ) {
     // Recurse to child nodes
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
@@ -107,7 +88,7 @@ std::size_t Tree::createChanceNodeRecursive(
     for (CardID cardID = 0; cardID < StandardDeckSize; ++cardID) {
         if (!setContainsCard(state.currentBoard, cardID)) {
             CardSet newBoard = state.currentBoard | cardIDToSet(cardID);
-            
+
             GameState newState = {
                 .currentBoard = newBoard,
                 .playerTotalWagers = state.playerTotalWagers,
@@ -118,13 +99,8 @@ std::size_t Tree::createChanceNodeRecursive(
                 .isStartOfStreet = true,
             };
 
-            // TODO: Also need a fixed vector of chance cards for hashing
-            actionHistory.push_back(validActions[0]);
-            std::size_t nextNodeIndex = createNodeRecursive(rules, newState, rangeSizes, actionHistory, nodeIndexMap);
-            actionHistory.pop_back();
-
             nextCards.pushBack(cardID);
-            nextNodeIndices.pushBack(nextNodeIndex);
+            nextNodeIndices.pushBack(createNodeRecursive(rules, newState, rangeSizes));
         }
     }
     assert(nextCards.size() == nextNodeIndices.size());
@@ -147,9 +123,7 @@ std::size_t Tree::createChanceNodeRecursive(
 std::size_t Tree::createDecisionNodeRecursive(
     const IGameRules& rules,
     const GameState& state,
-    const std::array<std::uint16_t, 2>& rangeSizes,
-    std::vector<ActionID>& actionHistory,
-    std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
+    const std::array<std::uint16_t, 2>& rangeSizes
 ) {
     // Recurse to child nodes
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
@@ -158,12 +132,7 @@ std::size_t Tree::createDecisionNodeRecursive(
         assert(rules.getActionType(actionID) == ActionType::Decision);
 
         GameState newState = rules.getNewStateAfterDecision(state, actionID);
-
-        actionHistory.push_back(actionID);
-        std::size_t nextNodeIndex = createNodeRecursive(rules, newState, rangeSizes, actionHistory, nodeIndexMap);
-        actionHistory.pop_back();
-
-        nextNodeIndices.pushBack(nextNodeIndex);
+        nextNodeIndices.pushBack(createNodeRecursive(rules, newState, rangeSizes));
     }
     assert(nextNodeIndices.size() == validActions.size());
 

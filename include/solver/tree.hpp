@@ -8,7 +8,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <unordered_map>
 #include <vector>
 
 class Tree {
@@ -40,30 +39,20 @@ public:
     std::size_t trainingDataLength;
 
 private:
-    struct ActionHistoryHash {
-        std::size_t operator()(const std::vector<ActionID>& actionHistory) const;
-    };
-
     std::size_t createNodeRecursive(
         const IGameRules& rules,
         const GameState& state,
-        const std::array<std::uint16_t, 2>& rangeSizes,
-        std::vector<ActionID>& actionHistory,
-        std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
+        const std::array<std::uint16_t, 2>& rangeSizes
     );
     std::size_t createChanceNodeRecursive(
         const IGameRules& rules,
         const GameState& state,
-        const std::array<std::uint16_t, 2>& rangeSizes,
-        std::vector<ActionID>& actionHistory,
-        std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
+        const std::array<std::uint16_t, 2>& rangeSizes
     );
     std::size_t createDecisionNodeRecursive(
         const IGameRules& rules,
         const GameState& state,
-        const std::array<std::uint16_t, 2>& rangeSizes,
-        std::vector<ActionID>& actionHistory,
-        std::unordered_map<std::vector<ActionID>, std::size_t, ActionHistoryHash>& nodeIndexMap
+        const std::array<std::uint16_t, 2>& rangeSizes
     );
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
