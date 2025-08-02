@@ -25,7 +25,7 @@ public:
     virtual std::uint16_t mapHandToIndex(Player player, CardSet hand) const = 0;
     virtual ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const = 0;
 
-    // Utility functions
+    // Functions for output
     virtual std::string getActionName(ActionID actionID) const = 0;
     virtual std::string getHandName(std::uint16_t handIndex) const = 0;
 };

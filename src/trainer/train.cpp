@@ -40,7 +40,7 @@ void train(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSiz
             float cfrResult = cfr(rules, setup.playerHands, setup.playerWeights, tree.getRootNode(), tree);
             player0ExpectedValueSum += setup.matchupProbability * cfrResult;
         }
-        
+
         if ((i % 1000) == 0) std::cout << "Finished iteration " << i << "\n";
     }
 

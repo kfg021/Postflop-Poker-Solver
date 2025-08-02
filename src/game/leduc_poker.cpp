@@ -204,7 +204,7 @@ ShowdownResult LeducPoker::getShowdownResult(const std::array<CardSet, 2>& playe
         return ShowdownResult::P0Win;
     }
     else if (player1CardValue == boardCardValue) {
-        // Player 1 has a pair
+        // Pair - P1 wins
         return ShowdownResult::P1Win;
     }
     else if (player0CardValue > player1CardValue) {

@@ -25,11 +25,11 @@ json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, cons
     // auto& nextCards = j["NextCards"];
     // auto& children = j["Children"];
     // for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
-        
+
     //     CardID cardID = tree.allChanceCards[chanceNode.chanceDataOffset + i];
     //     std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
     //     assert(nextNodeIndex < tree.allNodes.size());
-        
+
     //     // TODO: Print name of card not ID
     //     std::string cardIDString = std::to_string(cardID);
     //     nextCards.push_back(cardIDString);
