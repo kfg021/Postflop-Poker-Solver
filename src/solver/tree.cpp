@@ -33,7 +33,7 @@ void Tree::buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint
 
 std::size_t Tree::getNumberOfDecisionNodes() const {
     assert(isTreeSkeletonBuilt());
-    return numDecisionNodes;
+    return m_numDecisionNodes;
 }
 
 std::size_t Tree::getTreeSkeletonSize() const {
@@ -46,7 +46,7 @@ std::size_t Tree::getTreeSkeletonSize() const {
 
 std::size_t Tree::estimateFullTreeSize() const {
     // allStrategySums and allRegretSums will each have length of trainingDataLength
-    std::size_t trainingDataHeapSize = (trainingDataLength * 2) * sizeof(float);
+    std::size_t trainingDataHeapSize = (m_trainingDataLength * 2) * sizeof(float);
     return getTreeSkeletonSize() + trainingDataHeapSize;
 }
 
@@ -146,7 +146,7 @@ std::size_t Tree::createDecisionNode(
 
     // Fill in current node information
     DecisionNode decisionNode = {
-        .trainingDataOffset = trainingDataLength,
+        .trainingDataOffset = m_trainingDataLength,
         .decisionDataOffset = allDecisions.size(),
         .numTrainingDataSets = rangeSizes[getPlayerID(state.playerToAct)],
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
@@ -155,11 +155,11 @@ std::size_t Tree::createDecisionNode(
 
     // Update tree information
     std::size_t nodeTrainingDataLength = static_cast<std::size_t>(decisionNode.numTrainingDataSets) * decisionNode.decisionDataSize;
-    trainingDataLength += nodeTrainingDataLength;
+    m_trainingDataLength += nodeTrainingDataLength;
     allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
     allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
     assert(allDecisions.size() == allDecisionNextNodeIndices.size());
-    ++numDecisionNodes;
+    ++m_numDecisionNodes;
 
     allNodes.emplace_back(decisionNode);
     return allNodes.size() - 1;
@@ -199,10 +199,10 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
 void Tree::buildFullTree() {
     assert(isTreeSkeletonBuilt() && !isFullTreeBuilt());
 
-    allStrategySums.assign(trainingDataLength, 0.0f);
+    allStrategySums.assign(m_trainingDataLength, 0.0f);
     allStrategySums.shrink_to_fit();
 
-    allRegretSums.assign(trainingDataLength, 0.0f);
+    allRegretSums.assign(m_trainingDataLength, 0.0f);
     allRegretSums.shrink_to_fit();
 }
 

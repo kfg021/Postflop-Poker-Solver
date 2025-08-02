@@ -13,7 +13,7 @@
 
 class Tree {
 public:
-    Tree() : trainingDataLength{ 0 }, numDecisionNodes{ 0 } {}
+    Tree() : m_trainingDataLength{ 0 }, m_numDecisionNodes{ 0 } {}
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
@@ -38,8 +38,6 @@ public:
     std::vector<std::size_t> allDecisionNextNodeIndices;
     std::vector<float> allStrategySums;
     std::vector<float> allRegretSums;
-    std::size_t trainingDataLength;
-    std::size_t numDecisionNodes;
 
 private:
     std::size_t createNode(
@@ -59,6 +57,9 @@ private:
     );
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
+
+    std::size_t m_trainingDataLength;
+    std::size_t m_numDecisionNodes;
 };
 
 std::size_t getTrainingDataIndex(const DecisionNode& decisionNode, std::uint16_t trainingDataSet, std::uint8_t actionIndex);
