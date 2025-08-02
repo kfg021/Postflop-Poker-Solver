@@ -56,17 +56,15 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     for (int i = 0; i < decisionNode.numTrainingDataSets; ++i) {
         auto averageStrategy = getAverageStrategy(decisionNode, tree, i);
         for (int j = 0; j < decisionNode.decisionDataSize; ++j) {
-            ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + j];
-            strategy[rules.getHandName(i)][rules.getActionName(actionID)] = averageStrategy[j];
+            strategy[rules.getHandName(i)].push_back(averageStrategy[j]);
         }
     }
 
     auto& children = j["Children"];
     for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
-        ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + i];
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
-        children[rules.getActionName(actionID)] = buildJSON(rules, tree.allNodes[nextNodeIndex], tree);
+        children.push_back(buildJSON(rules, tree.allNodes[nextNodeIndex], tree));
     }
 
     return j;
