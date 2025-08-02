@@ -84,10 +84,11 @@ std::size_t Tree::createChanceNode(
     // There should only be one action and it should be a chance action
     assert(validActions.size() == 1 && rules.getActionType(validActions[0]) == ActionType::Chance);
 
+    CardSet availableCards = rules.getDeck() & ~state.currentBoard;
     FixedVector<CardID, MaxNumDealCards> nextCards;
     FixedVector<std::size_t, MaxNumDealCards> nextNodeIndices;
     for (CardID cardID = 0; cardID < StandardDeckSize; ++cardID) {
-        if (!setContainsCard(state.currentBoard, cardID)) {
+        if (setContainsCard(availableCards, cardID)) {
             CardSet newBoard = state.currentBoard | cardIDToSet(cardID);
 
             GameState newState = {
@@ -97,7 +98,7 @@ std::size_t Tree::createChanceNode(
                 .playerToAct = Player::P0, // Player 0 always starts a new betting round
                 .lastAction = validActions[0],
                 .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
-                .isStartOfStreet = true,
+                .numRaisesThisStreet = 0 // Reset raise counter
             };
 
             nextCards.pushBack(cardID);

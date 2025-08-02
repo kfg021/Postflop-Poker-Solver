@@ -12,9 +12,9 @@ using ActionID = std::uint8_t;
 using CardID = std::uint8_t;
 using CardSet = std::uint64_t;
 
-static constexpr std::uint8_t StandardDeckSize = nl_holdem::DeckSize;
-static constexpr std::uint8_t MaxNumDealCards = nl_holdem::MaxNumDealCards;
-static constexpr std::uint8_t MaxNumActions = nl_holdem::MaxNumActions;
+static constexpr int StandardDeckSize = nl_holdem::DeckSize;
+static constexpr int MaxNumDealCards = nl_holdem::MaxNumDealCards;
+static constexpr int MaxNumActions = nl_holdem::MaxNumActions;
 
 enum class Player : std::uint8_t {
     P0,
@@ -39,6 +39,29 @@ enum class ActionType : std::uint8_t {
     Decision
 };
 
+enum class Value: std::uint8_t {
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+    Ten,
+    Jack,
+    Queen,
+    King,
+    Ace
+};
+
+enum class Suit : std::uint8_t {
+    Clubs,
+    Diamonds,
+    Hearts,
+    Spades
+};
+
 // TODO: chop pots
 struct GameState {
     CardSet currentBoard;
@@ -47,7 +70,7 @@ struct GameState {
     Player playerToAct;
     ActionID lastAction;
     Street currentStreet;
-    bool isStartOfStreet;
+    std::uint8_t numRaisesThisStreet;
 };
 
 struct InitialSetup {

@@ -1,4 +1,4 @@
-#include "io/output.hpp"
+#include "trainer/output.hpp"
 
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
@@ -19,31 +19,43 @@ json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree);
 
 json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, const Tree& tree) {
     json j;
-    j["Node Type"] = "Chance";
-    // TODO: Finish chance nodes
+    j["NodeType"] = "Chance";
+
+    auto& nextCards = j["NextCards"];
+    auto& children = j["Children"];
+    for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
+        // TODO: Print name of card not ID
+        CardID cardID = tree.allChanceCards[chanceNode.chanceDataOffset + i];
+        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
+        assert(nextNodeIndex < tree.allNodes.size());
+        nextCards.push_back(static_cast<int>(cardID));
+        children[static_cast<int>(cardID)] = buildJSON(rules, tree.allNodes[nextNodeIndex], tree);
+    }
+
     return j;
 }
 
 json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
     json j;
-    j["Node Type"] = "Decision";
+    j["NodeType"] = "Decision";
     j["Player"] = getPlayerID(decisionNode.player);
 
-    j["Valid Actions"] = {};
-    for(int i = 0; i < decisionNode.decisionDataSize; ++i) {
+    auto& validActions = j["ValidActions"];
+    for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
         ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + i];
-        j["Valid Actions"].push_back(rules.getActionName(actionID));
+        assert(rules.getActionType(actionID) == ActionType::Decision);
+        validActions.push_back(rules.getActionName(actionID));
     }
 
+    // TODO: Don't print strategy for a hand when it is not possible given the board
     auto& strategy = j["Strategy"];
     for (int i = 0; i < decisionNode.numTrainingDataSets; ++i) {
         auto averageStrategy = getAverageStrategy(decisionNode, tree, i);
         for (int j = 0; j < decisionNode.decisionDataSize; ++j) {
-            ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + j];    
+            ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + j];
             strategy[rules.getHandName(i)][rules.getActionName(actionID)] = averageStrategy[j];
         }
     }
-
 
     auto& children = j["Children"];
     for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
@@ -58,15 +70,15 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
 
 json buildJSONFold(const FoldNode& foldNode) {
     json j;
-    j["Node Type"] = "Fold";
-    j["Winning Player"] = getPlayerID(foldNode.remainingPlayer);
+    j["NodeType"] = "Fold";
+    j["WinningPlayer"] = getPlayerID(foldNode.remainingPlayer);
     j["Reward"] = foldNode.remainingPlayerReward;
     return j;
 }
 
 json buildJSONShowdown(const ShowdownNode& showdownNode) {
     json j;
-    j["Node Type"] = "Showdown";
+    j["NodeType"] = "Showdown";
     j["Reward"] = showdownNode.reward;
     return j;
 }

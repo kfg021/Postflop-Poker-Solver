@@ -17,6 +17,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 add_library(postflop_solver_core STATIC
     src/game/game_utils.cpp
     src/game/kuhn_poker.cpp
+    src/game/leduc_poker.cpp
     src/solver/cfr.cpp
     src/solver/tree.cpp
 )
@@ -24,8 +25,8 @@ add_library(postflop_solver_core STATIC
 target_include_directories(postflop_solver_core PUBLIC include)
 
 add_executable(${PROJECT_NAME}
-    src/io/output.cpp
-    src/trainer/train_kuhn_poker.cpp
+    src/trainer/output.cpp
+    src/trainer/train.cpp
     src/util/size_string.cpp
     src/main.cpp
 )

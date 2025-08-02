@@ -138,7 +138,7 @@ float cfrShowdown(
                 }
             }
 
-            int numPossibleRunouts = std::popcount(availibleCardsForRunout);
+            int numPossibleRunouts = getSetSize(availibleCardsForRunout);
             return static_cast<float>(player0ExpectedValueSum) / numPossibleRunouts;
         }
 
@@ -158,7 +158,7 @@ float cfrShowdown(
                 }
             }
 
-            int numPossibleTurnCards = std::popcount(availibleCardsForRunout);
+            int numPossibleTurnCards = getSetSize(availibleCardsForRunout);
             int numPossibleRunouts = (numPossibleTurnCards * (numPossibleTurnCards - 1)) / 2;
             return static_cast<float>(player0ExpectedValueSum) / numPossibleRunouts;
         }

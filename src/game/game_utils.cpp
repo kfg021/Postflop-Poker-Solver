@@ -2,6 +2,7 @@
 
 #include "game/game_types.hpp"
 
+#include <bit>
 #include <cstdint>
 #include <string>
 
@@ -34,14 +35,39 @@ CardID getCardIDFromName(const std::string& cardName) {
     return cardID;
 }
 
+Value getCardValue(CardID cardID) {
+    assert(cardID < 52);
+    return static_cast<Value>(cardID / 4);
+}
+
+Suit getCardSuit(CardID cardID) {
+    assert(cardID < 52);
+    return static_cast<Suit>(cardID % 4);
+}
+
 CardSet cardIDToSet(CardID cardID) {
     assert(cardID < 52);
     return (1LL << cardID);
 }
 
+std::uint8_t getSetSize(CardSet cardSet) {
+    return std::popcount(cardSet);
+}
+
 bool setContainsCard(CardSet cardSet, CardID cardID) {
     assert(cardID < 52);
     return (cardSet >> cardID) & 1;
+}
+
+CardID getLowestCardInSet(CardSet cardSet) {
+    CardID lowestCard = static_cast<CardID>(std::countr_zero(cardSet));
+    assert(lowestCard < 52);
+    return lowestCard;
+}
+
+CardSet removeCardFromSet(CardSet cardSet, CardID cardID) {
+    assert(setContainsCard(cardSet, cardID));
+    return cardSet & ~cardIDToSet(cardID);
 }
 
 Street nextStreet(Street street) {

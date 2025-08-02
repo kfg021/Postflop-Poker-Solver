@@ -31,7 +31,7 @@ GameState KuhnPoker::getInitialGameState() const {
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
         .currentStreet = Street::River, // Since Kuhn poker has one street and no community cards, we begin action on the river 
-        .isStartOfStreet = true
+        .numRaisesThisStreet = 0
     };
     return InitialState;
 }
@@ -60,12 +60,12 @@ NodeType KuhnPoker::getNodeType(const GameState& state) const {
 
 ActionType KuhnPoker::getActionType(ActionID actionID) const {
     // Kuhn poker has no chance nodes
+    assert(static_cast<Action>(actionID) != Action::GameStart);
     return ActionType::Decision;
 }
 
 FixedVector<ActionID, MaxNumActions>  KuhnPoker::getValidActions(const GameState& state) const {
-    NodeType nodeType = getNodeType(state);
-    assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
+    assert(getNodeType(state) == NodeType::Decision);
 
     switch (static_cast<Action>(state.lastAction)) {
         case Action::GameStart:
@@ -95,7 +95,7 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
-        .isStartOfStreet = false
+        .numRaisesThisStreet = state.numRaisesThisStreet
     };
 
     switch (static_cast<Action>(actionID)) {
@@ -138,22 +138,37 @@ std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {
 }
 
 Player KuhnPoker::getShowdownWinner(const std::array<CardSet, 2>& playerHands, CardSet /*board*/) const {
-    return (playerHands[0] > playerHands[1]) ? Player::P0 : Player::P1;
+    assert(getSetSize(playerHands[0]) == 1);
+    assert(getSetSize(playerHands[1]) == 1);
+
+    Value player0CardValue = getCardValue(getLowestCardInSet(playerHands[0]));
+    Value player1CardValue = getCardValue(getLowestCardInSet(playerHands[1]));
+
+    return (player0CardValue > player1CardValue) ? Player::P0 : Player::P1;
 }
 
 CardSet KuhnPoker::getDeck() const {
-    return cardIDToSet(Deck[0]) | cardIDToSet(Deck[1]) | cardIDToSet(Deck[2]);
+    CardSet deckSet = 0;
+    for(CardID cardID : Deck) {
+        deckSet |= cardIDToSet(cardID);
+    }
+    return deckSet;
 }
 
 std::uint16_t KuhnPoker::mapHandToIndex(Player /*player*/, CardSet hand) const {
-    for (int i = 0; i < 3; ++i) {
-        if (hand == cardIDToSet(Deck[i])) {
-            return i;
-        }
-    }
+    assert(getSetSize(hand) == 1);
 
-    assert(false);
-    return 0;
+    switch (getCardValue(getLowestCardInSet(hand))) {
+        case Value::Jack:
+            return 0;
+        case Value::Queen:
+            return 1;
+        case Value::King:
+            return 2;
+        default:
+            assert(false);
+            return 0;
+    }
 }
 
 std::string KuhnPoker::getActionName(ActionID actionID) const {
