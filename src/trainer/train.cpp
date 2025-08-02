@@ -27,25 +27,27 @@ void train(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSiz
     std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
     std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n" << std::flush;
 
-    // std::cout << "Initializing tree...\n" << std::flush;
-    // tree.buildFullTree();
-    // std::cout << "Finished initializing tree.\n\n" << std::flush;
+    std::cout << "Initializing tree...\n" << std::flush;
+    tree.buildFullTree();
+    std::cout << "Finished initializing tree.\n\n" << std::flush;
 
-    // std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
-    // std::vector<InitialSetup> initialSetups = rules.getInitialSetups();
+    std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
+    std::vector<InitialSetup> initialSetups = rules.getInitialSetups();
 
-    // float player0ExpectedValueSum = 0.0f;
-    // for (int i = 0; i < iterations; ++i) {
-    //     for (const InitialSetup& setup : initialSetups) {
-    //         float cfrResult = cfr(rules, setup.playerHands, setup.playerWeights, tree.getRootNode(), tree);
-    //         player0ExpectedValueSum += setup.matchupProbability * cfrResult;
-    //     }
-    // }
+    float player0ExpectedValueSum = 0.0f;
+    for (int i = 0; i < iterations; ++i) {
+        for (const InitialSetup& setup : initialSetups) {
+            float cfrResult = cfr(rules, setup.playerHands, setup.playerWeights, tree.getRootNode(), tree);
+            player0ExpectedValueSum += setup.matchupProbability * cfrResult;
+        }
+        
+        if ((i % 1000) == 0) std::cout << "Finished iteration " << i << "\n";
+    }
 
-    // std::cout << "Finished training.\n";
-    // std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValueSum / iterations << "\n\n";
+    std::cout << "Finished training.\n";
+    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValueSum / iterations << "\n\n";
 
-    // std::cout << "Saving strategy to file...\n" << std::flush;
-    // outputStrategyToJSON(rules, tree, strategyOutputFile);
-    // std::cout << "Strategy saved to " << strategyOutputFile << ".\n" << std::flush;
+    std::cout << "Saving strategy to file...\n" << std::flush;
+    outputStrategyToJSON(rules, tree, strategyOutputFile);
+    std::cout << "Strategy saved to " << strategyOutputFile << ".\n" << std::flush;
 }

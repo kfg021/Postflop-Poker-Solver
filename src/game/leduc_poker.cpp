@@ -87,7 +87,7 @@ FixedVector<ActionID, MaxNumActions> LeducPoker::getValidActions(const GameState
     NodeType nodeType = getNodeType(state);
     assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
 
-    static constexpr int LeducPokerRaiseLimit = 2;
+    assert(state.numRaisesThisStreet <= 1);
 
     switch (static_cast<Action>(state.lastAction)) {
         case Action::GameStart:
@@ -121,19 +121,10 @@ FixedVector<ActionID, MaxNumActions> LeducPoker::getValidActions(const GameState
                 static_cast<ActionID>(Action::Raise)
             };
         case Action::Raise:
-            if (state.numRaisesThisStreet < LeducPokerRaiseLimit) {
-                return {
-                    static_cast<ActionID>(Action::Fold),
-                    static_cast<ActionID>(Action::Call),
-                    static_cast<ActionID>(Action::Raise)
-                };
-            }
-            else {
-                return {
-                    static_cast<ActionID>(Action::Fold),
-                    static_cast<ActionID>(Action::Call)
-                };
-            }
+            return {
+                static_cast<ActionID>(Action::Fold),
+                static_cast<ActionID>(Action::Call)
+            };
         default:
             assert(false);
             return {};
@@ -230,21 +221,19 @@ CardSet LeducPoker::getDeck() const {
     return deckSet;
 }
 
+// TODO: Isomorphism
 std::uint16_t LeducPoker::mapHandToIndex(Player /*player*/, CardSet hand) const {
     assert(getSetSize(hand) == 1);
 
-    // Hand isomorphism - Treat cards of the same value as the same hand
-    switch (getCardValue(getLowestCardInSet(hand))) {
-        case Value::Jack:
-            return 0;
-        case Value::Queen:
-            return 1;
-        case Value::King:
-            return 2;
-        default:
-            assert(false);
-            return 0;
+    CardID cardID = getLowestCardInSet(hand);
+    for (int i = 0; i < 6; ++i) {
+        if (cardID == Deck[i]) {
+            return i;
+        }
     }
+
+    assert(false);
+    return 0;
 }
 
 std::string LeducPoker::getActionName(ActionID actionID) const {
@@ -267,8 +256,9 @@ std::string LeducPoker::getActionName(ActionID actionID) const {
     }
 }
 
+// TODO: Isomorphism
 std::string LeducPoker::getHandName(std::uint16_t handIndex) const {
-    static const std::array<std::string, 3> HandNames = { "Jack", "Queen", "King" };
-    assert(handIndex < 3);
+    static const std::array<std::string, 6> HandNames = { "Jh", "Js", "Qh", "Qs", "Kh", "Ks" };
+    assert(handIndex < 6);
     return HandNames[handIndex];
 }

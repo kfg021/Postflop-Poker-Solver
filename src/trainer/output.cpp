@@ -21,16 +21,20 @@ json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, cons
     json j;
     j["NodeType"] = "Chance";
 
-    auto& nextCards = j["NextCards"];
-    auto& children = j["Children"];
-    for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
-        // TODO: Print name of card not ID
-        CardID cardID = tree.allChanceCards[chanceNode.chanceDataOffset + i];
-        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
-        assert(nextNodeIndex < tree.allNodes.size());
-        nextCards.push_back(static_cast<int>(cardID));
-        children[static_cast<int>(cardID)] = buildJSON(rules, tree.allNodes[nextNodeIndex], tree);
-    }
+    // TODO: Print chance nodes
+    // auto& nextCards = j["NextCards"];
+    // auto& children = j["Children"];
+    // for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
+        
+    //     CardID cardID = tree.allChanceCards[chanceNode.chanceDataOffset + i];
+    //     std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
+    //     assert(nextNodeIndex < tree.allNodes.size());
+        
+    //     // TODO: Print name of card not ID
+    //     std::string cardIDString = std::to_string(cardID);
+    //     nextCards.push_back(cardIDString);
+    //     children[cardIDString] = buildJSON(rules, tree.allNodes[nextNodeIndex], tree);
+    // }
 
     return j;
 }

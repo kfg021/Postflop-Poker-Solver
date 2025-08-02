@@ -33,7 +33,7 @@ float cfrChance(
         }
     }
 
-    return player0ExpectedValueSum / std::popcount(availableCards);
+    return player0ExpectedValueSum / getSetSize(availableCards);
 }
 
 float cfrDecision(

@@ -13,12 +13,12 @@ void trainKuhnPoker(int iterations, const std::string& strategyOutputFile) {
 
 void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
     LeducPoker leducPokerRules;
-    std::array<std::uint16_t, 2> RangeSizes = {3, 3}; // Jack, Queen, or King is possible for each player
+    std::array<std::uint16_t, 2> RangeSizes = {6, 6};
     train(leducPokerRules, RangeSizes, iterations, strategyOutputFile);
 }
 
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
-    trainLeducPoker(1, "leduc_strategy.json");
+    trainLeducPoker(10000, "leduc_strategy.json");
     return 0;
 }
