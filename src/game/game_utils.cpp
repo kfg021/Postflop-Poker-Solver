@@ -65,11 +65,6 @@ CardID getLowestCardInSet(CardSet cardSet) {
     return lowestCard;
 }
 
-CardSet removeCardFromSet(CardSet cardSet, CardID cardID) {
-    assert(setContainsCard(cardSet, cardID));
-    return cardSet & ~cardIDToSet(cardID);
-}
-
 Street nextStreet(Street street) {
     switch (street) {
         case Street::Flop:
