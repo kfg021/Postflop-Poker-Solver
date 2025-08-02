@@ -21,20 +21,18 @@ json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, cons
     json j;
     j["NodeType"] = "Chance";
 
-    // TODO: Print chance nodes
-    // auto& nextCards = j["NextCards"];
-    // auto& children = j["Children"];
-    // for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
+    auto& nextCards = j["NextCards"];
+    for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
+        CardID cardID = tree.allChanceCards[chanceNode.chanceDataOffset + i];
+        nextCards.push_back(getNameFromCardID(cardID));
+    }
 
-    //     CardID cardID = tree.allChanceCards[chanceNode.chanceDataOffset + i];
-    //     std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
-    //     assert(nextNodeIndex < tree.allNodes.size());
-
-    //     // TODO: Print name of card not ID
-    //     std::string cardIDString = std::to_string(cardID);
-    //     nextCards.push_back(cardIDString);
-    //     children[cardIDString] = buildJSON(rules, tree.allNodes[nextNodeIndex], tree);
-    // }
+    auto& children = j["Children"];
+    for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
+        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
+        assert(nextNodeIndex < tree.allNodes.size());
+        children.push_back(buildJSON(rules, tree.allNodes[nextNodeIndex], tree));
+    }
 
     return j;
 }
@@ -51,12 +49,17 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
         validActions.push_back(rules.getActionName(actionID));
     }
 
-    // TODO: Don't print strategy for a hand when it is not possible given the board
     auto& strategy = j["Strategy"];
     for (int i = 0; i < decisionNode.numTrainingDataSets; ++i) {
         auto averageStrategy = getAverageStrategy(decisionNode, tree, i);
-        for (int j = 0; j < decisionNode.decisionDataSize; ++j) {
-            strategy[rules.getHandName(i)].push_back(averageStrategy[j]);
+        CardSet hand = rules.mapIndexToHand(decisionNode.player, i);
+        std::string handName;
+        for (std::string cardName : getCardSetNames(hand)) {
+            handName += cardName;
+        }
+
+        for (float finalStrategy : averageStrategy) {
+            strategy[handName].push_back(finalStrategy);
         }
     }
 

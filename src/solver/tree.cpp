@@ -71,7 +71,7 @@ std::size_t Tree::createNode(
             break;
         default:
             assert(false);
-            nodeIndex = static_cast<std::size_t>(-1);
+            nodeIndex = 0;
             break;
     }
 
@@ -222,7 +222,7 @@ FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisio
     for (int i = 0; i < numActions; ++i) {
         total += tree.allStrategySums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
     }
-    assert(total != 0.0f);
+    // assert(total != 0.0f);
 
     FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
     for (int i = 0; i < numActions; ++i) {

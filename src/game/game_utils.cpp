@@ -2,9 +2,13 @@
 
 #include "game/game_types.hpp"
 
+#include <algorithm>
 #include <bit>
 #include <cstdint>
 #include <string>
+
+const std::string CardValueNames = "23456789TJQKA";
+const std::string CardSuitNames = "chds";
 
 Player getOpposingPlayer(Player player) {
     assert(player == Player::P0 || player == Player::P1);
@@ -23,16 +27,21 @@ std::uint8_t getOpposingPlayerID(Player player) {
 CardID getCardIDFromName(const std::string& cardName) {
     assert(cardName.size() == 2);
 
-    static const std::string CardValues = "23456789TJQKA";
-    std::size_t value = CardValues.find(cardName[0]);
+    std::size_t value = CardValueNames.find(cardName[0]);
     assert(value < 13);
 
-    static const std::string CardSuits = "chds";
-    std::size_t suit = CardSuits.find(cardName[1]);
+    std::size_t suit = CardSuitNames.find(cardName[1]);
     assert(suit < 4);
 
     CardID cardID = static_cast<std::uint8_t>((value * 4) + suit);
     return cardID;
+}
+
+std::string getNameFromCardID(CardID cardID) {
+    Value cardValue = getCardValue(cardID);
+    Suit cardSuit = getCardSuit(cardID);
+    std::string cardName = { CardValueNames[static_cast<int>(cardValue)], CardSuitNames[static_cast<int>(cardSuit)] };
+    return cardName;
 }
 
 Value getCardValue(CardID cardID) {
@@ -63,6 +72,19 @@ CardID getLowestCardInSet(CardSet cardSet) {
     CardID lowestCard = static_cast<CardID>(std::countr_zero(cardSet));
     assert(lowestCard < 52);
     return lowestCard;
+}
+
+std::vector<std::string> getCardSetNames(CardSet cardSet) {
+    std::vector<std::string> cardNames;
+    while (getSetSize(cardSet) > 0) {
+        CardID lowestCard = getLowestCardInSet(cardSet);
+        cardNames.push_back(getNameFromCardID(lowestCard));
+        cardSet &= ~cardIDToSet(lowestCard);
+    }
+
+    // Descending order
+    std::reverse(cardNames.begin(), cardNames.end());
+    return cardNames;
 }
 
 Street nextStreet(Street street) {

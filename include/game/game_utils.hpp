@@ -5,12 +5,14 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 Player getOpposingPlayer(Player player);
 std::uint8_t getPlayerID(Player player);
 std::uint8_t getOpposingPlayerID(Player player);
 
 CardID getCardIDFromName(const std::string& cardName);
+std::string getNameFromCardID(CardID cardID);
 Value getCardValue(CardID cardID);
 Suit getCardSuit(CardID cardID);
 
@@ -18,6 +20,7 @@ CardSet cardIDToSet(CardID cardID);
 int getSetSize(CardSet cardSet);
 bool setContainsCard(CardSet cardSet, CardID cardID);
 CardID getLowestCardInSet(CardSet cardSet);
+std::vector<std::string> getCardSetNames(CardSet cardSet);
 
 Street nextStreet(Street street);
 

@@ -22,13 +22,13 @@ enum class Action : std::uint8_t {
 };
 
 // Leduc poker has two copies each of [Jack, Queen, King]
-static const std::array<CardID, 6> Deck = {
-    getCardIDFromName("Jh"),
-    getCardIDFromName("Js"),
-    getCardIDFromName("Qh"),
-    getCardIDFromName("Qs"),
-    getCardIDFromName("Kh"),
-    getCardIDFromName("Ks"),
+static const std::array<CardSet, 6> PossibleHands = {
+    cardIDToSet(getCardIDFromName("Jh")),
+    cardIDToSet(getCardIDFromName("Js")),
+    cardIDToSet(getCardIDFromName("Qh")),
+    cardIDToSet(getCardIDFromName("Qs")),
+    cardIDToSet(getCardIDFromName("Kh")),
+    cardIDToSet(getCardIDFromName("Ks")),
 };
 
 GameState LeducPoker::getInitialGameState() const {
@@ -175,7 +175,7 @@ std::vector<InitialSetup> LeducPoker::getInitialSetups() const {
         for (int j = 0; j < 6; ++j) {
             if (i == j) continue;
 
-            std::array<CardSet, 2> playerHands = { cardIDToSet(Deck[i]), cardIDToSet(Deck[j]) };
+            std::array<CardSet, 2> playerHands = { PossibleHands[i], PossibleHands[j] };
             static constexpr std::array<float, 2> PlayerWeights = { 1.0f, 1.0f };
             static constexpr float MatchupProbability = 1.0f / 30.0f;
 
@@ -188,6 +188,14 @@ std::vector<InitialSetup> LeducPoker::getInitialSetups() const {
     }
 
     return initialSetups;
+}
+
+CardSet LeducPoker::getDeck() const {
+    CardSet deckSet = 0;
+    for (CardSet hand : PossibleHands) {
+        deckSet |= hand;
+    }
+    return deckSet;
 }
 
 ShowdownResult LeducPoker::getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const {
@@ -220,27 +228,22 @@ ShowdownResult LeducPoker::getShowdownResult(const std::array<CardSet, 2>& playe
     }
 }
 
-CardSet LeducPoker::getDeck() const {
-    CardSet deckSet = 0;
-    for (CardID cardID : Deck) {
-        deckSet |= cardIDToSet(cardID);
-    }
-    return deckSet;
-}
-
 // TODO: Isomorphism
 std::uint16_t LeducPoker::mapHandToIndex(Player /*player*/, CardSet hand) const {
-    assert(getSetSize(hand) == 1);
-
-    CardID cardID = getLowestCardInSet(hand);
     for (int i = 0; i < 6; ++i) {
-        if (cardID == Deck[i]) {
+        if (PossibleHands[i] == hand) {
             return i;
         }
     }
 
     assert(false);
     return 0;
+}
+
+// TODO: Isomorphism
+CardSet LeducPoker::mapIndexToHand(Player /*player*/, std::uint16_t index) const {
+    assert(index < 6);
+    return PossibleHands[index];
 }
 
 std::string LeducPoker::getActionName(ActionID actionID) const {
@@ -261,11 +264,4 @@ std::string LeducPoker::getActionName(ActionID actionID) const {
             assert(false);
             return "???";
     }
-}
-
-// TODO: Isomorphism
-std::string LeducPoker::getHandName(std::uint16_t handIndex) const {
-    static const std::array<std::string, 6> HandNames = { "Jh", "Js", "Qh", "Qs", "Kh", "Ks" };
-    assert(handIndex < 6);
-    return HandNames[handIndex];
 }

@@ -18,11 +18,11 @@ public:
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
     std::vector<InitialSetup> getInitialSetups() const override;
-    ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
     CardSet getDeck() const override;
+    ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
     std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
+    CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
     std::string getActionName(ActionID actionID) const override;
-    std::string getHandName(std::uint16_t handIndex) const override;
 };
 
 #endif // LEDUC_POKER_HPP
