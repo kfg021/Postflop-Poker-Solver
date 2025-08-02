@@ -22,7 +22,8 @@ void train(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSiz
     tree.buildTreeSkeleton(rules, rangeSizes);
 
     std::cout << "Finished building tree.\n";
-    std::cout << "Number of nodes: " << tree.allNodes.size() << "\n";
+    std::cout << "Number of decision nodes: " << tree.getNumberOfDecisionNodes() << "\n";
+    std::cout << "Total number of nodes: " << tree.allNodes.size() << "\n";
     std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
     std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n" << std::flush;
 

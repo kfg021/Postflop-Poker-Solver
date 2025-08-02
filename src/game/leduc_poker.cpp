@@ -57,14 +57,16 @@ NodeType LeducPoker::getNodeType(const GameState& state) const {
             // If player 1 was the one who checked, then the action is over (either a chance or a showdown depending on street)
             // Otherwise, player 1 can check or bet
             if (getOpposingPlayer(state.playerToAct) == Player::P1) {
-                return (state.currentStreet == Street::River) ? NodeType::Showdown : NodeType::Chance;
+                assert((state.currentStreet == Street::Turn) || (state.currentStreet == Street::River));
+                return (state.currentStreet == Street::Turn) ? NodeType::Chance : NodeType::Showdown;
             }
             else {
                 return NodeType::Decision;
             }
 
         case Action::Call:
-            return NodeType::Showdown;
+            assert((state.currentStreet == Street::Turn) || (state.currentStreet == Street::River));
+            return (state.currentStreet == Street::Turn) ? NodeType::Chance : NodeType::Showdown;
         case Action::Bet:
         case Action::Raise:
             // Next player can decide to call / fold / raise

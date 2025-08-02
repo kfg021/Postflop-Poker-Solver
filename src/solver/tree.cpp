@@ -31,6 +31,11 @@ void Tree::buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint
     allDecisionNextNodeIndices.shrink_to_fit();
 }
 
+std::size_t Tree::getNumberOfDecisionNodes() const {
+    assert(isTreeSkeletonBuilt());
+    return numDecisionNodes;
+}
+
 std::size_t Tree::getTreeSkeletonSize() const {
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
@@ -117,6 +122,7 @@ std::size_t Tree::createChanceNode(
     // Update tree information
     allChanceCards.insert(allChanceCards.end(), nextCards.begin(), nextCards.end());
     allChanceNextNodeIndices.insert(allChanceNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
+    assert(allChanceCards.size() == allChanceNextNodeIndices.size());
 
     allNodes.emplace_back(chanceNode);
     return allNodes.size() - 1;
@@ -152,6 +158,8 @@ std::size_t Tree::createDecisionNode(
     trainingDataLength += nodeTrainingDataLength;
     allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
     allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
+    assert(allDecisions.size() == allDecisionNextNodeIndices.size());
+    ++numDecisionNodes;
 
     allNodes.emplace_back(decisionNode);
     return allNodes.size() - 1;

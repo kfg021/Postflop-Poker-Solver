@@ -13,11 +13,12 @@
 
 class Tree {
 public:
-    Tree() : trainingDataLength{ 0 } {}
+    Tree() : trainingDataLength{ 0 }, numDecisionNodes{ 0 } {}
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
     void buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes);
+    std::size_t getNumberOfDecisionNodes() const;
     std::size_t getTreeSkeletonSize() const;
     std::size_t estimateFullTreeSize() const;
     void buildFullTree();
@@ -36,8 +37,9 @@ public:
     std::vector<ActionID> allDecisions;
     std::vector<std::size_t> allDecisionNextNodeIndices;
     std::vector<float> allStrategySums;
-    std::vector<float> allRegretSums; 
+    std::vector<float> allRegretSums;
     std::size_t trainingDataLength;
+    std::size_t numDecisionNodes;
 
 private:
     std::size_t createNode(

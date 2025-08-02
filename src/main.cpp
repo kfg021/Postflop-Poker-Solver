@@ -19,6 +19,6 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
-    trainLeducPoker(1000, "leduc_strategy.json");
+    trainLeducPoker(1, "leduc_strategy.json");
     return 0;
 }
