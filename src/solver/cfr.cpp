@@ -155,9 +155,8 @@ float cfrShowdown(
             // Two runout cards needed
             int player0ExpectedValueSum = 0;
             for (CardID turnCard = 0; turnCard < StandardDeckSize; ++turnCard) {
-                for (CardID riverCard = 0; riverCard < StandardDeckSize; ++riverCard) {
-                    if (turnCard == riverCard) continue;
-
+                for (CardID riverCard = turnCard + 1; riverCard < StandardDeckSize; ++riverCard) {
+                    // Deal order doesn't matter for showdowns, so we can assume that turnCard < riverCard
                     bool turnCardAvailible = setContainsCard(availibleCardsForRunout, turnCard);
                     bool riverCardAvailible = setContainsCard(availibleCardsForRunout, riverCard);
                     if (turnCardAvailible && riverCardAvailible) {
