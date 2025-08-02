@@ -4,17 +4,15 @@
 #include "game/nl_holdem_config.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
-#include <vector>
-
-using ActionID = std::uint8_t;
-using CardID = std::uint8_t;
-using CardSet = std::uint64_t;
 
 static constexpr int StandardDeckSize = nl_holdem::DeckSize;
 static constexpr int MaxNumDealCards = nl_holdem::MaxNumDealCards;
 static constexpr int MaxNumActions = nl_holdem::MaxNumActions;
+
+using ActionID = std::uint8_t;
+using CardID = std::uint8_t;
+using CardSet = std::uint64_t;
 
 enum class Player : std::uint8_t {
     P0,
