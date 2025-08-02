@@ -139,7 +139,7 @@ float cfrShowdown(
 
         case Street::Turn: {
             // One runout card neeed
-            std::int32_t player0ExpectedValueSum = 0;
+            int player0ExpectedValueSum = 0;
             for (CardID riverCard = 0; riverCard < StandardDeckSize; ++riverCard) {
                 if (setContainsCard(availibleCardsForRunout, riverCard)) {
                     CardSet boardAfterRiver = showdownNode.board | cardIDToSet(riverCard);
@@ -153,7 +153,7 @@ float cfrShowdown(
 
         case Street::Flop: {
             // Two runout cards needed
-            std::int32_t player0ExpectedValueSum = 0;
+            int player0ExpectedValueSum = 0;
             for (CardID turnCard = 0; turnCard < StandardDeckSize; ++turnCard) {
                 for (CardID riverCard = 0; riverCard < StandardDeckSize; ++riverCard) {
                     if (turnCard == riverCard) continue;

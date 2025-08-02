@@ -50,7 +50,7 @@ CardSet cardIDToSet(CardID cardID) {
     return (1LL << cardID);
 }
 
-std::uint8_t getSetSize(CardSet cardSet) {
+int getSetSize(CardSet cardSet) {
     return std::popcount(cardSet);
 }
 

@@ -154,7 +154,7 @@ std::size_t Tree::createDecisionNode(
     };
 
     // Update tree information
-    std::uint32_t nodeTrainingDataLength = static_cast<uint32_t>(decisionNode.numTrainingDataSets) * decisionNode.decisionDataSize;
+    std::size_t nodeTrainingDataLength = static_cast<std::size_t>(decisionNode.numTrainingDataSets) * decisionNode.decisionDataSize;
     trainingDataLength += nodeTrainingDataLength;
     allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
     allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());

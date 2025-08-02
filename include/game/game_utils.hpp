@@ -15,7 +15,7 @@ Value getCardValue(CardID cardID);
 Suit getCardSuit(CardID cardID);
 
 CardSet cardIDToSet(CardID cardID);
-std::uint8_t getSetSize(CardSet cardSet);
+int getSetSize(CardSet cardSet);
 bool setContainsCard(CardSet cardSet, CardID cardID);
 CardID getLowestCardInSet(CardSet cardSet);
 CardSet removeCardFromSet(CardSet cardSet, CardID cardID);
