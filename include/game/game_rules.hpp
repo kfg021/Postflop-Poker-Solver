@@ -23,7 +23,7 @@ public:
     virtual std::vector<InitialSetup> getInitialSetups() const = 0;
     virtual CardSet getDeck() const = 0;
     virtual std::uint16_t mapHandToIndex(Player player, CardSet hand) const = 0;
-    virtual Player getShowdownWinner(const std::array<CardSet, 2>& playerHands, CardSet board) const = 0;
+    virtual ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const = 0;
 
     // Utility functions
     virtual std::string getActionName(ActionID actionID) const = 0;

@@ -45,7 +45,7 @@ float cfrDecision(
 ) {
     auto calculateCurrentStrategy = [&decisionNode, &tree](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
         std::uint8_t numActions = decisionNode.decisionDataSize;
-        
+
         float totalPositiveRegret = 0.0f;
         for (int i = 0; i < numActions; ++i) {
             float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
@@ -116,8 +116,17 @@ float cfrShowdown(
     const ShowdownNode& showdownNode
 ) {
     auto getPlayer0Reward = [&rules, &playerHands, &showdownNode](CardSet board) -> std::int32_t {
-        Player winner = rules.getShowdownWinner(playerHands, board);
-        return (winner == Player::P0) ? showdownNode.reward : -showdownNode.reward; // Zero-sum game
+        switch (rules.getShowdownResult(playerHands, board)) {
+            case ShowdownResult::P0Win:
+                return showdownNode.reward;
+            case ShowdownResult::P1Win:
+                return -showdownNode.reward;
+            case ShowdownResult::Tie:
+                return 0;
+            default:
+                assert(false);
+                return 0;
+        }
     };
 
     CardSet availibleCardsForRunout = rules.getDeck() & ~(playerHands[0] | playerHands[1] | showdownNode.board);

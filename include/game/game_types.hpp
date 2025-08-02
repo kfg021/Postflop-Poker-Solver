@@ -39,6 +39,12 @@ enum class ActionType : std::uint8_t {
     Decision
 };
 
+enum class ShowdownResult : std::uint8_t {
+    P0Win,
+    P1Win,
+    Tie
+};
+
 enum class Value: std::uint8_t {
     Two,
     Three,
@@ -62,7 +68,6 @@ enum class Suit : std::uint8_t {
     Spades
 };
 
-// TODO: chop pots
 struct GameState {
     CardSet currentBoard;
     std::array<std::int32_t, 2> playerTotalWagers;

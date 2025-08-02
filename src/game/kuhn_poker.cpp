@@ -137,19 +137,20 @@ std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {
     return initialSetups;
 }
 
-Player KuhnPoker::getShowdownWinner(const std::array<CardSet, 2>& playerHands, CardSet /*board*/) const {
+ShowdownResult KuhnPoker::getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet /*board*/) const {
     assert(getSetSize(playerHands[0]) == 1);
     assert(getSetSize(playerHands[1]) == 1);
 
     Value player0CardValue = getCardValue(getLowestCardInSet(playerHands[0]));
     Value player1CardValue = getCardValue(getLowestCardInSet(playerHands[1]));
+    assert(player0CardValue != player1CardValue);
 
-    return (player0CardValue > player1CardValue) ? Player::P0 : Player::P1;
+    return (player0CardValue > player1CardValue) ? ShowdownResult::P0Win : ShowdownResult::P1Win;
 }
 
 CardSet KuhnPoker::getDeck() const {
     CardSet deckSet = 0;
-    for(CardID cardID : Deck) {
+    for (CardID cardID : Deck) {
         deckSet |= cardIDToSet(cardID);
     }
     return deckSet;

@@ -18,7 +18,7 @@ public:
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
     std::vector<InitialSetup> getInitialSetups() const override;
-    Player getShowdownWinner(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
+    ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
     CardSet getDeck() const override;
     std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
     std::string getActionName(ActionID actionID) const override;

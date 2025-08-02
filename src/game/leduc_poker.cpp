@@ -190,7 +190,7 @@ std::vector<InitialSetup> LeducPoker::getInitialSetups() const {
     return initialSetups;
 }
 
-Player LeducPoker::getShowdownWinner(const std::array<CardSet, 2>& playerHands, CardSet board) const {
+ShowdownResult LeducPoker::getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const {
     assert(getSetSize(playerHands[0]) == 1);
     assert(getSetSize(playerHands[1]) == 1);
     assert(getSetSize(board) == 1);
@@ -200,16 +200,23 @@ Player LeducPoker::getShowdownWinner(const std::array<CardSet, 2>& playerHands, 
     Value boardCardValue = getCardValue(getLowestCardInSet(board));
 
     if (player0CardValue == boardCardValue) {
-        // Player 0 has a pair
-        return Player::P0;
+        // Pair - P0 wins
+        return ShowdownResult::P0Win;
     }
     else if (player1CardValue == boardCardValue) {
         // Player 1 has a pair
-        return Player::P1;
+        return ShowdownResult::P1Win;
+    }
+    else if (player0CardValue > player1CardValue) {
+        // High card - P0 wins
+        return ShowdownResult::P0Win;
+    }
+    else if (player1CardValue > player0CardValue) {
+        // High card - P1 wins
+        return ShowdownResult::P1Win;
     }
     else {
-        // High card
-        return (player0CardValue > player1CardValue) ? Player::P0 : Player::P1;
+        return ShowdownResult::Tie;
     }
 }
 
