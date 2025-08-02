@@ -129,7 +129,7 @@ std::size_t Tree::createDecisionNode(
 ) {
     // Recurse to child nodes
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
-    FixedVector<ActionID, MaxNumActions> nextNodeIndices;
+    FixedVector<std::size_t, MaxNumActions> nextNodeIndices;
     for (ActionID actionID : validActions) {
         assert(rules.getActionType(actionID) == ActionType::Decision);
 
