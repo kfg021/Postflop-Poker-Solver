@@ -4,6 +4,7 @@
 #include "game/game_types.hpp"
 
 #include <array>
+#include <cstdint>
 
 class HandEvaluator {
 public:

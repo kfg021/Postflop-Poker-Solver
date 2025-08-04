@@ -2,7 +2,6 @@
 #define HOLDEM_CONFIG_HPP
 
 #include <algorithm>
-#include <cstdint>
 
 namespace holdem {
 static constexpr int DeckSize = 52;
