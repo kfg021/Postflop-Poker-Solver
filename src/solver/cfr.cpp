@@ -46,25 +46,20 @@ float cfrDecision(
     auto calculateCurrentStrategy = [&decisionNode, &tree](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
         std::uint8_t numActions = decisionNode.decisionDataSize;
 
-        float totalPositiveRegret = 0.0f;
+        float totalRegret = 0.0f;
         for (int i = 0; i < numActions; ++i) {
             float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
-            if (regretSum > 0.0f) {
-                totalPositiveRegret += regretSum;
-            }
+            assert(regretSum >= 0.0f);
+            totalRegret += regretSum;
         }
 
         assert(numActions > 0);
         FixedVector<float, MaxNumActions> currentStrategy(numActions, 1.0f / numActions);
-        if (totalPositiveRegret > 0.0f) {
+        if (totalRegret > 0.0f) {
             for (int i = 0; i < numActions; ++i) {
                 float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
-                if (regretSum > 0.0f) {
-                    currentStrategy[i] = regretSum / totalPositiveRegret;
-                }
-                else {
-                    currentStrategy[i] = 0.0f;
-                }
+                assert(regretSum >= 0.0f);
+                currentStrategy[i] = regretSum / totalRegret;
             }
         }
 
