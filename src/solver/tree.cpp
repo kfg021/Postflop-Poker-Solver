@@ -37,6 +37,8 @@ std::size_t Tree::getNumberOfDecisionNodes() const {
 }
 
 std::size_t Tree::getTreeSkeletonSize() const {
+    assert(isTreeSkeletonBuilt());
+
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
     std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID)) + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
@@ -45,6 +47,8 @@ std::size_t Tree::getTreeSkeletonSize() const {
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
+    assert(isTreeSkeletonBuilt());
+
     // allStrategySums and allRegretSums will each have length of trainingDataLength
     std::size_t trainingDataHeapSize = (m_trainingDataLength * 2) * sizeof(float);
     return getTreeSkeletonSize() + trainingDataHeapSize;
