@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <bit>
+#include <cassert>
 #include <cstdint>
 #include <string>
 
@@ -75,12 +76,14 @@ CardID getLowestCardInSet(CardSet cardSet) {
 }
 
 std::vector<std::string> getCardSetNames(CardSet cardSet) {
-    std::vector<std::string> cardNames;
-    while (getSetSize(cardSet) > 0) {
+    int setSize = getSetSize(cardSet);
+    std::vector<std::string> cardNames(setSize);
+    for (int i = 0; i < setSize; ++i) {
         CardID lowestCard = getLowestCardInSet(cardSet);
         cardNames.push_back(getNameFromCardID(lowestCard));
         cardSet &= ~cardIDToSet(lowestCard);
     }
+    assert(cardSet == 0);
 
     // Descending order
     std::reverse(cardNames.begin(), cardNames.end());
