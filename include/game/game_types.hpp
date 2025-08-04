@@ -1,14 +1,14 @@
 #ifndef GAME_TYPES_HPP
 #define GAME_TYPES_HPP
 
-#include "game/nl_holdem_config.hpp"
+#include "game/holdem/holdem_config.hpp"
 
 #include <array>
 #include <cstdint>
 
-static constexpr int StandardDeckSize = nl_holdem::DeckSize;
-static constexpr int MaxNumDealCards = nl_holdem::MaxNumDealCards;
-static constexpr int MaxNumActions = nl_holdem::MaxNumActions;
+static constexpr int StandardDeckSize = holdem::DeckSize;
+static constexpr int MaxNumDealCards = holdem::MaxNumDealCards;
+static constexpr int MaxNumActions = holdem::MaxNumActions;
 
 using ActionID = std::uint8_t;
 using CardID = std::uint8_t;
@@ -43,7 +43,7 @@ enum class ShowdownResult : std::uint8_t {
     Tie
 };
 
-enum class Value: std::uint8_t {
+enum class Value : std::uint8_t {
     Two,
     Three,
     Four,
