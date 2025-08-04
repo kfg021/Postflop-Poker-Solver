@@ -172,7 +172,7 @@ std::size_t Tree::createDecisionNode(
 std::size_t Tree::createFoldNode(const GameState& state) {
     // The reward is the amount that the folding player wagered plus any dead money
     // The folding player acted last turn
-    int remaningPlayerReward = state.playerTotalWagers[getOpposingPlayerID(state.playerToAct)] + state.deadMoney;
+    std::int32_t remaningPlayerReward = state.playerTotalWagers[getOpposingPlayerID(state.playerToAct)] + state.deadMoney;
 
     FoldNode foldNode = {
         .remainingPlayerReward = remaningPlayerReward,
@@ -188,7 +188,7 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
     assert(state.playerTotalWagers[0] == state.playerTotalWagers[1]);
 
     // The reward is the amount wagered plus any dead money
-    int reward = state.playerTotalWagers[0] + state.deadMoney;
+    std::int32_t reward = state.playerTotalWagers[0] + state.deadMoney;
 
     ShowdownNode showdownNode{
         .board = state.currentBoard,
