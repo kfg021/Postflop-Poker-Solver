@@ -6,7 +6,7 @@
 
 #include <array>
 #include <cstdint>
-#include <unordered_map>
+#include <unordered_set>
 
 TEST(HandEvaluatorTest, CorrectNumberOfEachHandType) {
     static constexpr int NumHandRankings = 10;
@@ -47,4 +47,31 @@ TEST(HandEvaluatorTest, CorrectNumberOfEachHandType) {
     }
 
     EXPECT_EQ(totalHandsPerRank, ExpectedTotalHandsPerRank);
+}
+
+TEST(HandEvaluatorTest, CorrectNumberOfIsomorphicHands) {
+    static constexpr int ExpectedNumIsomorphicHands = 7462;
+    HandEvaluator handEvaluator;
+    std::unordered_set<std::uint32_t> handIsomorphisms;
+    for (CardID card0 = 0; card0 < 52; ++card0) {
+        for (CardID card1 = card0 + 1; card1 < 52; ++card1) {
+            for (CardID card2 = card1 + 1; card2 < 52; ++card2) {
+                for (CardID card3 = card2 + 1; card3 < 52; ++card3) {
+                    for (CardID card4 = card3 + 1; card4 < 52; ++card4) {
+                        CardSet hand = cardIDToSet(card0) |
+                            cardIDToSet(card1) |
+                            cardIDToSet(card2) |
+                            cardIDToSet(card3) |
+                            cardIDToSet(card4);
+
+                        std::uint32_t handRank = handEvaluator.getFiveCardHandRank(hand);
+                        handIsomorphisms.insert(handRank);
+                    }
+                }
+            }
+        }
+    }
+
+    int numIsomorphicHands = handIsomorphisms.size();
+    EXPECT_EQ(numIsomorphicHands, ExpectedNumIsomorphicHands);
 }
