@@ -1,5 +1,5 @@
-#ifndef HOLDEM_CONFIG_HPP
-#define HOLDEM_CONFIG_HPP
+#ifndef CONFIG_HPP
+#define CONFIG_HPP
 
 #include <algorithm>
 
@@ -15,4 +15,4 @@ static constexpr int MaxNumRaiseSizes = 3;
 static constexpr int MaxNumActions = std::max(MaxNumBetSizes + 2, MaxNumRaiseSizes + 3);
 } // namespace holdem
 
-#endif // HOLDEM_CONFIG_HPP
+#endif // CONFIG_HPP
