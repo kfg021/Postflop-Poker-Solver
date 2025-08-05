@@ -16,7 +16,7 @@ public:
 
 private:
     static constexpr std::uint32_t HandRankTableSize = 2598960; // 52 choose 5
-    using ChooseTable = std::array<std::array<std::uint32_t, 5>, 52>;
+    using ChooseTable = std::array<std::array<std::uint32_t, 5 + 1>, 52 + 1>;
     using HandRankTable = std::array<std::uint32_t, HandRankTableSize>;
     
     static const ChooseTable& getChooseTable();

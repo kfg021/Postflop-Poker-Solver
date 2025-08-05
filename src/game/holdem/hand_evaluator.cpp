@@ -53,16 +53,16 @@ const HandEvaluator::ChooseTable& HandEvaluator::getChooseTable() {
     auto buildChooseTable = []() -> ChooseTable {
         ChooseTable choose;
 
-        for (int n = 0; n < 52; ++n) {
+        for (int n = 0; n <= 52; ++n) {
             choose[n][0] = 1;
         }
 
-        for (int k = 1; k < 5; ++k) {
+        for (int k = 1; k <= 5; ++k) {
             choose[0][k] = 0;
         }
 
-        for (int n = 1; n < 52; ++n) {
-            for (int k = 1; k < 5; ++k) {
+        for (int n = 1; n <= 52; ++n) {
+            for (int k = 1; k <= 5; ++k) {
                 // (n choose k) = (n-1 choose k-1) + (n-1 choose k)
                 choose[n][k] = choose[n - 1][k - 1] + choose[n - 1][k];
             }
@@ -72,6 +72,7 @@ const HandEvaluator::ChooseTable& HandEvaluator::getChooseTable() {
     };
 
     static const ChooseTable Choose = buildChooseTable();
+    assert(Choose[52][5] == HandRankTableSize);
     return Choose;
 }
 
@@ -91,7 +92,7 @@ const HandEvaluator::HandRankTable& HandEvaluator::getHandRankTable() {
                                 cardIDToSet(card3) |
                                 cardIDToSet(card4);
 
-                            std::uint16_t handIndex = getFiveCardHandIndex(hand);
+                            std::uint32_t handIndex = getFiveCardHandIndex(hand);
                             assert(handIndex < handRank->size());
                             (*handRank)[handIndex] = generateFiveCardHandRank(hand);
                         }
@@ -116,7 +117,7 @@ std::uint32_t HandEvaluator::getFiveCardHandIndex(CardSet hand) {
     std::uint32_t index = 0;
     for (int i = 0; i < 5; ++i) {
         CardID lowestCard = getLowestCardInSet(hand);
-        int n = lowestCard;
+        int n = static_cast<int>(lowestCard);
         int k = i + 1;
         index += Choose[n][k];
         hand &= ~cardIDToSet(lowestCard);
