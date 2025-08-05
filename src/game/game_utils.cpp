@@ -8,8 +8,8 @@
 #include <cstdint>
 #include <string>
 
-const std::string CardValueNames = "23456789TJQKA";
-const std::string CardSuitNames = "chds";
+static const std::string CardValueNames = "23456789TJQKA";
+static const std::string CardSuitNames = "chds";
 
 Player getOpposingPlayer(Player player) {
     assert(player == Player::P0 || player == Player::P1);
