@@ -16,19 +16,13 @@ HandEvaluator::HandEvaluator() {
     static_cast<void>(getHandRankTable());
 }
 
-ShowdownResult HandEvaluator::getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const {
-    std::uint32_t player0Rank = getSevenCardHandRank(playerHands[0] | board);
-    std::uint32_t player1Rank = getSevenCardHandRank(playerHands[1] | board);
+std::uint32_t HandEvaluator::getFiveCardHandRank(CardSet hand) const {
+    assert(getSetSize(hand) == 5);
 
-    if (player0Rank > player1Rank) {
-        return ShowdownResult::P0Win;
-    }
-    else if (player1Rank > player0Rank) {
-        return ShowdownResult::P1Win;
-    }
-    else {
-        return ShowdownResult::Tie;
-    }
+    const HandRankTable& HandRank = getHandRankTable();
+    std::uint32_t handIndex = getFiveCardHandIndex(hand);
+    assert(handIndex < HandRankTableSize);
+    return HandRank[handIndex];
 }
 
 std::uint32_t HandEvaluator::getSevenCardHandRank(CardSet hand) const {
@@ -43,15 +37,12 @@ std::uint32_t HandEvaluator::getSevenCardHandRank(CardSet hand) const {
     }
     assert(temp == 0);
 
-    const HandRankTable& HandRank = getHandRankTable();
     std::uint32_t handRanking = 0;
     for (int i = 0; i < 7; ++i) {
         for (int j = i + 1; j < 7; ++j) {
             CardSet cardsToIgnore = cardIDToSet(sevenCardArray[i]) | cardIDToSet(sevenCardArray[j]);
             CardSet fiveCardHand = hand & ~cardsToIgnore;
-            std::uint32_t handIndex = getFiveCardHandIndex(fiveCardHand);
-            assert(handIndex < HandRankTableSize);
-            handRanking = std::max(handRanking, HandRank[handIndex]);
+            handRanking = std::max(handRanking, getFiveCardHandRank(fiveCardHand));
         }
     }
 

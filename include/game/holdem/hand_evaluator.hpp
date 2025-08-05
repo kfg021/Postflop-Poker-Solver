@@ -11,14 +11,14 @@ class HandEvaluator {
 public:
     HandEvaluator();
 
-    ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const;
+    std::uint32_t getFiveCardHandRank(CardSet hand) const;
+    std::uint32_t getSevenCardHandRank(CardSet hand) const;
 
 private:
     static constexpr std::uint32_t HandRankTableSize = 2598960; // 52 choose 5
     using ChooseTable = std::array<std::array<std::uint32_t, 5>, 52>;
     using HandRankTable = std::array<std::uint32_t, HandRankTableSize>;
-
-    std::uint32_t getSevenCardHandRank(CardSet hand) const;
+    
     static const ChooseTable& getChooseTable();
     static const HandRankTable& getHandRankTable();
     static std::uint32_t getFiveCardHandIndex(CardSet hand);
