@@ -6,9 +6,9 @@
 #include <array>
 #include <cstdint>
 
-static constexpr int StandardDeckSize = holdem::DeckSize;
-static constexpr int MaxNumDealCards = holdem::MaxNumDealCards;
-static constexpr int MaxNumActions = holdem::MaxNumActions;
+constexpr int StandardDeckSize = holdem::DeckSize;
+constexpr int MaxNumDealCards = holdem::MaxNumDealCards;
+constexpr int MaxNumActions = holdem::MaxNumActions;
 
 using ActionID = std::uint8_t;
 using CardID = std::uint8_t;

@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <string>
 
-static const std::string CardValueNames = "23456789TJQKA";
-static const std::string CardSuitNames = "chds";
+namespace {
+const std::string CardValueNames = "23456789TJQKA";
+const std::string CardSuitNames = "chds";
+} // namespace
 
 Player getOpposingPlayer(Player player) {
     assert(player == Player::P0 || player == Player::P1);

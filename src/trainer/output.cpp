@@ -13,6 +13,7 @@
 #include <iostream>
 #include <string>
 
+namespace {
 using json = nlohmann::ordered_json;
 
 json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree);
@@ -103,6 +104,7 @@ json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree) {
             return json{};
     }
 }
+} // namespace
 
 void outputStrategyToJSON(const IGameRules& rules, const Tree& tree, const std::string& filePath) {
     std::ofstream file(filePath);

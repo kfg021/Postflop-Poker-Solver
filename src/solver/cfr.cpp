@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 
+namespace {
 float cfrChance(
     const IGameRules& rules,
     const std::array<CardSet, 2>& playerHands,
@@ -171,6 +172,7 @@ float cfrShowdown(
             return 0.0f;
     }
 }
+} // namespace
 
 float cfr(
     const IGameRules& rules,

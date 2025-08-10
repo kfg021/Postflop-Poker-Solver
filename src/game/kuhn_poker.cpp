@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <vector>
 
+namespace {
 enum class Action : std::uint8_t {
     GameStart,
     Fold,
@@ -17,11 +18,12 @@ enum class Action : std::uint8_t {
 };
 
 // Kuhn poker has [Jack, Queen, King], suits irrelevant
-static const std::array<CardSet, 3> PossibleHands = {
+const std::array<CardSet, 3> PossibleHands = {
     cardIDToSet(getCardIDFromName("Js")),
     cardIDToSet(getCardIDFromName("Qs")),
     cardIDToSet(getCardIDFromName("Ks")),
 };
+} // namespace
 
 GameState KuhnPoker::getInitialGameState() const {
     static const GameState InitialState = {

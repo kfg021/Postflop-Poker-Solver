@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+namespace {
 enum class Action : std::uint8_t {
     GameStart,
     DealCard,
@@ -22,7 +23,7 @@ enum class Action : std::uint8_t {
 };
 
 // Leduc poker has two copies each of [Jack, Queen, King]
-static const std::array<CardSet, 6> PossibleHands = {
+const std::array<CardSet, 6> PossibleHands = {
     cardIDToSet(getCardIDFromName("Jh")),
     cardIDToSet(getCardIDFromName("Js")),
     cardIDToSet(getCardIDFromName("Qh")),
@@ -30,6 +31,7 @@ static const std::array<CardSet, 6> PossibleHands = {
     cardIDToSet(getCardIDFromName("Kh")),
     cardIDToSet(getCardIDFromName("Ks")),
 };
+} // namespace
 
 GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
