@@ -124,7 +124,7 @@ float cfrShowdown(
         }
     };
 
-    CardSet availibleCardsForRunout = rules.getDeck() & ~(playerHands[0] | playerHands[1] | showdownNode.board);
+    CardSet availableCardsForRunout = rules.getDeck() & ~(playerHands[0] | playerHands[1] | showdownNode.board);
 
     switch (showdownNode.street) {
         case Street::River: {
@@ -136,13 +136,13 @@ float cfrShowdown(
             // One runout card neeed
             int player0ExpectedValueSum = 0;
             for (CardID riverCard = 0; riverCard < StandardDeckSize; ++riverCard) {
-                if (setContainsCard(availibleCardsForRunout, riverCard)) {
+                if (setContainsCard(availableCardsForRunout, riverCard)) {
                     CardSet boardAfterRiver = showdownNode.board | cardIDToSet(riverCard);
                     player0ExpectedValueSum += getPlayer0Reward(boardAfterRiver);
                 }
             }
 
-            int numPossibleRunouts = getSetSize(availibleCardsForRunout);
+            int numPossibleRunouts = getSetSize(availableCardsForRunout);
             return static_cast<float>(player0ExpectedValueSum) / numPossibleRunouts;
         }
 
@@ -152,16 +152,16 @@ float cfrShowdown(
             for (CardID turnCard = 0; turnCard < StandardDeckSize; ++turnCard) {
                 for (CardID riverCard = turnCard + 1; riverCard < StandardDeckSize; ++riverCard) {
                     // Deal order doesn't matter for showdowns, so we can assume that turnCard < riverCard
-                    bool turnCardAvailible = setContainsCard(availibleCardsForRunout, turnCard);
-                    bool riverCardAvailible = setContainsCard(availibleCardsForRunout, riverCard);
-                    if (turnCardAvailible && riverCardAvailible) {
+                    bool turnCardAvailable = setContainsCard(availableCardsForRunout, turnCard);
+                    bool riverCardAvailable = setContainsCard(availableCardsForRunout, riverCard);
+                    if (turnCardAvailable && riverCardAvailable) {
                         CardSet boardAfterTurnRiver = showdownNode.board | cardIDToSet(turnCard) | cardIDToSet(riverCard);
                         player0ExpectedValueSum += getPlayer0Reward(boardAfterTurnRiver);
                     }
                 }
             }
 
-            int numPossibleTurnCards = getSetSize(availibleCardsForRunout);
+            int numPossibleTurnCards = getSetSize(availableCardsForRunout);
             int numPossibleRunouts = (numPossibleTurnCards * (numPossibleTurnCards - 1)) / 2;
             return static_cast<float>(player0ExpectedValueSum) / numPossibleRunouts;
         }
