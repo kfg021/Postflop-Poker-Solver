@@ -31,9 +31,7 @@ std::uint32_t HandEvaluator::getSevenCardHandRank(CardSet hand) const {
     std::array<CardID, 7> sevenCardArray;
     CardSet temp = hand;
     for (int i = 0; i < 7; ++i) {
-        CardID lowestCard = getLowestCardInSet(temp);
-        sevenCardArray[i] = lowestCard;
-        temp &= ~cardIDToSet(lowestCard);
+        sevenCardArray[i] = popLowestCardFromSet(temp);
     }
     assert(temp == 0);
 
@@ -116,11 +114,9 @@ std::uint32_t HandEvaluator::getFiveCardHandIndex(CardSet hand) {
     const ChooseTable& Choose = getChooseTable();
     std::uint32_t index = 0;
     for (int i = 0; i < 5; ++i) {
-        CardID lowestCard = getLowestCardInSet(hand);
-        int n = static_cast<int>(lowestCard);
+        int n = static_cast<int>(popLowestCardFromSet(hand));
         int k = i + 1;
         index += Choose[n][k];
-        hand &= ~cardIDToSet(lowestCard);
     }
     assert(hand == 0);
 
@@ -180,10 +176,8 @@ std::uint32_t HandEvaluator::generateFiveCardHandRank(CardSet hand) {
 
     CardSet temp = hand;
     for (int i = 0; i < 5; ++i) {
-        CardID lowestCard = getLowestCardInSet(temp);
-        int valueID = static_cast<int>(getCardValue(lowestCard));
+        int valueID = static_cast<int>(getCardValue(popLowestCardFromSet(temp)));
         ++valueFrequencies[valueID].first;
-        temp &= ~cardIDToSet(lowestCard);
     }
     assert(temp == 0);
     std::sort(valueFrequencies.begin(), valueFrequencies.end(), std::greater<std::pair<int, Value>>());
@@ -224,10 +218,7 @@ std::uint32_t HandEvaluator::generateFiveCardHandRank(CardSet hand) {
         std::array<Value, 5> sortedCardValues;
         CardSet temp = hand;
         for (int i = 0; i < 5; ++i) {
-            CardID lowestCard = getLowestCardInSet(temp);
-            Value value = getCardValue(lowestCard);
-            sortedCardValues[i] = value;
-            temp &= ~cardIDToSet(lowestCard);
+            sortedCardValues[i] = getCardValue(popLowestCardFromSet(temp));
         }
         assert(temp == 0);
         std::reverse(sortedCardValues.begin(), sortedCardValues.end());

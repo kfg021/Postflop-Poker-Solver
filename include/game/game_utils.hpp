@@ -23,6 +23,7 @@ CardSet cardIDToSet(CardID cardID);
 int getSetSize(CardSet cardSet);
 bool setContainsCard(CardSet cardSet, CardID cardID);
 CardID getLowestCardInSet(CardSet cardSet);
+CardID popLowestCardFromSet(CardSet& cardSet);
 std::vector<std::string> getCardSetNames(CardSet cardSet);
 
 // Street functions

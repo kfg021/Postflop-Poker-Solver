@@ -70,8 +70,16 @@ bool setContainsCard(CardSet cardSet, CardID cardID) {
 }
 
 CardID getLowestCardInSet(CardSet cardSet) {
+    assert(getSetSize(cardSet) > 0);
+
     CardID lowestCard = static_cast<CardID>(std::countr_zero(cardSet));
     assert(lowestCard < 52);
+    return lowestCard;
+}
+
+CardID popLowestCardFromSet(CardSet& cardSet) {
+    CardID lowestCard = getLowestCardInSet(cardSet);
+    cardSet &= ~cardIDToSet(lowestCard);
     return lowestCard;
 }
 
@@ -79,9 +87,7 @@ std::vector<std::string> getCardSetNames(CardSet cardSet) {
     int setSize = getSetSize(cardSet);
     std::vector<std::string> cardNames(setSize);
     for (int i = 0; i < setSize; ++i) {
-        CardID lowestCard = getLowestCardInSet(cardSet);
-        cardNames.push_back(getNameFromCardID(lowestCard));
-        cardSet &= ~cardIDToSet(lowestCard);
+        cardNames[i] = getNameFromCardID(popLowestCardFromSet(cardSet));
     }
     assert(cardSet == 0);
 
