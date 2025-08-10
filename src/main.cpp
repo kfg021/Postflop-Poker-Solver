@@ -6,13 +6,13 @@
 #include <cstdint>
 
 void trainKuhnPoker(int iterations, const std::string& strategyOutputFile) {
-    KuhnPoker kuhnPokerRules;
+    const KuhnPoker kuhnPokerRules;
     std::array<std::uint16_t, 2> RangeSizes = { 3, 3 }; // Jack, Queen, or King is possible for each player
     train(kuhnPokerRules, RangeSizes, iterations, strategyOutputFile);
 }
 
 void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
-    LeducPoker leducPokerRules;
+    const LeducPoker leducPokerRules;
     std::array<std::uint16_t, 2> RangeSizes = { 6, 6 };
     train(leducPokerRules, RangeSizes, iterations, strategyOutputFile);
 }

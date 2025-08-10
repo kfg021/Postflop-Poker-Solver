@@ -23,7 +23,7 @@ TEST(HandEvaluatorTest, CorrectNumberOfEachHandType) {
         4,          // Royal Flush
     };
 
-    HandEvaluator handEvaluator;
+    const HandEvaluator handEvaluator;
     std::array<std::uint32_t, NumHandRankings> totalHandsPerRank = {};
     for (CardID card0 = 0; card0 < 52; ++card0) {
         for (CardID card1 = card0 + 1; card1 < 52; ++card1) {
@@ -51,7 +51,7 @@ TEST(HandEvaluatorTest, CorrectNumberOfEachHandType) {
 
 TEST(HandEvaluatorTest, CorrectNumberOfIsomorphicHands) {
     static constexpr int ExpectedNumIsomorphicHands = 7462;
-    HandEvaluator handEvaluator;
+    const HandEvaluator handEvaluator;
     std::unordered_set<std::uint32_t> handIsomorphisms;
     for (CardID card0 = 0; card0 < 52; ++card0) {
         for (CardID card1 = card0 + 1; card1 < 52; ++card1) {
