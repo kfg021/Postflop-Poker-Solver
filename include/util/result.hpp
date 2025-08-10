@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <string>
+#include <utility>
 #include <variant>
 
 template <typename T>
