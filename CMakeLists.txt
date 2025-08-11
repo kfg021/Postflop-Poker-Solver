@@ -18,7 +18,7 @@ add_library(postflop_solver_core STATIC
     src/game/game_utils.cpp
     src/game/kuhn_poker.cpp
     src/game/leduc_poker.cpp
-    src/game/holdem/hand_evaluator.cpp
+    src/game/holdem/hand_evaluation.cpp
     src/solver/cfr.cpp
     src/solver/tree.cpp
 )

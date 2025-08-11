@@ -1,4 +1,4 @@
-#include "game/holdem/hand_evaluator.hpp"
+#include "game/holdem/hand_evaluation.hpp"
 
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
@@ -10,44 +10,15 @@
 #include <cstdint>
 #include <memory>
 
-HandEvaluator::HandEvaluator() {
-    // Ensure lookup tables are created
-    static_cast<void>(getChooseTable());
-    static_cast<void>(getHandRankTable());
-}
+namespace {
+constexpr std::uint32_t HandRankTableSize = 2598960; // 52 choose 5
+using ChooseTable = std::array<std::array<std::uint32_t, 5 + 1>, 52 + 1>;
+using HandRankTable = std::array<std::uint32_t, HandRankTableSize>;
 
-std::uint32_t HandEvaluator::getFiveCardHandRank(CardSet hand) const {
-    assert(getSetSize(hand) == 5);
+std::uint32_t getFiveCardHandIndex(CardSet hand);
+std::uint32_t generateFiveCardHandRank(CardSet hand);
 
-    const HandRankTable& HandRank = getHandRankTable();
-    std::uint32_t handIndex = getFiveCardHandIndex(hand);
-    assert(handIndex < HandRankTableSize);
-    return HandRank[handIndex];
-}
-
-std::uint32_t HandEvaluator::getSevenCardHandRank(CardSet hand) const {
-    assert(getSetSize(hand) == 7);
-
-    std::array<CardID, 7> sevenCardArray;
-    CardSet temp = hand;
-    for (int i = 0; i < 7; ++i) {
-        sevenCardArray[i] = popLowestCardFromSet(temp);
-    }
-    assert(temp == 0);
-
-    std::uint32_t handRanking = 0;
-    for (int i = 0; i < 7; ++i) {
-        for (int j = i + 1; j < 7; ++j) {
-            CardSet cardsToIgnore = cardIDToSet(sevenCardArray[i]) | cardIDToSet(sevenCardArray[j]);
-            CardSet fiveCardHand = hand & ~cardsToIgnore;
-            handRanking = std::max(handRanking, getFiveCardHandRank(fiveCardHand));
-        }
-    }
-
-    return handRanking;
-}
-
-const HandEvaluator::ChooseTable& HandEvaluator::getChooseTable() {
+const ChooseTable& getChooseTable() {
     auto buildChooseTable = []() -> ChooseTable {
         ChooseTable choose;
 
@@ -74,7 +45,7 @@ const HandEvaluator::ChooseTable& HandEvaluator::getChooseTable() {
     return Choose;
 }
 
-const HandEvaluator::HandRankTable& HandEvaluator::getHandRankTable() {
+const HandRankTable& getHandRankTable() {
     // Hand rank lookup table is large, so we build it on the heap
     auto buildHandRankTable = []() -> std::unique_ptr<HandRankTable> {
         std::unique_ptr<HandRankTable> handRank = std::make_unique<HandRankTable>();
@@ -108,7 +79,7 @@ const HandEvaluator::HandRankTable& HandEvaluator::getHandRankTable() {
 
 // Maps every possible five card combination to an index from 0 to (52 choose 5)
 // https://en.wikipedia.org/wiki/Combinatorial_number_system#Place_of_a_combination_in_the_ordering
-std::uint32_t HandEvaluator::getFiveCardHandIndex(CardSet hand) {
+std::uint32_t getFiveCardHandIndex(CardSet hand) {
     assert(getSetSize(hand) == 5);
 
     const ChooseTable& Choose = getChooseTable();
@@ -123,7 +94,7 @@ std::uint32_t HandEvaluator::getFiveCardHandIndex(CardSet hand) {
     return index;
 }
 
-std::uint32_t HandEvaluator::generateFiveCardHandRank(CardSet hand) {
+std::uint32_t generateFiveCardHandRank(CardSet hand) {
     enum class HandType : std::uint8_t {
         HighCard,
         Pair,
@@ -285,3 +256,42 @@ std::uint32_t HandEvaluator::generateFiveCardHandRank(CardSet hand) {
 
     return convertHandRankToInt(handRank);
 }
+} // namespace
+
+namespace hand_evaluation {
+void buildLookupTablesIfNeeded() {
+    static_cast<void>(getChooseTable());
+    static_cast<void>(getHandRankTable());
+}
+
+std::uint32_t getFiveCardHandRank(CardSet hand) {
+    assert(getSetSize(hand) == 5);
+
+    const HandRankTable& HandRank = getHandRankTable();
+    std::uint32_t handIndex = getFiveCardHandIndex(hand);
+    assert(handIndex < HandRankTableSize);
+    return HandRank[handIndex];
+}
+
+std::uint32_t getSevenCardHandRank(CardSet hand) {
+    assert(getSetSize(hand) == 7);
+
+    std::array<CardID, 7> sevenCardArray;
+    CardSet temp = hand;
+    for (int i = 0; i < 7; ++i) {
+        sevenCardArray[i] = popLowestCardFromSet(temp);
+    }
+    assert(temp == 0);
+
+    std::uint32_t handRanking = 0;
+    for (int i = 0; i < 7; ++i) {
+        for (int j = i + 1; j < 7; ++j) {
+            CardSet cardsToIgnore = cardIDToSet(sevenCardArray[i]) | cardIDToSet(sevenCardArray[j]);
+            CardSet fiveCardHand = hand & ~cardsToIgnore;
+            handRanking = std::max(handRanking, getFiveCardHandRank(fiveCardHand));
+        }
+    }
+
+    return handRanking;
+}
+} // namespace hand_evaluation

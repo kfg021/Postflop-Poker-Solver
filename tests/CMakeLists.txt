@@ -15,7 +15,7 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 add_executable(run_tests
-    hand_evaluator_tests.cpp
+    hand_evaluation_tests.cpp
 )
 
 target_link_libraries(run_tests PRIVATE
