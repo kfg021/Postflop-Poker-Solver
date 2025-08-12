@@ -39,7 +39,7 @@ struct DecisionNode {
 
 struct FoldNode {
     // The player who did not fold wins the reward, regardless of their hand or the board
-    std::int32_t remainingPlayerReward;
+    int remainingPlayerReward;
     Player remainingPlayer;
 };
 
@@ -48,7 +48,7 @@ struct ShowdownNode {
     CardSet board;
 
     // The winner of the showdown will profit this amount
-    std::int32_t reward;
+    int reward;
 
     // If we are not at the river, we need to simulate a runout
     Street street;

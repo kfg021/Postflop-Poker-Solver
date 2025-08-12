@@ -68,8 +68,8 @@ enum class Suit : std::uint8_t {
 
 struct GameState {
     CardSet currentBoard;
-    std::array<std::int32_t, 2> playerTotalWagers;
-    std::int32_t deadMoney;
+    std::array<int, 2> playerTotalWagers;
+    int deadMoney;
     Player playerToAct;
     ActionID lastAction;
     Street currentStreet;

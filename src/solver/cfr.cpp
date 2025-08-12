@@ -111,7 +111,7 @@ float cfrShowdown(
     const std::array<CardSet, 2>& playerHands,
     const ShowdownNode& showdownNode
 ) {
-    auto getPlayer0Reward = [&rules, &playerHands, &showdownNode](CardSet board) -> std::int32_t {
+    auto getPlayer0Reward = [&rules, &playerHands, &showdownNode](CardSet board) -> int {
         switch (rules.getShowdownResult(playerHands, board)) {
             case ShowdownResult::P0Win:
                 return showdownNode.reward;
