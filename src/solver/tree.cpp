@@ -55,36 +55,27 @@ std::size_t Tree::estimateFullTreeSize() const {
 }
 
 std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
-    std::size_t nodeIndex;
     switch (rules.getNodeType(state)) {
         case NodeType::Chance:
-            nodeIndex = createChanceNode(rules, state);
-            break;
+            return createChanceNode(rules, state);
         case NodeType::Decision:
-            nodeIndex = createDecisionNode(rules, state);
-            break;
+            return createDecisionNode(rules, state);
         case NodeType::Fold:
-            nodeIndex = createFoldNode(state);
-            break;
+            return createFoldNode(state);
         case NodeType::Showdown:
-            nodeIndex = createShowdownNode(state);
-            break;
+            return createShowdownNode(state);
         default:
             assert(false);
-            nodeIndex = 0;
-            break;
+            return 0;
     }
-
-    return nodeIndex;
 }
 
 std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& state) {
-    // Recurse to child nodes
-    FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
-
     // There should only be one action and it should be a chance action
+    FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
     assert(validActions.size() == 1 && rules.getActionType(validActions[0]) == ActionType::Chance);
 
+    // Recurse to child nodes
     CardSet availableCards = rules.getDeck() & ~state.currentBoard;
     FixedVector<CardID, MaxNumDealCards> nextCards;
     FixedVector<std::size_t, MaxNumDealCards> nextNodeIndices;
