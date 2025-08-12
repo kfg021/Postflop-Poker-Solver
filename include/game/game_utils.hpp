@@ -9,8 +9,6 @@
 
 // Player functions
 Player getOpposingPlayer(Player player);
-std::uint8_t getPlayerID(Player player);
-std::uint8_t getOpposingPlayerID(Player player);
 
 // CardID functions
 CardID getCardIDFromValueAndSuit(Value value, Suit suit);

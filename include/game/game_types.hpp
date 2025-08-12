@@ -4,6 +4,7 @@
 #include "game/holdem/config.hpp"
 
 #include <array>
+#include <cassert>
 #include <cstdint>
 
 constexpr int StandardDeckSize = holdem::DeckSize;
@@ -66,9 +67,32 @@ enum class Suit : std::uint8_t {
     Spades
 };
 
+template <typename T>
+class PlayerArray {
+public:
+    constexpr PlayerArray() = default;
+    constexpr PlayerArray(const T& player0Value, const T& player1Value) : m_array{ player0Value, player1Value } {};
+
+    constexpr const T& operator[](Player player) const {
+        return m_array[getPlayerID(player)];
+    }
+
+    constexpr T& operator[](Player player) {
+        return m_array[getPlayerID(player)];
+    }
+
+private:
+    constexpr int getPlayerID(Player player) const {
+        assert(player == Player::P0 || player == Player::P1);
+        return (player == Player::P0) ? 0 : 1;
+    }
+
+    std::array<T, 2> m_array;
+};
+
 struct GameState {
     CardSet currentBoard;
-    std::array<int, 2> playerTotalWagers;
+    PlayerArray<int> totalWagers;
     int deadMoney;
     Player playerToAct;
     ActionID lastAction;
@@ -77,17 +101,17 @@ struct GameState {
 
 struct InitialSetup {
     InitialSetup(
-        const std::array<std::uint16_t, 2>& playerHandIndices_,
-        const std::array<float, 2>& playerWeights_,
+        PlayerArray<std::uint16_t> handIndices_,
+        PlayerArray<float> weights_,
         float matchupProbability_
     ) :
-        playerHandIndices{ playerHandIndices_ },
-        playerWeights{ playerWeights_ },
+        handIndices{ handIndices_ },
+        weights{ weights_ },
         matchupProbability{ matchupProbability_ } {
     }
 
-    std::array<std::uint16_t, 2> playerHandIndices;
-    std::array<float, 2> playerWeights;
+    PlayerArray<std::uint16_t> handIndices;
+    PlayerArray<float> weights;
     float matchupProbability;
 };
 

@@ -28,7 +28,7 @@ const std::array<CardSet, 3> PossibleHands = {
 GameState KuhnPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
-        .playerTotalWagers = { 1, 1 }, // Each player antes 1
+        .totalWagers = { 1, 1 }, // Each player antes 1
         .deadMoney = 0,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
@@ -91,7 +91,7 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
 
     GameState nextState = {
         .currentBoard = state.currentBoard,
-        .playerTotalWagers = state.playerTotalWagers,
+        .totalWagers = state.totalWagers,
         .deadMoney = state.deadMoney,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
@@ -105,7 +105,7 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
         case Action::Call:
         case Action::Bet:
             // A bet or a call increases the player's wager by 1
-            ++nextState.playerTotalWagers[getPlayerID(state.playerToAct)];
+            ++nextState.totalWagers[state.playerToAct];
             break;
         default:
             assert(false);
@@ -126,11 +126,11 @@ std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {
         for (int j = 0; j < 3; ++j) {
             if (i == j) continue;
 
-            std::array<std::uint16_t, 2> playerHandIndices = {
+            PlayerArray<std::uint16_t> playerHandIndices = {
                 static_cast<std::uint16_t>(i),
                 static_cast<std::uint16_t>(j)
             };
-            static constexpr std::array<float, 2> PlayerWeights = { 1.0f, 1.0f };
+            static constexpr PlayerArray<float> PlayerWeights = { 1.0f, 1.0f };
             static constexpr float MatchupProbability = 1.0f / 6.0f;
 
             initialSetups.emplace_back(

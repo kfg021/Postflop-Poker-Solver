@@ -3,7 +3,6 @@
 
 #include "game/game_types.hpp"
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 

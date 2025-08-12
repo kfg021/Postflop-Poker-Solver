@@ -18,15 +18,6 @@ Player getOpposingPlayer(Player player) {
     return (player == Player::P0) ? Player::P1 : Player::P0;
 }
 
-std::uint8_t getPlayerID(Player player) {
-    assert(player == Player::P0 || player == Player::P1);
-    return (player == Player::P0) ? 0 : 1;
-}
-
-std::uint8_t getOpposingPlayerID(Player player) {
-    return getPlayerID(getOpposingPlayer(player));
-}
-
 CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
     int valueID = static_cast<int>(value);
     assert(valueID < 13);

@@ -41,7 +41,7 @@ json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, cons
 json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
     json j;
     j["NodeType"] = "Decision";
-    j["Player"] = getPlayerID(decisionNode.player);
+    j["Player"] = (decisionNode.player == Player::P0) ? 0 : 1;
 
     auto& validActions = j["ValidActions"];
     for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
@@ -77,7 +77,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
 json buildJSONFold(const FoldNode& foldNode) {
     json j;
     j["NodeType"] = "Fold";
-    j["WinningPlayer"] = getPlayerID(foldNode.remainingPlayer);
+    j["WinningPlayer"] = (foldNode.remainingPlayer == Player::P0) ? 0 : 1;
     j["Reward"] = foldNode.remainingPlayerReward;
     return j;
 }
