@@ -28,50 +28,50 @@ enum class Action : std::uint8_t {
     AllIn
 };
 
-bool areWagersValidAfterBetOrRaise(const std::array<int, 2>& playerWagers, int effectiveStack) {
+bool areWagersValidAfterBetOrRaise(PlayerArray<int> wagers, int effectiveStack) {
     // Don't allow wagers that would risk more money then we have available
     // Also ignore exact equality since that is identical to an all in
-    return (playerWagers[0] < effectiveStack) && (playerWagers[1] < effectiveStack);
+    return (wagers[Player::P0] < effectiveStack) && (wagers[Player::P0] < effectiveStack);
 }
 
-std::optional<std::array<int, 2>> tryGetWagersAfterBet(
-    const std::array<int, 2>& oldPlayerWagers,
+std::optional<PlayerArray<int>> tryGetWagersAfterBet(
+    PlayerArray<int> oldWagers,
     Player bettingPlayer,
     int betPercentage,
     int effectiveStack
 ) {
     // Before a bet both players should have the same amount wagered
-    assert(oldPlayerWagers[0] == oldPlayerWagers[1]);
-    int oldPotSize = oldPlayerWagers[0] * 2;
+    assert(oldWagers[Player::P0] == oldWagers[Player::P1]);
+    int oldPotSize = oldWagers[Player::P0] * 2;
 
     // Bet a percentage of the pot, rounded up
     int betAmount = (oldPotSize * betPercentage + 99) / 100;
 
-    auto newPlayerWagers = oldPlayerWagers;
-    newPlayerWagers[getPlayerID(bettingPlayer)] += betAmount;
+    PlayerArray<int> newWagers = oldWagers;
+    newWagers[bettingPlayer] += betAmount;
 
-    if (areWagersValidAfterBetOrRaise(newPlayerWagers, effectiveStack)) {
-        return newPlayerWagers;
+    if (areWagersValidAfterBetOrRaise(newWagers, effectiveStack)) {
+        return newWagers;
     }
     else {
         return std::nullopt;
     }
 }
 
-std::optional<std::array<int, 2>> tryGetWagersAfterRaise(
-    const std::array<int, 2>& oldPlayerWagers,
+std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
+    PlayerArray<int> oldWagers,
     Player raisingPlayer,
     int raisePercentage,
     int effectiveStack
 ) {
     // Before a raise, the player about to raise must have less wagered
-    int oldRaisingPlayerWager = oldPlayerWagers[getPlayerID(raisingPlayer)];
-    int oldOpposingPlayerWager = oldPlayerWagers[getOpposingPlayerID(raisingPlayer)];
+    int oldRaisingPlayerWager = oldWagers[raisingPlayer];
+    int oldOpposingPlayerWager = oldWagers[getOpposingPlayer(raisingPlayer)];
     int oldRequiredMatchAmount = oldOpposingPlayerWager - oldRaisingPlayerWager;
     assert(oldRequiredMatchAmount > 0);
 
     // First match the current bet, then bet a percentage on top of that
-    std::optional<std::array<int, 2>> newPlayerWagersOption = tryGetWagersAfterBet(
+    std::optional<PlayerArray<int>> newPlayerWagersOption = tryGetWagersAfterBet(
         { oldOpposingPlayerWager, oldOpposingPlayerWager },
         raisingPlayer,
         raisePercentage,
@@ -82,9 +82,9 @@ std::optional<std::array<int, 2>> tryGetWagersAfterRaise(
         return std::nullopt;
     }
 
-    auto& newPlayerWagers = *newPlayerWagersOption;
-    int newRaisingPlayerWager = newPlayerWagers[getPlayerID(raisingPlayer)];
-    int newOpposingPlayerWager = newPlayerWagers[getOpposingPlayerID(raisingPlayer)];
+    const auto& newPlayerWagers = *newPlayerWagersOption;
+    int newRaisingPlayerWager = newPlayerWagers[raisingPlayer];
+    int newOpposingPlayerWager = newPlayerWagers[getOpposingPlayer(raisingPlayer)];
     int newRequiredMatchAmount = newRaisingPlayerWager - newOpposingPlayerWager;
     assert(newRequiredMatchAmount > 0);
 
@@ -98,7 +98,7 @@ std::optional<std::array<int, 2>> tryGetWagersAfterRaise(
 }
 } // namespace
 
-Holdem::Holdem(const Settings& settings) : m_settings(settings) {}
+Holdem::Holdem(const Settings& settings) : m_settings{ settings } {}
 
 GameState Holdem::getInitialGameState() const {
     auto getStartingStreet = [](CardSet communityCards) -> Street {
@@ -117,7 +117,7 @@ GameState Holdem::getInitialGameState() const {
 
     static const GameState InitialState = {
         .currentBoard = 0,
-        .playerTotalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
+        .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
         .deadMoney = m_settings.deadMoney,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
@@ -175,7 +175,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
     auto addAllValidBetSizes = [this, &state](FixedVector<ActionID, MaxNumActions>& validActions) -> void {
         for (int i = 0; i < m_settings.betSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterBet(
-                state.playerTotalWagers,
+                state.totalWagers,
                 state.playerToAct,
                 m_settings.betSizes[i],
                 m_settings.effectiveStack
@@ -190,7 +190,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
     auto addAllValidRaiseSizes = [this, &state](FixedVector<ActionID, MaxNumActions>& validActions) -> void {
         for (int i = 0; i < m_settings.raiseSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterRaise(
-                state.playerTotalWagers,
+                state.totalWagers,
                 state.playerToAct,
                 m_settings.raiseSizes[i],
                 m_settings.effectiveStack
@@ -261,6 +261,10 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
                 static_cast<ActionID>(Action::Fold),
                 static_cast<ActionID>(Action::Call)
             };
+
+        default:
+            assert(false);
+            return {};
     }
 }
 
@@ -269,7 +273,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 
     GameState nextState = {
         .currentBoard = state.currentBoard,
-        .playerTotalWagers = state.playerTotalWagers,
+        .totalWagers = state.totalWagers,
         .deadMoney = state.deadMoney,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
@@ -288,14 +292,14 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
             assert(betIndex >= 0 && betIndex < m_settings.betSizes.size());
 
             auto newWagersOption = tryGetWagersAfterBet(
-                state.playerTotalWagers,
+                state.totalWagers,
                 state.playerToAct,
                 m_settings.betSizes[betIndex],
                 m_settings.effectiveStack
             );
             assert(newWagersOption);
 
-            nextState.playerTotalWagers = *newWagersOption;
+            nextState.totalWagers = *newWagersOption;
             break;
         }
 
@@ -306,30 +310,32 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
             assert(raiseIndex >= 0 && raiseIndex < m_settings.raiseSizes.size());
 
             auto newWagersOption = tryGetWagersAfterRaise(
-                state.playerTotalWagers,
+                state.totalWagers,
                 state.playerToAct,
                 m_settings.betSizes[raiseIndex],
                 m_settings.effectiveStack
             );
             assert(newWagersOption);
 
-            nextState.playerTotalWagers = *newWagersOption;
+            nextState.totalWagers = *newWagersOption;
             break;
         }
 
         case Action::AllIn:
             // During an all in, the current player bets their entire stack
-            nextState.playerTotalWagers[getPlayerID(state.playerToAct)] = m_settings.effectiveStack;
+            nextState.totalWagers[state.playerToAct] = m_settings.effectiveStack;
             break;
 
         default:
             assert(false);
             break;
     }
+
+    return nextState;
 }
 
 std::uint16_t Holdem::getRangeSize(Player player) const {
-    const auto& playerRange = m_settings.playerRanges[getPlayerID(player)];
+    const auto& playerRange = m_settings.ranges[player];
     return static_cast<std::uint16_t>(playerRange.size());
 }
 
@@ -346,5 +352,3 @@ CardSet Holdem::getDeck() const {
 // std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
 // CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
 // std::string getActionName(ActionID actionID) const override;
-
-Holdem::Holdem(const Settings& settings) : m_settings{ settings } {}

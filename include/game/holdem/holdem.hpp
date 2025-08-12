@@ -22,7 +22,7 @@ public:
     };
 
     struct Settings {
-        std::array<std::vector<RangeElement>, 2> playerRanges;
+        PlayerArray<std::vector<RangeElement>> ranges;
         CardSet startingCommunityCards;
         FixedVector<int, holdem::MaxNumBetSizes> betSizes;
         FixedVector<int, holdem::MaxNumRaiseSizes> raiseSizes;
@@ -52,13 +52,7 @@ public:
     std::string getActionName(ActionID actionID) const override;
 
 private:
-    static constexpr int NumPossibleHands = (holdem::DeckSize * (holdem::DeckSize - 1)) / 2;
-
-    void initLookupTables();
-
     Settings m_settings;
-    std::array<std::array<std::uint16_t, NumPossibleHands>, 2> m_handToIndexTable;
-    std::array<std::vector<CardSet>, 2> m_indexToHandTable;
 };
 
 #endif // HOLDEM_HPP
