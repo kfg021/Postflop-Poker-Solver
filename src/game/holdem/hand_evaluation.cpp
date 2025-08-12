@@ -114,7 +114,7 @@ std::uint32_t generateFiveCardHandRank(CardSet hand) {
     };
 
     auto convertHandRankToInt = [](const HandRank& handRank) -> std::uint32_t {
-        // Integer representation;
+        // Integer representation:
         // Bits [23, 20]: Hand type
         // Bits [19, 16]: Kicker 0
         // Bits [15, 12]: Kicker 1

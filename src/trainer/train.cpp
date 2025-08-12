@@ -12,14 +12,14 @@
 #include <string>
 #include <vector>
 
-void train(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes, int iterations, const std::string& strategyOutputFile) {
+void train(const IGameRules& rules, int iterations, const std::string& strategyOutputFile) {
     assert(iterations > 0);
 
     Tree tree;
 
     std::cout << "Building tree...\n" << std::flush;
 
-    tree.buildTreeSkeleton(rules, rangeSizes);
+    tree.buildTreeSkeleton(rules);
 
     std::cout << "Finished building tree.\n";
     std::cout << "Number of decision nodes: " << tree.getNumberOfDecisionNodes() << "\n";
@@ -37,7 +37,7 @@ void train(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSiz
     float player0ExpectedValueSum = 0.0f;
     for (int i = 0; i < iterations; ++i) {
         for (const InitialSetup& setup : initialSetups) {
-            float cfrResult = cfr(rules, setup.playerHands, setup.playerWeights, tree.getRootNode(), tree);
+            float cfrResult = cfr(rules, setup.playerHandIndices, setup.playerWeights, tree.getRootNode(), tree);
             player0ExpectedValueSum += setup.matchupProbability * cfrResult;
         }
 

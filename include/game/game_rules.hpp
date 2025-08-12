@@ -18,15 +18,15 @@ public:
     virtual ActionType getActionType(ActionID actionID) const = 0;
     virtual FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const = 0;
     virtual GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const = 0;
+    virtual std::uint16_t getRangeSize(Player player) const = 0;
 
     // Functions for the CFR algorithm
     virtual std::vector<InitialSetup> getInitialSetups() const = 0;
     virtual CardSet getDeck() const = 0;
-    virtual ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const = 0;
-    virtual std::uint16_t mapHandToIndex(Player player, CardSet hand) const = 0;
+    virtual CardSet mapIndexToHand(Player player, std::uint16_t index) const = 0;
+    virtual ShowdownResult getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const = 0;
     
     // Functions for output
-    virtual CardSet mapIndexToHand(Player player, std::uint16_t index) const = 0;
     virtual std::string getActionName(ActionID actionID) const = 0;
 };
 

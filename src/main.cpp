@@ -2,19 +2,14 @@
 #include "game/leduc_poker.hpp"
 #include "trainer/train.hpp"
 
-#include <array>
-#include <cstdint>
-
 void trainKuhnPoker(int iterations, const std::string& strategyOutputFile) {
     const KuhnPoker kuhnPokerRules;
-    std::array<std::uint16_t, 2> RangeSizes = { 3, 3 }; // Jack, Queen, or King is possible for each player
-    train(kuhnPokerRules, RangeSizes, iterations, strategyOutputFile);
+    train(kuhnPokerRules, iterations, strategyOutputFile);
 }
 
 void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
     const LeducPoker leducPokerRules;
-    std::array<std::uint16_t, 2> RangeSizes = { 6, 6 };
-    train(leducPokerRules, RangeSizes, iterations, strategyOutputFile);
+    train(leducPokerRules, iterations, strategyOutputFile);
 }
 
 int main() {

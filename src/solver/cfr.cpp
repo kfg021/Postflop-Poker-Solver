@@ -14,14 +14,20 @@
 #include <cstdint>
 
 namespace {
+CardSet getAvailableCards(const IGameRules& rules, const std::array<std::uint16_t, 2>& playerHandIndices, CardSet board) {
+    CardSet player0Hand = rules.mapIndexToHand(Player::P0, playerHandIndices[0]);
+    CardSet player1Hand = rules.mapIndexToHand(Player::P1, playerHandIndices[1]);
+    return rules.getDeck() & ~(player0Hand | player1Hand | board);
+}
+
 float cfrChance(
     const IGameRules& rules,
-    const std::array<CardSet, 2>& playerHands,
+    const std::array<std::uint16_t, 2>& playerHandIndices,
     const std::array<float, 2>& playerWeights,
     const ChanceNode& chanceNode,
     Tree& tree
 ) {
-    CardSet availableCards = rules.getDeck() & ~(playerHands[0] | playerHands[1] | chanceNode.board);
+    CardSet availableCardsForChance = getAvailableCards(rules, playerHandIndices, chanceNode.board);
 
     float player0ExpectedValueSum = 0.0f;
     for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
@@ -29,17 +35,17 @@ float cfrChance(
         std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        if (setContainsCard(availableCards, nextCard)) {
-            player0ExpectedValueSum += cfr(rules, playerHands, playerWeights, tree.allNodes[nextNodeIndex], tree);
+        if (setContainsCard(availableCardsForChance, nextCard)) {
+            player0ExpectedValueSum += cfr(rules, playerHandIndices, playerWeights, tree.allNodes[nextNodeIndex], tree);
         }
     }
 
-    return player0ExpectedValueSum / getSetSize(availableCards);
+    return player0ExpectedValueSum / getSetSize(availableCardsForChance);
 }
 
 float cfrDecision(
     const IGameRules& rules,
-    const std::array<CardSet, 2>& playerHands,
+    const std::array<std::uint16_t, 2>& playerHandIndices,
     const std::array<float, 2>& playerWeights,
     const DecisionNode& decisionNode,
     Tree& tree
@@ -67,8 +73,7 @@ float cfrDecision(
         return currentStrategy;
     };
 
-    const CardSet& currentPlayerHand = playerHands[getPlayerID(decisionNode.player)];
-    std::uint16_t trainingDataSet = rules.mapHandToIndex(decisionNode.player, currentPlayerHand);
+    std::uint16_t trainingDataSet = playerHandIndices[getPlayerID(decisionNode.player)];
     FixedVector<float, MaxNumActions> currentPlayerStrategy = calculateCurrentStrategy(trainingDataSet);
     std::uint8_t numActions = decisionNode.decisionDataSize;
 
@@ -81,7 +86,7 @@ float cfrDecision(
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        float player0ExpectedValue = cfr(rules, playerHands, newPlayerWeights, tree.allNodes[nextNodeIndex], tree);
+        float player0ExpectedValue = cfr(rules, playerHandIndices, newPlayerWeights, tree.allNodes[nextNodeIndex], tree);
         currentPlayerActionUtility[i] = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
         currentPlayerExpectedValue += currentPlayerActionUtility[i] * currentPlayerStrategy[i];
     }
@@ -108,11 +113,13 @@ float cfrFold(const FoldNode& foldNode) {
 
 float cfrShowdown(
     const IGameRules& rules,
-    const std::array<CardSet, 2>& playerHands,
+    const std::array<std::uint16_t, 2>& playerHandIndices,
     const ShowdownNode& showdownNode
 ) {
-    auto getPlayer0Reward = [&rules, &playerHands, &showdownNode](CardSet board) -> int {
-        switch (rules.getShowdownResult(playerHands, board)) {
+    auto getPlayer0Reward = [&rules, &playerHandIndices, &showdownNode](CardSet board) -> int {
+        CardSet player0Hand = rules.mapIndexToHand(Player::P0, playerHandIndices[0]);
+        CardSet player1Hand = rules.mapIndexToHand(Player::P1, playerHandIndices[1]);
+        switch (rules.getShowdownResult(player0Hand, player1Hand, board)) {
             case ShowdownResult::P0Win:
                 return showdownNode.reward;
             case ShowdownResult::P1Win:
@@ -125,7 +132,7 @@ float cfrShowdown(
         }
     };
 
-    CardSet availableCardsForRunout = rules.getDeck() & ~(playerHands[0] | playerHands[1] | showdownNode.board);
+    CardSet availableCardsForRunout = getAvailableCards(rules, playerHandIndices, showdownNode.board);
 
     switch (showdownNode.street) {
         case Street::River: {
@@ -176,7 +183,7 @@ float cfrShowdown(
 
 float cfr(
     const IGameRules& rules,
-    const std::array<CardSet, 2>& playerHands,
+    const std::array<std::uint16_t, 2>& playerHandIndices,
     const std::array<float, 2>& playerWeights,
     const Node& node,
     Tree& tree
@@ -187,7 +194,7 @@ float cfr(
         case NodeType::Chance:
             return cfrChance(
                 rules,
-                playerHands,
+                playerHandIndices,
                 playerWeights,
                 node.chanceNode,
                 tree
@@ -195,7 +202,7 @@ float cfr(
         case NodeType::Decision:
             return cfrDecision(
                 rules,
-                playerHands,
+                playerHandIndices,
                 playerWeights,
                 node.decisionNode,
                 tree
@@ -205,7 +212,7 @@ float cfr(
         case NodeType::Showdown:
             return cfrShowdown(
                 rules,
-                playerHands,
+                playerHandIndices,
                 node.showdownNode
             );
         default:
