@@ -5,7 +5,6 @@
 #include "game/game_types.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>

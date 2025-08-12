@@ -7,27 +7,26 @@
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <array>
 #include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 
 namespace {
-CardSet getAvailableCards(const IGameRules& rules, const std::array<std::uint16_t, 2>& playerHandIndices, CardSet board) {
-    CardSet player0Hand = rules.mapIndexToHand(Player::P0, playerHandIndices[0]);
-    CardSet player1Hand = rules.mapIndexToHand(Player::P1, playerHandIndices[1]);
+CardSet getAvailableCards(const IGameRules& rules, PlayerArray<std::uint16_t> handIndices, CardSet board) {
+    CardSet player0Hand = rules.mapIndexToHand(Player::P0, handIndices[Player::P0]);
+    CardSet player1Hand = rules.mapIndexToHand(Player::P1, handIndices[Player::P1]);
     return rules.getDeck() & ~(player0Hand | player1Hand | board);
 }
 
 float cfrChance(
     const IGameRules& rules,
-    const std::array<std::uint16_t, 2>& playerHandIndices,
-    const std::array<float, 2>& playerWeights,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
     const ChanceNode& chanceNode,
     Tree& tree
 ) {
-    CardSet availableCardsForChance = getAvailableCards(rules, playerHandIndices, chanceNode.board);
+    CardSet availableCardsForChance = getAvailableCards(rules, handIndices, chanceNode.board);
 
     float player0ExpectedValueSum = 0.0f;
     for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
@@ -36,7 +35,7 @@ float cfrChance(
         assert(nextNodeIndex < tree.allNodes.size());
 
         if (setContainsCard(availableCardsForChance, nextCard)) {
-            player0ExpectedValueSum += cfr(rules, playerHandIndices, playerWeights, tree.allNodes[nextNodeIndex], tree);
+            player0ExpectedValueSum += cfr(rules, handIndices, weights, tree.allNodes[nextNodeIndex], tree);
         }
     }
 
@@ -45,8 +44,8 @@ float cfrChance(
 
 float cfrDecision(
     const IGameRules& rules,
-    const std::array<std::uint16_t, 2>& playerHandIndices,
-    const std::array<float, 2>& playerWeights,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
     const DecisionNode& decisionNode,
     Tree& tree
 ) {
@@ -73,20 +72,20 @@ float cfrDecision(
         return currentStrategy;
     };
 
-    std::uint16_t trainingDataSet = playerHandIndices[getPlayerID(decisionNode.player)];
+    std::uint16_t trainingDataSet = handIndices[decisionNode.player];
     FixedVector<float, MaxNumActions> currentPlayerStrategy = calculateCurrentStrategy(trainingDataSet);
     std::uint8_t numActions = decisionNode.decisionDataSize;
 
     float currentPlayerExpectedValue = 0.0f;
     FixedVector<float, MaxNumActions> currentPlayerActionUtility(numActions, 0.0f);
     for (int i = 0; i < numActions; ++i) {
-        std::array<float, 2> newPlayerWeights = playerWeights;
-        newPlayerWeights[getPlayerID(decisionNode.player)] *= currentPlayerStrategy[i];
+        PlayerArray<float> newWeights = weights;
+        newWeights[decisionNode.player] *= currentPlayerStrategy[i];
 
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        float player0ExpectedValue = cfr(rules, playerHandIndices, newPlayerWeights, tree.allNodes[nextNodeIndex], tree);
+        float player0ExpectedValue = cfr(rules, handIndices, newWeights, tree.allNodes[nextNodeIndex], tree);
         currentPlayerActionUtility[i] = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
         currentPlayerExpectedValue += currentPlayerActionUtility[i] * currentPlayerStrategy[i];
     }
@@ -94,8 +93,8 @@ float cfrDecision(
     for (int i = 0; i < numActions; ++i) {
         float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
         std::size_t trainingIndex = getTrainingDataIndex(decisionNode, trainingDataSet, i);
-        tree.allRegretSums[trainingIndex] += playerWeights[getOpposingPlayerID(decisionNode.player)] * regret;
-        tree.allStrategySums[trainingIndex] += playerWeights[getPlayerID(decisionNode.player)] * currentPlayerStrategy[i];
+        tree.allRegretSums[trainingIndex] += weights[getOpposingPlayer(decisionNode.player)] * regret;
+        tree.allStrategySums[trainingIndex] += weights[decisionNode.player] * currentPlayerStrategy[i];
 
         if (tree.allRegretSums[trainingIndex] < 0.0f) {
             tree.allRegretSums[trainingIndex] = 0.0f;
@@ -113,12 +112,12 @@ float cfrFold(const FoldNode& foldNode) {
 
 float cfrShowdown(
     const IGameRules& rules,
-    const std::array<std::uint16_t, 2>& playerHandIndices,
+    PlayerArray<std::uint16_t> handIndices,
     const ShowdownNode& showdownNode
 ) {
-    auto getPlayer0Reward = [&rules, &playerHandIndices, &showdownNode](CardSet board) -> int {
-        CardSet player0Hand = rules.mapIndexToHand(Player::P0, playerHandIndices[0]);
-        CardSet player1Hand = rules.mapIndexToHand(Player::P1, playerHandIndices[1]);
+    auto getPlayer0Reward = [&rules, &handIndices, &showdownNode](CardSet board) -> int {
+        CardSet player0Hand = rules.mapIndexToHand(Player::P0, handIndices[Player::P0]);
+        CardSet player1Hand = rules.mapIndexToHand(Player::P1, handIndices[Player::P1]);
         switch (rules.getShowdownResult(player0Hand, player1Hand, board)) {
             case ShowdownResult::P0Win:
                 return showdownNode.reward;
@@ -132,7 +131,7 @@ float cfrShowdown(
         }
     };
 
-    CardSet availableCardsForRunout = getAvailableCards(rules, playerHandIndices, showdownNode.board);
+    CardSet availableCardsForRunout = getAvailableCards(rules, handIndices, showdownNode.board);
 
     switch (showdownNode.street) {
         case Street::River: {
@@ -183,8 +182,8 @@ float cfrShowdown(
 
 float cfr(
     const IGameRules& rules,
-    const std::array<std::uint16_t, 2>& playerHandIndices,
-    const std::array<float, 2>& playerWeights,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
     const Node& node,
     Tree& tree
 ) {
@@ -194,16 +193,16 @@ float cfr(
         case NodeType::Chance:
             return cfrChance(
                 rules,
-                playerHandIndices,
-                playerWeights,
+                handIndices,
+                weights,
                 node.chanceNode,
                 tree
             );
         case NodeType::Decision:
             return cfrDecision(
                 rules,
-                playerHandIndices,
-                playerWeights,
+                handIndices,
+                weights,
                 node.decisionNode,
                 tree
             );
@@ -212,7 +211,7 @@ float cfr(
         case NodeType::Showdown:
             return cfrShowdown(
                 rules,
-                playerHandIndices,
+                handIndices,
                 node.showdownNode
             );
         default:

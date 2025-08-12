@@ -5,7 +5,6 @@
 #include "game/game_utils.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -85,7 +84,7 @@ std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& sta
 
             GameState newState = {
                 .currentBoard = newBoard,
-                .playerTotalWagers = state.playerTotalWagers,
+                .totalWagers = state.totalWagers,
                 .deadMoney = state.deadMoney,
                 .playerToAct = Player::P0, // Player 0 always starts a new betting round
                 .lastAction = validActions[0],
@@ -150,7 +149,7 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
 std::size_t Tree::createFoldNode(const GameState& state) {
     // The reward is the amount that the folding player wagered plus any dead money
     // The folding player acted last turn
-    int remaningPlayerReward = state.playerTotalWagers[getOpposingPlayerID(state.playerToAct)] + state.deadMoney;
+    int remaningPlayerReward = state.totalWagers[getOpposingPlayer(state.playerToAct)] + state.deadMoney;
 
     FoldNode foldNode = {
         .remainingPlayerReward = remaningPlayerReward,
@@ -163,10 +162,10 @@ std::size_t Tree::createFoldNode(const GameState& state) {
 
 std::size_t Tree::createShowdownNode(const GameState& state) {
     // At showdown players should have wagered same amount
-    assert(state.playerTotalWagers[0] == state.playerTotalWagers[1]);
+    assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
 
     // The reward is the amount wagered plus any dead money
-    int reward = state.playerTotalWagers[0] + state.deadMoney;
+    int reward = state.totalWagers[Player::P0] + state.deadMoney;
 
     ShowdownNode showdownNode = {
         .board = state.currentBoard,

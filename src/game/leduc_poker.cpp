@@ -36,7 +36,7 @@ const std::array<CardSet, 6> PossibleHands = {
 GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
-        .playerTotalWagers = { 1, 1 }, // Each player antes 1
+        .totalWagers = { 1, 1 }, // Each player antes 1
         .deadMoney = 0,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
@@ -134,7 +134,7 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
 
     GameState nextState = {
         .currentBoard = state.currentBoard,
-        .playerTotalWagers = state.playerTotalWagers,
+        .totalWagers = state.totalWagers,
         .deadMoney = state.deadMoney,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
@@ -150,11 +150,11 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
             break;
         case Action::Call:
         case Action::Bet:
-            nextState.playerTotalWagers[getPlayerID(state.playerToAct)] += betAmount;
+            nextState.totalWagers[state.playerToAct] += betAmount;
             break;
         case Action::Raise:
             // A raise matches the previous bet, then bets that amount on top
-            nextState.playerTotalWagers[getPlayerID(state.playerToAct)] += 2 * betAmount;
+            nextState.totalWagers[state.playerToAct] += 2 * betAmount;
             break;
         default:
             assert(false);
@@ -175,11 +175,11 @@ std::vector<InitialSetup> LeducPoker::getInitialSetups() const {
         for (int j = 0; j < 6; ++j) {
             if (i == j) continue;
 
-            std::array<std::uint16_t, 2> playerHandIndices = {
+            PlayerArray<std::uint16_t> playerHandIndices = {
                 static_cast<std::uint16_t>(i),
                 static_cast<std::uint16_t>(j)
             };
-            static constexpr std::array<float, 2> PlayerWeights = { 1.0f, 1.0f };
+            static constexpr PlayerArray<float> PlayerWeights = { 1.0f, 1.0f };
             static constexpr float MatchupProbability = 1.0f / 30.0f;
 
             initialSetups.emplace_back(

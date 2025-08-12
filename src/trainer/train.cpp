@@ -37,7 +37,7 @@ void train(const IGameRules& rules, int iterations, const std::string& strategyO
     float player0ExpectedValueSum = 0.0f;
     for (int i = 0; i < iterations; ++i) {
         for (const InitialSetup& setup : initialSetups) {
-            float cfrResult = cfr(rules, setup.playerHandIndices, setup.playerWeights, tree.getRootNode(), tree);
+            float cfrResult = cfr(rules, setup.handIndices, setup.weights, tree.getRootNode(), tree);
             player0ExpectedValueSum += setup.matchupProbability * cfrResult;
         }
 
