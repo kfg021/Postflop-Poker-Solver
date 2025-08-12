@@ -124,12 +124,15 @@ std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {
         for (int j = 0; j < 3; ++j) {
             if (i == j) continue;
 
-            std::array<CardSet, 2> playerHands = { PossibleHands[i], PossibleHands[j] };
+            std::array<std::uint16_t, 2> playerHandIndices = {
+                static_cast<std::uint16_t>(i),
+                static_cast<std::uint16_t>(j)
+            };
             static constexpr std::array<float, 2> PlayerWeights = { 1.0f, 1.0f };
             static constexpr float MatchupProbability = 1.0f / 6.0f;
 
             initialSetups.emplace_back(
-                playerHands,
+                playerHandIndices,
                 PlayerWeights,
                 MatchupProbability
             );
@@ -147,31 +150,20 @@ CardSet KuhnPoker::getDeck() const {
     return deckSet;
 }
 
-ShowdownResult KuhnPoker::getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet /*board*/) const {
-    assert(getSetSize(playerHands[0]) == 1);
-    assert(getSetSize(playerHands[1]) == 1);
-
-    Value player0CardValue = getCardValue(getLowestCardInSet(playerHands[0]));
-    Value player1CardValue = getCardValue(getLowestCardInSet(playerHands[1]));
-    assert(player0CardValue != player1CardValue);
-
-    return (player0CardValue > player1CardValue) ? ShowdownResult::P0Win : ShowdownResult::P1Win;
-}
-
-std::uint16_t KuhnPoker::mapHandToIndex(Player /*player*/, CardSet hand) const {
-    for (int i = 0; i < 3; ++i) {
-        if (PossibleHands[i] == hand) {
-            return i;
-        }
-    }
-
-    assert(false);
-    return 0;
-}
-
 CardSet KuhnPoker::mapIndexToHand(Player /*player*/, std::uint16_t index) const {
     assert(index < 3);
     return PossibleHands[index];
+}
+
+ShowdownResult KuhnPoker::getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet /*board*/) const {
+    assert(getSetSize(player0Hand) == 1);
+    assert(getSetSize(player1Hand) == 1);
+
+    Value player0CardValue = getCardValue(getLowestCardInSet(player0Hand));
+    Value player1CardValue = getCardValue(getLowestCardInSet(player1Hand));
+    assert(player0CardValue != player1CardValue);
+
+    return (player0CardValue > player1CardValue) ? ShowdownResult::P0Win : ShowdownResult::P1Win;
 }
 
 std::string KuhnPoker::getActionName(ActionID actionID) const {

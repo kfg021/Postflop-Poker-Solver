@@ -78,16 +78,16 @@ struct GameState {
 
 struct InitialSetup {
     InitialSetup(
-        const std::array<CardSet, 2>& playerHands_,
+        const std::array<std::uint16_t, 2>& playerHandIndices_,
         const std::array<float, 2>& playerWeights_,
         float matchupProbability_
     ) :
-        playerHands{ playerHands_ },
+        playerHandIndices{ playerHandIndices_ },
         playerWeights{ playerWeights_ },
         matchupProbability{ matchupProbability_ } {
     }
 
-    std::array<CardSet, 2> playerHands;
+    std::array<std::uint16_t, 2> playerHandIndices;
     std::array<float, 2> playerWeights;
     float matchupProbability;
 };
