@@ -13,10 +13,13 @@ std::uint8_t getPlayerID(Player player);
 std::uint8_t getOpposingPlayerID(Player player);
 
 // CardID functions
+CardID getCardIDFromValueAndSuit(Value value, Suit suit);
 CardID getCardIDFromName(const std::string& cardName);
 std::string getNameFromCardID(CardID cardID);
 Value getCardValue(CardID cardID);
 Suit getCardSuit(CardID cardID);
+Value getValueFromChar(char valueChar);
+Suit getSuitFromChar(char suitChar);
 
 // CardSet functions
 CardSet cardIDToSet(CardID cardID);

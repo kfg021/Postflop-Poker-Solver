@@ -41,7 +41,6 @@ GameState LeducPoker::getInitialGameState() const {
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
         .currentStreet = Street::Turn, // Since Leduc poker has one street, we begin action on the turn 
-        .numRaisesThisStreet = 0
     };
     return InitialState;
 }
@@ -88,8 +87,6 @@ ActionType LeducPoker::getActionType(ActionID actionID) const {
 FixedVector<ActionID, MaxNumActions> LeducPoker::getValidActions(const GameState& state) const {
     NodeType nodeType = getNodeType(state);
     assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
-
-    assert(state.numRaisesThisStreet <= 1);
 
     switch (static_cast<Action>(state.lastAction)) {
         case Action::GameStart:
@@ -143,7 +140,6 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
-        .numRaisesThisStreet = state.numRaisesThisStreet
     };
 
     // Leduc poker betting doubles after the community card is dealt
@@ -160,7 +156,6 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
         case Action::Raise:
             // A raise matches the previous bet, then bets that amount on top
             nextState.playerTotalWagers[getPlayerID(state.playerToAct)] += 2 * betAmount;
-            ++nextState.numRaisesThisStreet;
             break;
         default:
             assert(false);

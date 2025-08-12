@@ -73,7 +73,6 @@ struct GameState {
     Player playerToAct;
     ActionID lastAction;
     Street currentStreet;
-    std::uint8_t numRaisesThisStreet;
 };
 
 struct InitialSetup {

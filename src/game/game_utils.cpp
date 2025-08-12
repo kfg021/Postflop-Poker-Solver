@@ -27,17 +27,29 @@ std::uint8_t getOpposingPlayerID(Player player) {
     return getPlayerID(getOpposingPlayer(player));
 }
 
+CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
+    int valueID = static_cast<int>(value);
+    assert(valueID < 13);
+
+    int suitID = static_cast<int>(suit);
+    assert(suitID < 4);
+
+    return (valueID * 4) + suitID;
+}
+
 CardID getCardIDFromName(const std::string& cardName) {
     assert(cardName.size() == 2);
 
-    std::size_t value = CardValueNames.find(cardName[0]);
-    assert(value < 13);
+    std::size_t valueID = CardValueNames.find(cardName[0]);
+    assert(valueID < 13);
 
-    std::size_t suit = CardSuitNames.find(cardName[1]);
-    assert(suit < 4);
+    std::size_t suitID = CardSuitNames.find(cardName[1]);
+    assert(suitID < 4);
 
-    CardID cardID = static_cast<std::uint8_t>((value * 4) + suit);
-    return cardID;
+    return getCardIDFromValueAndSuit(
+        static_cast<Value>(valueID),
+        static_cast<Suit>(suitID)
+    );
 }
 
 std::string getNameFromCardID(CardID cardID) {
@@ -55,6 +67,18 @@ Value getCardValue(CardID cardID) {
 Suit getCardSuit(CardID cardID) {
     assert(cardID < 52);
     return static_cast<Suit>(cardID % 4);
+}
+
+Value getValueFromChar(char valueChar) {
+    std::size_t valueID = CardValueNames.find(valueChar);
+    assert(valueID < 13);
+    return static_cast<Value>(valueID);
+}
+
+Suit getSuitFromChar(char suitChar) {
+    std::size_t suitID = CardValueNames.find(suitChar);
+    assert(suitID < 4);
+    return static_cast<Suit>(suitID);
 }
 
 CardSet cardIDToSet(CardID cardID) {

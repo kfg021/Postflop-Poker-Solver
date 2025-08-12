@@ -107,7 +107,6 @@ std::size_t Tree::createChanceNode(
                 .playerToAct = Player::P0, // Player 0 always starts a new betting round
                 .lastAction = validActions[0],
                 .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
-                .numRaisesThisStreet = 0 // Reset raise counter
             };
 
             nextCards.pushBack(cardID);

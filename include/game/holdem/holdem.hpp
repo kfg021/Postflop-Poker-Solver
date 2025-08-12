@@ -1,0 +1,59 @@
+#ifndef HOLDEM_HPP
+#define HOLDEM_HPP
+
+#include "game/game_rules.hpp"
+#include "game/game_types.hpp"
+#include "game/holdem/config.hpp"
+#include "util/fixed_vector.hpp"
+#include "util/result.hpp"
+
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+class Holdem final : public IGameRules {
+public:
+    struct Settings {
+        std::unordered_map<CardSet, int> playerRanges;
+        CardSet startingCommunityCards;
+        FixedVector<int, holdem::MaxNumBetSizes> betSizes;
+        FixedVector<int, holdem::MaxNumRaiseSizes> raiseSizes;
+        int startingPlayerWagers;
+        int effectiveStack;
+        int deadMoney;
+
+        // TODO:
+        // Add all-in threshold
+        // Force all-in threshold
+        // Merging threshold
+        // Raise limit?
+    };
+
+    Holdem(const Settings& settings);
+
+    GameState getInitialGameState() const override;
+    NodeType getNodeType(const GameState& state) const override;
+    ActionType getActionType(ActionID actionID) const override;
+    FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
+    GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
+    std::vector<InitialSetup> getInitialSetups() const override;
+    CardSet getDeck() const override;
+    ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
+    std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
+    CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
+    std::string getActionName(ActionID actionID) const override;
+
+private:
+    static constexpr int NumPossibleHands = (holdem::DeckSize * (holdem::DeckSize - 1)) / 2;
+
+    void initLookupTables();
+
+    Settings m_settings;
+    std::array<std::array<std::uint16_t, NumPossibleHands>, 2> m_handToIndexTable;
+    std::array<std::vector<CardSet>, 2> m_indexToHandTable;
+};
+
+int x = sizeof(Holdem);
+
+#endif // HOLDEM_HPP
