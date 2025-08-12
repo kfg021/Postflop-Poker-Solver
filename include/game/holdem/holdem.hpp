@@ -14,8 +14,15 @@
 
 class Holdem final : public IGameRules {
 public:
+    struct RangeElement {
+        CardSet hand;
+        int percentage;
+
+        auto operator<=>(const RangeElement&) const = default;
+    };
+
     struct Settings {
-        std::unordered_map<CardSet, int> playerRanges;
+        std::array<std::vector<RangeElement>, 2> playerRanges;
         CardSet startingCommunityCards;
         FixedVector<int, holdem::MaxNumBetSizes> betSizes;
         FixedVector<int, holdem::MaxNumRaiseSizes> raiseSizes;
@@ -37,11 +44,11 @@ public:
     ActionType getActionType(ActionID actionID) const override;
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
+    std::uint16_t getRangeSize(Player player) const override;
     std::vector<InitialSetup> getInitialSetups() const override;
     CardSet getDeck() const override;
-    ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
-    std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
     CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
+    ShowdownResult getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const override;
     std::string getActionName(ActionID actionID) const override;
 
 private:
@@ -53,7 +60,5 @@ private:
     std::array<std::array<std::uint16_t, NumPossibleHands>, 2> m_handToIndexTable;
     std::array<std::vector<CardSet>, 2> m_indexToHandTable;
 };
-
-int x = sizeof(Holdem);
 
 #endif // HOLDEM_HPP

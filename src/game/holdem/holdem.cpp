@@ -328,23 +328,23 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     }
 }
 
+std::uint16_t Holdem::getRangeSize(Player player) const {
+    const auto& playerRange = m_settings.playerRanges[getPlayerID(player)];
+    return static_cast<std::uint16_t>(playerRange.size());
+}
+
 std::vector<InitialSetup> Holdem::getInitialSetups() const {
 
 }
 
-// CardSet getDeck() const override;
+CardSet Holdem::getDeck() const {
+    static constexpr CardSet StartingDeck = (1LL << holdem::DeckSize) - 1;
+    return StartingDeck & ~m_settings.startingCommunityCards;
+}
+
 // ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
 // std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
 // CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
 // std::string getActionName(ActionID actionID) const override;
 
-Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
-    initLookupTables();
-};
-
-void Holdem::initLookupTables() {
-    for(int playerID = 0; playerID < 2; ++playerID) {
-        
-    }
-    for(const auto& [] : m_settings.playerRanges)
-}
+Holdem::Holdem(const Settings& settings) : m_settings{ settings } {}
