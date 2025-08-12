@@ -7,7 +7,6 @@
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <bit>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>

@@ -6,8 +6,6 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <initializer_list>
-#include <utility>
 
 constexpr int StandardDeckSize = holdem::DeckSize;
 constexpr int MaxNumDealCards = holdem::MaxNumDealCards;
