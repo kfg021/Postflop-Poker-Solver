@@ -90,7 +90,7 @@ json buildJSONShowdown(const ShowdownNode& showdownNode) {
 }
 
 json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree) {
-    switch (node.nodeType) {
+    switch (node.getNodeType()) {
         case NodeType::Chance:
             return buildJSONChance(rules, node.chanceNode, tree);
         case NodeType::Decision:

@@ -183,7 +183,7 @@ float cfr(
 ) {
     assert(tree.isTreeSkeletonBuilt() && tree.isFullTreeBuilt());
 
-    switch (node.nodeType) {
+    switch (node.getNodeType()) {
         case NodeType::Chance:
             return cfrChance(
                 rules,

@@ -54,11 +54,14 @@ struct ShowdownNode {
     Street street;
 };
 
-struct Node {
-    Node(const ChanceNode& chanceNode_) : chanceNode(chanceNode_), nodeType(NodeType::Chance) {}
-    Node(const DecisionNode& decisionNode_) : decisionNode(decisionNode_), nodeType(NodeType::Decision) {}
-    Node(const FoldNode& foldNode_) : foldNode(foldNode_), nodeType(NodeType::Fold) {}
-    Node(const ShowdownNode& showdownNode_) : showdownNode(showdownNode_), nodeType(NodeType::Showdown) {}
+class Node {
+public:
+    Node(const ChanceNode& chanceNode_) : chanceNode(chanceNode_), m_nodeType(NodeType::Chance) {}
+    Node(const DecisionNode& decisionNode_) : decisionNode(decisionNode_), m_nodeType(NodeType::Decision) {}
+    Node(const FoldNode& foldNode_) : foldNode(foldNode_), m_nodeType(NodeType::Fold) {}
+    Node(const ShowdownNode& showdownNode_) : showdownNode(showdownNode_), m_nodeType(NodeType::Showdown) {}
+
+    NodeType getNodeType() const { return m_nodeType; }
 
     union {
         ChanceNode chanceNode;
@@ -67,7 +70,8 @@ struct Node {
         ShowdownNode showdownNode;
     };
 
-    const NodeType nodeType;
+private:
+    NodeType m_nodeType;
 };
 
 #endif // NODE_HPP
