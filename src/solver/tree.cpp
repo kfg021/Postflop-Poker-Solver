@@ -99,7 +99,6 @@ std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& sta
                 .playerToAct = Player::P0, // Player 0 always starts a new betting round
                 .lastAction = validActions[0],
                 .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
-                .numRaisesThisStreet = 0 // Reset raise counter
             };
 
             nextCards.pushBack(cardID);
@@ -178,7 +177,7 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
     // The reward is the amount wagered plus any dead money
     int reward = state.playerTotalWagers[0] + state.deadMoney;
 
-    ShowdownNode showdownNode{
+    ShowdownNode showdownNode = {
         .board = state.currentBoard,
         .reward = reward,
         .street = state.currentStreet

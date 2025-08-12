@@ -36,12 +36,11 @@ const std::array<CardSet, 6> PossibleHands = {
 GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
-        .playerTotalWagers = {1, 1}, // Each player antes 1
+        .playerTotalWagers = { 1, 1 }, // Each player antes 1
         .deadMoney = 0,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
         .currentStreet = Street::Turn, // Since Leduc poker has one street, we begin action on the turn 
-        .numRaisesThisStreet = 0
     };
     return InitialState;
 }
@@ -65,7 +64,6 @@ NodeType LeducPoker::getNodeType(const GameState& state) const {
             else {
                 return NodeType::Decision;
             }
-
         case Action::Call:
             assert((state.currentStreet == Street::Turn) || (state.currentStreet == Street::River));
             return (state.currentStreet == Street::Turn) ? NodeType::Chance : NodeType::Showdown;
@@ -88,8 +86,6 @@ ActionType LeducPoker::getActionType(ActionID actionID) const {
 FixedVector<ActionID, MaxNumActions> LeducPoker::getValidActions(const GameState& state) const {
     NodeType nodeType = getNodeType(state);
     assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
-
-    assert(state.numRaisesThisStreet <= 1);
 
     switch (static_cast<Action>(state.lastAction)) {
         case Action::GameStart:
@@ -143,7 +139,6 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
-        .numRaisesThisStreet = state.numRaisesThisStreet
     };
 
     // Leduc poker betting doubles after the community card is dealt
@@ -160,7 +155,6 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
         case Action::Raise:
             // A raise matches the previous bet, then bets that amount on top
             nextState.playerTotalWagers[getPlayerID(state.playerToAct)] += 2 * betAmount;
-            ++nextState.numRaisesThisStreet;
             break;
         default:
             assert(false);
