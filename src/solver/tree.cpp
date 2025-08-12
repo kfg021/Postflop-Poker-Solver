@@ -19,8 +19,8 @@ bool Tree::isFullTreeBuilt() const {
     return !allStrategySums.empty();
 }
 
-void Tree::buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes) {
-    std::size_t root = createNode(rules, rules.getInitialGameState(), rangeSizes);
+void Tree::buildTreeSkeleton(const IGameRules& rules) {
+    std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
     // Free unnecessary memory - vectors are done growing
@@ -54,18 +54,14 @@ std::size_t Tree::estimateFullTreeSize() const {
     return getTreeSkeletonSize() + trainingDataHeapSize;
 }
 
-std::size_t Tree::createNode(
-    const IGameRules& rules,
-    const GameState& state,
-    const std::array<std::uint16_t, 2>& rangeSizes
-) {
+std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
     std::size_t nodeIndex;
     switch (rules.getNodeType(state)) {
         case NodeType::Chance:
-            nodeIndex = createChanceNode(rules, state, rangeSizes);
+            nodeIndex = createChanceNode(rules, state);
             break;
         case NodeType::Decision:
-            nodeIndex = createDecisionNode(rules, state, rangeSizes);
+            nodeIndex = createDecisionNode(rules, state);
             break;
         case NodeType::Fold:
             nodeIndex = createFoldNode(state);
@@ -82,11 +78,7 @@ std::size_t Tree::createNode(
     return nodeIndex;
 }
 
-std::size_t Tree::createChanceNode(
-    const IGameRules& rules,
-    const GameState& state,
-    const std::array<std::uint16_t, 2>& rangeSizes
-) {
+std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& state) {
     // Recurse to child nodes
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
 
@@ -111,7 +103,7 @@ std::size_t Tree::createChanceNode(
             };
 
             nextCards.pushBack(cardID);
-            nextNodeIndices.pushBack(createNode(rules, newState, rangeSizes));
+            nextNodeIndices.pushBack(createNode(rules, newState));
         }
     }
     assert(nextCards.size() == nextNodeIndices.size());
@@ -132,11 +124,7 @@ std::size_t Tree::createChanceNode(
     return allNodes.size() - 1;
 }
 
-std::size_t Tree::createDecisionNode(
-    const IGameRules& rules,
-    const GameState& state,
-    const std::array<std::uint16_t, 2>& rangeSizes
-) {
+std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& state) {
     // Recurse to child nodes
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
     FixedVector<std::size_t, MaxNumActions> nextNodeIndices;
@@ -144,7 +132,7 @@ std::size_t Tree::createDecisionNode(
         assert(rules.getActionType(actionID) == ActionType::Decision);
 
         GameState newState = rules.getNewStateAfterDecision(state, actionID);
-        nextNodeIndices.pushBack(createNode(rules, newState, rangeSizes));
+        nextNodeIndices.pushBack(createNode(rules, newState));
     }
     assert(nextNodeIndices.size() == validActions.size());
 
@@ -152,7 +140,7 @@ std::size_t Tree::createDecisionNode(
     DecisionNode decisionNode = {
         .trainingDataOffset = m_trainingDataLength,
         .decisionDataOffset = allDecisions.size(),
-        .numTrainingDataSets = rangeSizes[getPlayerID(state.playerToAct)],
+        .numTrainingDataSets = rules.getRangeSize(state.playerToAct),
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
         .player = state.playerToAct
     };

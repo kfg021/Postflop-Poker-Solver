@@ -170,6 +170,10 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     return nextState;
 }
 
+std::uint16_t LeducPoker::getRangeSize(Player /*player*/) const {
+    return static_cast<std::uint16_t>(PossibleHands.size());
+}
+
 std::vector<InitialSetup> LeducPoker::getInitialSetups() const {
     std::vector<InitialSetup> initialSetups;
     initialSetups.reserve(30);

@@ -6,7 +6,6 @@
 #include "solver/node.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -17,7 +16,7 @@ public:
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
-    void buildTreeSkeleton(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes);
+    void buildTreeSkeleton(const IGameRules& rules);
     std::size_t getNumberOfDecisionNodes() const;
     std::size_t getTreeSkeletonSize() const;
     std::size_t estimateFullTreeSize() const;
@@ -40,21 +39,9 @@ public:
     std::vector<float> allRegretSums;
 
 private:
-    std::size_t createNode(
-        const IGameRules& rules,
-        const GameState& state,
-        const std::array<std::uint16_t, 2>& rangeSizes
-    );
-    std::size_t createChanceNode(
-        const IGameRules& rules,
-        const GameState& state,
-        const std::array<std::uint16_t, 2>& rangeSizes
-    );
-    std::size_t createDecisionNode(
-        const IGameRules& rules,
-        const GameState& state,
-        const std::array<std::uint16_t, 2>& rangeSizes
-    );
+    std::size_t createNode(const IGameRules& rules, const GameState& state);
+    std::size_t createChanceNode(const IGameRules& rules, const GameState& state);
+    std::size_t createDecisionNode(const IGameRules& rules, const GameState& state);
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
 

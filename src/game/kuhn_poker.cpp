@@ -117,6 +117,10 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
     return nextState;
 }
 
+std::uint16_t KuhnPoker::getRangeSize(Player /*player*/) const {
+    return static_cast<std::uint16_t>(PossibleHands.size());
+}
+
 std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {
     std::vector<InitialSetup> initialSetups;
     initialSetups.reserve(6);

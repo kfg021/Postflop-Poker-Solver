@@ -17,6 +17,7 @@ public:
     ActionType getActionType(ActionID actionID) const override;
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
+    std::uint16_t getRangeSize(Player player) const override;
     std::vector<InitialSetup> getInitialSetups() const override;
     CardSet getDeck() const override;
     CardSet mapIndexToHand(Player player, std::uint16_t index) const override;

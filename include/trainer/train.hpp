@@ -3,10 +3,8 @@
 
 #include "game/game_rules.hpp"
 
-#include <array>
-#include <cstdint>
 #include <string>
 
-void train(const IGameRules& rules, const std::array<std::uint16_t, 2>& rangeSizes, int iterations, const std::string& strategyOutputFile);
+void train(const IGameRules& rules, int iterations, const std::string& strategyOutputFile);
 
 #endif // TRAIN_HPP

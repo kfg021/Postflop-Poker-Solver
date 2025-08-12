@@ -18,6 +18,7 @@ public:
     virtual ActionType getActionType(ActionID actionID) const = 0;
     virtual FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const = 0;
     virtual GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const = 0;
+    virtual std::uint16_t getRangeSize(Player player) const = 0;
 
     // Functions for the CFR algorithm
     virtual std::vector<InitialSetup> getInitialSetups() const = 0;
