@@ -89,22 +89,124 @@ TEST(RangeParsingTest, ErrorFromInvalidHandString) {
     EXPECT_TRUE(rangeResult.isError());
 }
 
-TEST(RangeParsingTest, ErrorFromDirectDuplicateRange) {
+TEST(RangeParsingTest, ErrorFromDuplicatesInRange) {
     auto rangeResult = buildRangeFromStrings({ "AKs", "AKs", "AKs" });
     EXPECT_TRUE(rangeResult.isError());
 }
 
-TEST(RangeParsingTest, ErrorFromIndirectDuplicateRange) {
+TEST(RangeParsingTest, ErrorFromDuplicateFlippedHand) {
+    auto rangeResult = buildRangeFromStrings({ "AK", "KA" });
+    EXPECT_TRUE(rangeResult.isError());
+}
+
+TEST(RangeParsingTest, ErrorFromOverlappingRange) {
     auto rangeResult = buildRangeFromStrings({ "AK:100", "AKs:50", });
     EXPECT_TRUE(rangeResult.isError());
 }
 
 TEST(RangeParsingTest, ErrorFromSmallFrequency) {
-    auto rangeResult = buildRangeFromStrings({ "AK:-1" });
+    auto rangeResult = buildRangeFromStrings({ "AK:0" });
     EXPECT_TRUE(rangeResult.isError());
 }
 
 TEST(RangeParsingTest, ErrorFromLargeFrequency) {
     auto rangeResult = buildRangeFromStrings({ "AK:101" });
     EXPECT_TRUE(rangeResult.isError());
+}
+
+TEST(RangeParsingTest, ErrorFromSuitedPairHand) {
+    auto rangeResult1 = buildRangeFromStrings({ "AAs:50" });
+    EXPECT_TRUE(rangeResult1.isError());
+
+    auto rangeResult2 = buildRangeFromStrings({ "AAo:50" });
+    EXPECT_TRUE(rangeResult2.isError());
+}
+
+TEST(RangeParsingTest, FlippedHandsAreEquivalent) {
+    auto rangeResult1 = buildRangeFromStrings({ "A5s:33" });
+    EXPECT_TRUE(rangeResult1.isValue());
+
+    auto rangeResult2 = buildRangeFromStrings({ "5As:33" });
+    EXPECT_TRUE(rangeResult2.isValue());
+
+    EXPECT_EQ(rangeResult1.getValue(), rangeResult2.getValue());
+}
+
+TEST(RangeParsingTest, CorrectNumberOfTotalCombos) {
+    auto rangeResult = buildRangeFromStrings({ "JT:50" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    EXPECT_EQ(range.size(), 16);
+}
+
+TEST(RangeParsingTest, CorrectNumberOfSuitedCombos) {
+    auto rangeResult = buildRangeFromStrings({ "JTs" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    EXPECT_EQ(range.size(), 4);
+}
+
+TEST(RangeParsingTest, CorrectNumberOfOffsuitCombos) {
+    auto rangeResult = buildRangeFromStrings({ "JTo" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    EXPECT_EQ(range.size(), 12);
+}
+
+TEST(RangeParsingTest, CorrectNumberOfPocketPairs) {
+    auto rangeResult = buildRangeFromStrings({ "99:33" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    EXPECT_EQ(range.size(), 6);
+}
+
+TEST(RangeParsingTest, NoFrequencyDefaultsTo100) {
+    auto rangeResult = buildRangeFromStrings({ "72o" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    for (const auto& rangeElement : range) {
+        EXPECT_EQ(rangeElement.frequency, 100);
+    }
+}
+
+TEST(RangeParsingTest, CorrectFrequency) {
+    auto rangeResult = buildRangeFromStrings({ "72o:67" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    for (const auto& rangeElement : range) {
+        EXPECT_EQ(rangeElement.frequency, 67);
+    }
+}
+
+TEST(RangeParsingTest, CombineSuitedAndOffsuitCombos) {
+    auto rangeResult = buildRangeFromStrings({ "AKs:100", "AKo:50" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    EXPECT_EQ(range.size(), 16);
+
+    int fullCount = 0;
+    int halfCount = 0;
+    for (const auto& rangeElement : range) {
+        if (rangeElement.frequency == 100) ++fullCount;
+        else if (rangeElement.frequency == 50) ++halfCount;
+    }
+
+    EXPECT_EQ(fullCount, 4);
+    EXPECT_EQ(halfCount, 12);
+}
+
+TEST(RangeParsingTest, CombineAllComboTypes) {
+    auto rangeResult = buildRangeFromStrings({ "AKs:100", "AKo:50", "72o", "27s:67", "88", "QJ" });
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    const int ExpectedSize = 4 + 12 + 12 + 4 + 6 + 16;
+    EXPECT_EQ(range.size(), ExpectedSize);
 }
