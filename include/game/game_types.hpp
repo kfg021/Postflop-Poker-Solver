@@ -4,7 +4,6 @@
 #include "game/holdem/config.hpp"
 
 #include <array>
-#include <cassert>
 #include <cstdint>
 
 constexpr int StandardDeckSize = holdem::DeckSize;
@@ -81,9 +80,10 @@ public:
         return m_array[getPlayerID(player)];
     }
 
+    constexpr bool operator==(const PlayerArray&) const = default;
+
 private:
     constexpr int getPlayerID(Player player) const {
-        assert(player == Player::P0 || player == Player::P1);
         return (player == Player::P0) ? 0 : 1;
     }
 

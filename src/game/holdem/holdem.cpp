@@ -30,21 +30,16 @@ enum class Action : std::uint8_t {
     AllIn
 };
 
-bool areWagersValidAfterBetOrRaise(PlayerArray<int> wagers, int effectiveStack) {
-    // Don't allow wagers that would risk more money then we have available
-    // Also ignore exact equality since that is identical to an all in
-    return (wagers[Player::P0] < effectiveStack) && (wagers[Player::P0] < effectiveStack);
-}
-
 std::optional<PlayerArray<int>> tryGetWagersAfterBet(
     PlayerArray<int> oldWagers,
+    int deadMoney,
     Player bettingPlayer,
     int betPercentage,
     int effectiveStack
 ) {
     // Before a bet both players should have the same amount wagered
     assert(oldWagers[Player::P0] == oldWagers[Player::P1]);
-    int oldPotSize = oldWagers[Player::P0] * 2;
+    int oldPotSize = oldWagers[Player::P0] * 2 + deadMoney;
 
     // Bet a percentage of the pot, rounded up
     int betAmount = (oldPotSize * betPercentage + 99) / 100;
@@ -52,16 +47,18 @@ std::optional<PlayerArray<int>> tryGetWagersAfterBet(
     PlayerArray<int> newWagers = oldWagers;
     newWagers[bettingPlayer] += betAmount;
 
-    if (areWagersValidAfterBetOrRaise(newWagers, effectiveStack)) {
-        return newWagers;
-    }
-    else {
+    // Don't allow wagers that would risk more money then we have available
+    // Also ignore exact equality since that is identical to an all in
+    if ((newWagers[Player::P0] >= effectiveStack) || (newWagers[Player::P1] >= effectiveStack)) {
         return std::nullopt;
     }
+
+    return newWagers;
 }
 
 std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
     PlayerArray<int> oldWagers,
+    int deadMoney,
     Player raisingPlayer,
     int raisePercentage,
     int effectiveStack
@@ -75,6 +72,7 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
     // First match the current bet, then bet a percentage on top of that
     std::optional<PlayerArray<int>> newPlayerWagersOption = tryGetWagersAfterBet(
         { oldOpposingPlayerWager, oldOpposingPlayerWager },
+        deadMoney,
         raisingPlayer,
         raisePercentage,
         effectiveStack
@@ -91,12 +89,11 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
     assert(newRequiredMatchAmount > 0);
 
     // By poker rules, we must raise at least the previous raise size
-    if ((newRequiredMatchAmount >= oldRequiredMatchAmount) && areWagersValidAfterBetOrRaise(newPlayerWagers, effectiveStack)) {
-        return newPlayerWagers;
-    }
-    else {
+    if (newRequiredMatchAmount < oldRequiredMatchAmount) {
         return std::nullopt;
     }
+
+    return newPlayerWagers;
 }
 } // namespace
 
@@ -119,7 +116,7 @@ GameState Holdem::getInitialGameState() const {
         }
     };
 
-    static const GameState InitialState = {
+    const GameState initialState = {
         .currentBoard = 0,
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
         .deadMoney = m_settings.deadMoney,
@@ -127,7 +124,7 @@ GameState Holdem::getInitialGameState() const {
         .lastAction = static_cast<ActionID>(Action::GameStart),
         .currentStreet = getStartingStreet(m_settings.startingCommunityCards),
     };
-    return InitialState;
+    return initialState;
 }
 
 NodeType Holdem::getNodeType(const GameState& state) const {
@@ -151,8 +148,15 @@ NodeType Holdem::getNodeType(const GameState& state) const {
                 return NodeType::Decision;
             }
 
-        case Action::Call:
-            return (state.currentStreet == Street::River) ? NodeType::Showdown : NodeType::Chance;
+        case Action::Call: {
+            // After a call both players should have the same amount wagered
+            assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+
+            // If the previous player called an all in, then we move to showdown / runout regardless of the street
+            // Otherwise, if we are at the river we are at a showdown node, and if not we are at a chance node
+            bool isAllIn = (state.totalWagers[Player::P0] == m_settings.effectiveStack);
+            return (state.currentStreet == Street::River || isAllIn) ? NodeType::Showdown : NodeType::Chance;
+        }
 
         case Action::BetSize0:
         case Action::BetSize1:
@@ -180,6 +184,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
         for (int i = 0; i < m_settings.betSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterBet(
                 state.totalWagers,
+                state.deadMoney,
                 state.playerToAct,
                 m_settings.betSizes[i],
                 m_settings.effectiveStack
@@ -195,6 +200,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
         for (int i = 0; i < m_settings.raiseSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterRaise(
                 state.totalWagers,
+                state.deadMoney,
                 state.playerToAct,
                 m_settings.raiseSizes[i],
                 m_settings.effectiveStack
@@ -290,6 +296,12 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
         case Action::Check:
             break;
 
+        case Action::Call: {
+            int wagerToMatch = state.totalWagers[getOpposingPlayer(state.playerToAct)];
+            nextState.totalWagers[state.playerToAct] = wagerToMatch;
+            break;
+        }
+
         case Action::BetSize0:
         case Action::BetSize1:
         case Action::BetSize2: {
@@ -298,6 +310,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 
             auto newWagersOption = tryGetWagersAfterBet(
                 state.totalWagers,
+                state.deadMoney,
                 state.playerToAct,
                 m_settings.betSizes[betIndex],
                 m_settings.effectiveStack
@@ -316,8 +329,9 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 
             auto newWagersOption = tryGetWagersAfterRaise(
                 state.totalWagers,
+                state.deadMoney,
                 state.playerToAct,
-                m_settings.betSizes[raiseIndex],
+                m_settings.raiseSizes[raiseIndex],
                 m_settings.effectiveStack
             );
             assert(newWagersOption);
