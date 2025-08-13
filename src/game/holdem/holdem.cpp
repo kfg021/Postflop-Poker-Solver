@@ -3,6 +3,7 @@
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
+#include "game/holdem/config.hpp"
 #include "game/holdem/hand_evaluation.hpp"
 #include "util/fixed_vector.hpp"
 #include "util/result.hpp"
@@ -101,9 +102,7 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
 
 Holdem::RangeElement::RangeElement(CardSet hand_, int frequency_) : hand{ hand_ }, frequency{ frequency_ } {}
 
-Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
-    hand_evaluation::buildLookupTablesIfNeeded();
-}
+Holdem::Holdem(const Settings& settings) : m_settings{ settings } {}
 
 GameState Holdem::getInitialGameState() const {
     auto getStartingStreet = [](CardSet communityCards) -> Street {
@@ -217,6 +216,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
                 static_cast<ActionID>(Action::Check)
             };
             addAllValidBetSizes(validActions);
+            validActions.pushBack(static_cast<ActionID>(Action::AllIn));
             return validActions;
         }
 

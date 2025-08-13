@@ -6,11 +6,11 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
-#include <string>
+#include <string_view>
 
 namespace {
-const std::string CardValueNames = "23456789TJQKA";
-const std::string CardSuitNames = "chds";
+constexpr char CardValueNames[] = "23456789TJQKA";
+constexpr char CardSuitNames[] = "chds";
 } // namespace
 
 Player getOpposingPlayer(Player player) {
@@ -50,17 +50,17 @@ Result<CardID> getCardIDFromName(const std::string& cardName) {
     std::string errorString = "Error getting card ID: \"" + cardName + "\" is not a valid card name.";
 
     if (cardName.size() != 2) {
-        return errorString;
+        return errorString + " (Incorrect card name size)";
     }
 
-    std::size_t valueID = CardValueNames.find(cardName[0]);
+    std::size_t valueID = std::string_view{ CardValueNames }.find(cardName[0]);
     if (valueID >= 13) {
-        return errorString;
+        return errorString + " (Invalid value)";
     }
 
-    std::size_t suitID = CardSuitNames.find(cardName[1]);
+    std::size_t suitID = std::string_view{ CardSuitNames }.find(cardName[1]);
     if (suitID >= 4) {
-        return errorString;
+        return errorString + " (Invalid suit)";
     }
 
     return (valueID * 4) + suitID;
