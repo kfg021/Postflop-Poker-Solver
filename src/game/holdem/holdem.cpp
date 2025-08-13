@@ -371,6 +371,8 @@ std::vector<InitialSetup> Holdem::getInitialSetups() const {
         }
     }
 
+    // TODO: Handle when there are no valid combos (totalWeight == 0)
+
     for (int i = 0; i < player0Range.size(); ++i) {
         for (int j = 0; j < player1Range.size(); ++j) {
             const auto& [hand0, frequency0] = player0Range[i];
