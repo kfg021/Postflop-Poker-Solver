@@ -6,9 +6,9 @@
 #include <string>
 #include <vector>
 
-Result<CardSet> buildCommunityCardsFromVector(const std::vector<std::string>& communityCardsVector) {
+Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& communityCardStrings) {
     CardSet communityCards = 0;
-    for (const auto& cardString : communityCardsVector) {
+    for (const auto& cardString : communityCardStrings) {
         Result<CardID> cardIDResult = getCardIDFromName(cardString);
         if (cardIDResult.isError()) {
             return cardIDResult.getError();
@@ -30,7 +30,7 @@ Result<CardSet> buildCommunityCardsFromVector(const std::vector<std::string>& co
     return communityCards;
 }
 
-Result<std::vector<Holdem::RangeElement>> buildRangeFromVector(const std::vector<std::string>& rangeVector) {
+Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
     assert(false);
     return "Not implemented yet!";
 }

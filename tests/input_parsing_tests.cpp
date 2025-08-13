@@ -21,30 +21,30 @@ TEST(CardNameParsingTest, CorrectCardNameParsing) {
 }
 
 TEST(CommunityCardParsingTest, ErrorFromEmptyCommunityCards) {
-    Result<CardSet> communityCardResult = buildCommunityCardsFromVector({});
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({});
     EXPECT_TRUE(communityCardResult.isError());
 }
 
 TEST(CommunityCardParsingTest, ErrorFromInvalidCardString) {
-    Result<CardSet> communityCardResult = buildCommunityCardsFromVector({ "AB", "12", "AKs" });
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "AB", "12", "AKs" });
     EXPECT_TRUE(communityCardResult.isError());
 }
 
 TEST(CommunityCardParsingTest, ErrorFromDuplicateCommunityCards) {
-    Result<CardSet> communityCardResult = buildCommunityCardsFromVector({ "As", "As", "As" });
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "As", "As", "As" });
     EXPECT_TRUE(communityCardResult.isError());
 }
 
 TEST(CommunityCardParsingTest, ErrorsFromIncorrectCommunityCardSizes) {
-    Result<CardSet> communityCardResult1 = buildCommunityCardsFromVector({ "2s" });
+    Result<CardSet> communityCardResult1 = buildCommunityCardsFromStrings({ "2s" });
     EXPECT_TRUE(communityCardResult1.isError());
 
-    Result<CardSet> communityCardResult2 = buildCommunityCardsFromVector({ "As", "2s", "3s", "4s", "5s", "6s" });
+    Result<CardSet> communityCardResult2 = buildCommunityCardsFromStrings({ "As", "2s", "3s", "4s", "5s", "6s" });
     EXPECT_TRUE(communityCardResult2.isError());
 }
 
 TEST(CommunityCardParsingTest, CorrectOutputForFlop) {
-    Result<CardSet> communityCardResult = buildCommunityCardsFromVector({ "As", "7h", "2c" });
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "As", "7h", "2c" });
     EXPECT_TRUE(communityCardResult.isValue());
 
     CardSet communityCards = communityCardResult.getValue();
@@ -55,7 +55,7 @@ TEST(CommunityCardParsingTest, CorrectOutputForFlop) {
 }
 
 TEST(CommunityCardParsingTest, CorrectOutputForTurn) {
-    Result<CardSet> communityCardResult = buildCommunityCardsFromVector({ "Ks", "6h", "Ac", "Jd" });
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "Ks", "6h", "Ac", "Jd" });
     EXPECT_TRUE(communityCardResult.isValue());
 
     CardSet communityCards = communityCardResult.getValue();
@@ -67,7 +67,7 @@ TEST(CommunityCardParsingTest, CorrectOutputForTurn) {
 }
 
 TEST(CommunityCardParsingTest, CorrectOutputForRiver) {
-    Result<CardSet> communityCardResult = buildCommunityCardsFromVector({ "Qs", "5h", "Kc", "Td", "8s" });
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "Qs", "5h", "Kc", "Td", "8s" });
     EXPECT_TRUE(communityCardResult.isValue());
 
     CardSet communityCards = communityCardResult.getValue();
@@ -78,3 +78,7 @@ TEST(CommunityCardParsingTest, CorrectOutputForRiver) {
     EXPECT_TRUE(setContainsCard(communityCards, getCardIDFromName("Td").getValue()));
     EXPECT_TRUE(setContainsCard(communityCards, getCardIDFromName("8s").getValue()));
 }
+
+// TEST(RangeParsingTest, ) {
+
+// }
