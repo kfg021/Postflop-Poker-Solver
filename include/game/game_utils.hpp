@@ -1,7 +1,8 @@
 #ifndef GAME_UTILS_HPP
 #define GAME_UTILS_HPP
 
-#include "game_types.hpp"
+#include "game/game_types.hpp"
+#include "util/result.hpp"
 
 #include <cstdint>
 #include <string>
@@ -11,13 +12,10 @@
 Player getOpposingPlayer(Player player);
 
 // CardID functions
-CardID getCardIDFromValueAndSuit(Value value, Suit suit);
-CardID getCardIDFromName(const std::string& cardName);
-std::string getNameFromCardID(CardID cardID);
 Value getCardValue(CardID cardID);
 Suit getCardSuit(CardID cardID);
-Value getValueFromChar(char valueChar);
-Suit getSuitFromChar(char suitChar);
+std::string getNameFromCardID(CardID cardID);
+Result<CardID> getCardIDFromName(const std::string& cardName);
 
 // CardSet functions
 CardSet cardIDToSet(CardID cardID);

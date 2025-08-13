@@ -18,38 +18,6 @@ Player getOpposingPlayer(Player player) {
     return (player == Player::P0) ? Player::P1 : Player::P0;
 }
 
-CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
-    int valueID = static_cast<int>(value);
-    assert(valueID < 13);
-
-    int suitID = static_cast<int>(suit);
-    assert(suitID < 4);
-
-    return (valueID * 4) + suitID;
-}
-
-CardID getCardIDFromName(const std::string& cardName) {
-    assert(cardName.size() == 2);
-
-    std::size_t valueID = CardValueNames.find(cardName[0]);
-    assert(valueID < 13);
-
-    std::size_t suitID = CardSuitNames.find(cardName[1]);
-    assert(suitID < 4);
-
-    return getCardIDFromValueAndSuit(
-        static_cast<Value>(valueID),
-        static_cast<Suit>(suitID)
-    );
-}
-
-std::string getNameFromCardID(CardID cardID) {
-    Value cardValue = getCardValue(cardID);
-    Suit cardSuit = getCardSuit(cardID);
-    std::string cardName = { CardValueNames[static_cast<int>(cardValue)], CardSuitNames[static_cast<int>(cardSuit)] };
-    return cardName;
-}
-
 Value getCardValue(CardID cardID) {
     assert(cardID < 52);
     return static_cast<Value>(cardID / 4);
@@ -60,16 +28,31 @@ Suit getCardSuit(CardID cardID) {
     return static_cast<Suit>(cardID % 4);
 }
 
-Value getValueFromChar(char valueChar) {
-    std::size_t valueID = CardValueNames.find(valueChar);
-    assert(valueID < 13);
-    return static_cast<Value>(valueID);
+std::string getNameFromCardID(CardID cardID) {
+    Value cardValue = getCardValue(cardID);
+    Suit cardSuit = getCardSuit(cardID);
+    std::string cardName = { CardValueNames[static_cast<int>(cardValue)], CardSuitNames[static_cast<int>(cardSuit)] };
+    return cardName;
 }
 
-Suit getSuitFromChar(char suitChar) {
-    std::size_t suitID = CardValueNames.find(suitChar);
-    assert(suitID < 4);
-    return static_cast<Suit>(suitID);
+Result<CardID> getCardIDFromName(const std::string& cardName) {
+    std::string errorString = "Error getting card ID: \"" + cardName + "\" is not a valid card name.";
+
+    if (cardName.size() != 2) {
+        return errorString;
+    }
+
+    std::size_t valueID = CardValueNames.find(cardName[0]);
+    if (valueID >= 13) {
+        return errorString;
+    }
+
+    std::size_t suitID = CardSuitNames.find(cardName[1]);
+    if (suitID >= 4) {
+        return errorString;
+    }
+
+    return (valueID * 4) + suitID;
 }
 
 CardSet cardIDToSet(CardID cardID) {

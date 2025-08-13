@@ -20,6 +20,7 @@ add_library(postflop_solver_core STATIC
     src/game/leduc_poker.cpp
     src/game/holdem/hand_evaluation.cpp
     src/game/holdem/holdem.cpp
+    src/game/holdem/parse_input.cpp
     src/solver/cfr.cpp
     src/solver/tree.cpp
 )

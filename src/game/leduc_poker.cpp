@@ -22,14 +22,18 @@ enum class Action : std::uint8_t {
     Raise
 };
 
+CardSet getCardSetFromName(const std::string& cardName) {
+    return cardIDToSet(getCardIDFromName(cardName).getValue());
+}
+
 // Leduc poker has two copies each of [Jack, Queen, King]
 const std::array<CardSet, 6> PossibleHands = {
-    cardIDToSet(getCardIDFromName("Jh")),
-    cardIDToSet(getCardIDFromName("Js")),
-    cardIDToSet(getCardIDFromName("Qh")),
-    cardIDToSet(getCardIDFromName("Qs")),
-    cardIDToSet(getCardIDFromName("Kh")),
-    cardIDToSet(getCardIDFromName("Ks")),
+    getCardSetFromName("Jh"),
+    getCardSetFromName("Js"),
+    getCardSetFromName("Qh"),
+    getCardSetFromName("Qs"),
+    getCardSetFromName("Kh"),
+    getCardSetFromName("Ks")
 };
 } // namespace
 

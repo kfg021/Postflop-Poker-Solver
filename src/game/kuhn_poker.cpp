@@ -17,11 +17,15 @@ enum class Action : std::uint8_t {
     Bet
 };
 
+CardSet getCardSetFromName(const std::string& cardName) {
+    return cardIDToSet(getCardIDFromName(cardName).getValue());
+}
+
 // Kuhn poker has [Jack, Queen, King], suits irrelevant
 const std::array<CardSet, 3> PossibleHands = {
-    cardIDToSet(getCardIDFromName("Js")),
-    cardIDToSet(getCardIDFromName("Qs")),
-    cardIDToSet(getCardIDFromName("Ks")),
+    getCardSetFromName("Js"),
+    getCardSetFromName("Qs"),
+    getCardSetFromName("Ks"),
 };
 } // namespace
 
