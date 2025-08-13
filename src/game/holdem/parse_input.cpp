@@ -56,6 +56,10 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
         }
     };
 
+    if (rangeStrings.empty()) {
+        return "Error building range: Range is empty.";
+    }
+
     std::vector<Holdem::RangeElement> range;
 
     for (const std::string& rangeString : rangeStrings) {
@@ -127,7 +131,7 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
     std::sort(range.begin(), range.end(), std::greater<Holdem::RangeElement>());
 
     for (int i = 1; i < range.size(); ++i) {
-        if(range[i].hand == range[i-1].hand) {
+        if (range[i].hand == range[i - 1].hand) {
             return "Error building range: Duplicate range elements.";
         }
     }

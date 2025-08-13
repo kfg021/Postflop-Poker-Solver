@@ -79,6 +79,7 @@ TEST(CommunityCardParsingTest, CorrectOutputForRiver) {
     EXPECT_TRUE(setContainsCard(communityCards, getCardIDFromName("8s").getValue()));
 }
 
-// TEST(RangeParsingTest, ) {
-
-// }
+TEST(RangeParsingTest, ErrorFromEmptyRange) {
+    auto rangeResult = buildRangeFromStrings({});
+    EXPECT_TRUE(rangeResult.isError());
+}
