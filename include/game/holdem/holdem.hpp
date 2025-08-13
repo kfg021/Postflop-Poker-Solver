@@ -16,7 +16,7 @@ class Holdem final : public IGameRules {
 public:
     struct RangeElement {
         CardSet hand;
-        int percentage;
+        int frequency;
 
         auto operator<=>(const RangeElement&) const = default;
     };

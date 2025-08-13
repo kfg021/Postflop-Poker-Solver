@@ -343,7 +343,49 @@ std::uint16_t Holdem::getRangeSize(Player player) const {
 }
 
 std::vector<InitialSetup> Holdem::getInitialSetups() const {
+    auto areHandsCompatible = [](CardSet hand0, CardSet hand1, CardSet board) -> bool {
+        int totalNumCards = getSetSize(board) + 4;
+        return getSetSize(hand0 | hand1 | board) == totalNumCards;
+    };
 
+    const auto& player0Range = m_settings.ranges[Player::P0];
+    const auto& player1Range = m_settings.ranges[Player::P1];
+
+    std::vector<InitialSetup> initialSetups;
+    initialSetups.reserve(player0Range.size() * player1Range.size());
+
+    float totalWeight = 0.0f;
+    for (const auto& [hand0, frequency0] : player0Range) {
+        for (const auto& [hand1, frequency1] : player1Range) {
+            assert(getSetSize(hand0) == 2);
+            assert(getSetSize(hand1) == 2);
+            assert(frequency0 > 0 && frequency0 <= 100);
+            assert(frequency1 > 0 && frequency1 <= 100);
+
+            if (areHandsCompatible(hand0, hand1, m_settings.startingCommunityCards)) {
+                float weight = (frequency0 / 100.0f) * (frequency1 / 100.0f);
+                totalWeight += weight;
+            }
+        }
+    }
+
+    for (int i = 0; i < player0Range.size(); ++i) {
+        for (int j = 0; j < player1Range.size(); ++j) {
+            const auto& [hand0, frequency0] = player0Range[i];
+            const auto& [hand1, frequency1] = player1Range[j];
+
+            if (areHandsCompatible(hand0, hand1, m_settings.startingCommunityCards)) {
+                float weight = (frequency0 / 100.0f) * (frequency1 / 100.0f);
+                initialSetups.emplace_back(
+                    PlayerArray<std::uint16_t>{ i, j },
+                    PlayerArray<float>{ weight, 1.0f },
+                    weight / totalWeight
+                );
+            }
+        }
+    }
+
+    return initialSetups;
 }
 
 CardSet Holdem::getDeck() const {
