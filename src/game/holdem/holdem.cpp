@@ -3,6 +3,7 @@
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
+#include "game/holdem/hand_evaluation.hpp"
 #include "util/fixed_vector.hpp"
 #include "util/result.hpp"
 
@@ -98,7 +99,9 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
 }
 } // namespace
 
-Holdem::Holdem(const Settings& settings) : m_settings{ settings } {}
+Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
+    hand_evaluation::buildLookupTablesIfNeeded();
+}
 
 GameState Holdem::getInitialGameState() const {
     auto getStartingStreet = [](CardSet communityCards) -> Street {
@@ -348,7 +351,64 @@ CardSet Holdem::getDeck() const {
     return StartingDeck & ~m_settings.startingCommunityCards;
 }
 
-// ShowdownResult getShowdownResult(const std::array<CardSet, 2>& playerHands, CardSet board) const override;
-// std::uint16_t mapHandToIndex(Player player, CardSet hand) const override;
-// CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
-// std::string getActionName(ActionID actionID) const override;
+CardSet Holdem::mapIndexToHand(Player player, std::uint16_t index) const {
+    const auto& playerRange = m_settings.ranges[player];
+    return playerRange[index].hand;
+}
+
+ShowdownResult Holdem::getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const {
+    std::uint32_t player0HandRank = hand_evaluation::getSevenCardHandRank(player0Hand | board);
+    std::uint32_t player1HandRank = hand_evaluation::getSevenCardHandRank(player1Hand | board);
+
+    if (player0HandRank > player1HandRank) {
+        return ShowdownResult::P0Win;
+    }
+    else if (player1HandRank > player0HandRank) {
+        return ShowdownResult::P1Win;
+    }
+    else {
+        return ShowdownResult::Tie;
+    }
+}
+
+std::string Holdem::getActionName(ActionID actionID) const {
+    auto getBetName = [this](int betSizeIndex) -> std::string {
+        assert(betSizeIndex < m_settings.betSizes.size());
+        int betPercentage = m_settings.betSizes[betSizeIndex];
+        return "Bet" + std::to_string(betPercentage) + "%";
+    };
+
+    auto getRaiseName = [this](int raiseSizeIndex) -> std::string {
+        assert(raiseSizeIndex < m_settings.raiseSizes.size());
+        int raisePercentage = m_settings.raiseSizes[raiseSizeIndex];
+        return "Bet" + std::to_string(raisePercentage) + "%";
+    };
+
+    switch (static_cast<Action>(actionID)) {
+        case Action::DealCard:
+            return "DealCard";
+        case Action::Fold:
+            return "Fold";
+        case Action::Check:
+            return "Check";
+        case Action::Call:
+            return "Call";
+        case Action::BetSize0:
+            return getBetName(0);
+        case Action::BetSize1:
+            return getBetName(1);
+        case Action::BetSize2:
+            return getBetName(2);
+        case Action::RaiseSize0:
+            return getRaiseName(0);
+        case Action::RaiseSize1:
+            return getRaiseName(1);
+        case Action::RaiseSize2:
+            return getRaiseName(2);
+        case Action::AllIn:
+            return "AllIn";
+        default:
+            assert(false);
+            return "???";
+    }
+}
