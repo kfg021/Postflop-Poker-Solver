@@ -83,3 +83,28 @@ TEST(RangeParsingTest, ErrorFromEmptyRange) {
     auto rangeResult = buildRangeFromStrings({});
     EXPECT_TRUE(rangeResult.isError());
 }
+
+TEST(RangeParsingTest, ErrorFromInvalidHandString) {
+    auto rangeResult = buildRangeFromStrings({ "AB", "12", "Ah" });
+    EXPECT_TRUE(rangeResult.isError());
+}
+
+TEST(RangeParsingTest, ErrorFromDirectDuplicateRange) {
+    auto rangeResult = buildRangeFromStrings({ "AKs", "AKs", "AKs" });
+    EXPECT_TRUE(rangeResult.isError());
+}
+
+TEST(RangeParsingTest, ErrorFromIndirectDuplicateRange) {
+    auto rangeResult = buildRangeFromStrings({ "AK:100", "AKs:50", });
+    EXPECT_TRUE(rangeResult.isError());
+}
+
+TEST(RangeParsingTest, ErrorFromSmallFrequency) {
+    auto rangeResult = buildRangeFromStrings({ "AK:-1" });
+    EXPECT_TRUE(rangeResult.isError());
+}
+
+TEST(RangeParsingTest, ErrorFromLargeFrequency) {
+    auto rangeResult = buildRangeFromStrings({ "AK:101" });
+    EXPECT_TRUE(rangeResult.isError());
+}

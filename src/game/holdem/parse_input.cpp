@@ -33,7 +33,7 @@ Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& c
 }
 
 Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
-    auto getValueFromChar = [](char c) -> Value {
+    auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {
             case '2': case '3': case '4': case '5':
             case '6': case '7': case '8': case '9': {
@@ -51,8 +51,7 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
             case 'A':
                 return Value::Ace;
             default:
-                assert(false);
-                return Value::Ace;
+                return "";
         }
     };
 
@@ -68,8 +67,19 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
         if (rangeString.size() < 2) {
             return rangeString + " (Range string too short)";
         }
-        Value value0 = getValueFromChar(rangeString[0]);
-        Value value1 = getValueFromChar(rangeString[1]);
+
+        Result<Value> value0Result = getValueFromChar(rangeString[0]);
+        if (value0Result.isError()) {
+            return errorString + "(Failed to parse first character)";
+        }
+
+        Result<Value> value1Result = getValueFromChar(rangeString[1]);
+        if (value1Result.isError()) {
+            return errorString + "(Failed to parse second character)";
+        }
+
+        Value value0 = value0Result.getValue();
+        Value value1 = value1Result.getValue();
 
         if (value0 < value1) std::swap(value0, value1);
 
