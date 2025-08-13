@@ -28,6 +28,17 @@ Suit getCardSuit(CardID cardID) {
     return static_cast<Suit>(cardID % 4);
 }
 
+CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
+    int valueID = static_cast<int>(value);
+    assert(valueID < 13);
+
+    int suitID = static_cast<int>(suit);
+    assert(suitID < 4);
+
+    CardID cardID = static_cast<CardID>((valueID * 4) + suitID);
+    return cardID;
+}
+
 std::string getNameFromCardID(CardID cardID) {
     Value cardValue = getCardValue(cardID);
     Suit cardSuit = getCardSuit(cardID);

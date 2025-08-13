@@ -15,6 +15,8 @@
 class Holdem final : public IGameRules {
 public:
     struct RangeElement {
+        RangeElement(CardSet hand_, int frequency_);
+
         CardSet hand;
         int frequency;
 

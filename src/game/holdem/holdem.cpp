@@ -99,6 +99,8 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
 }
 } // namespace
 
+Holdem::RangeElement::RangeElement(CardSet hand_, int frequency_) : hand{ hand_ }, frequency{ frequency_ } {}
+
 Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
     hand_evaluation::buildLookupTablesIfNeeded();
 }

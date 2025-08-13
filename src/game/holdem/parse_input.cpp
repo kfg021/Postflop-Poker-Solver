@@ -3,6 +3,8 @@
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
 
+#include <algorithm>
+#include <cassert>
 #include <string>
 #include <vector>
 
@@ -31,6 +33,104 @@ Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& c
 }
 
 Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
-    assert(false);
-    return "Not implemented yet!";
+    auto getValueFromChar = [](char c) -> Value {
+        switch (c) {
+            case '2': case '3': case '4': case '5':
+            case '6': case '7': case '8': case '9': {
+                int valueID = static_cast<int>(Value::Two) + (c - '2');
+                return static_cast<Value>(valueID);
+            }
+            case 'T':
+                return Value::Ten;
+            case 'J':
+                return Value::Jack;
+            case 'Q':
+                return Value::Queen;
+            case 'K':
+                return Value::King;
+            case 'A':
+                return Value::Ace;
+            default:
+                assert(false);
+                return Value::Ace;
+        }
+    };
+
+    std::vector<Holdem::RangeElement> range;
+
+    for (const std::string& rangeString : rangeStrings) {
+        std::string errorString = "Error building range: \"" + rangeString + "\" is not a valid range element.";
+
+        if (rangeString.size() < 2) {
+            return rangeString + " (Range string too short)";
+        }
+        Value value0 = getValueFromChar(rangeString[0]);
+        Value value1 = getValueFromChar(rangeString[1]);
+
+        if (value0 < value1) std::swap(value0, value1);
+
+        enum class Combos : std::uint8_t {
+            Default,
+            Suited,
+            Offsuit,
+        };
+
+        Combos combos = Combos::Default;
+        if (rangeString.size() >= 3) {
+            switch (rangeString[2]) {
+                case 's':
+                    combos = Combos::Suited;
+                    break;
+                case 'o':
+                    combos = Combos::Offsuit;
+                    break;
+                default:
+                    if (rangeString[2] != ':') {
+                        return errorString + " (Expected colon after hand)";
+                    }
+                    break;
+            }
+        }
+
+        bool isPocketPair = (value0 == value1);
+        if (isPocketPair) {
+            if (combos != Combos::Default) {
+                return errorString;
+            }
+        }
+
+        int frequency = 100;
+        std::size_t colonLoc = rangeString.find(':');
+        if (colonLoc != std::string::npos) {
+            frequency = std::stoi(rangeString.substr(colonLoc + 1));
+            if (frequency <= 0 || frequency > 100) {
+                return errorString + " (Invalid frequency)";
+            }
+        }
+
+        for (int suit0 = 0; suit0 < 4; ++suit0) {
+            for (int suit1 = 0; suit1 < 4; ++suit1) {
+                if (isPocketPair && (suit0 <= suit1)) continue;
+                if ((combos == Combos::Offsuit) && (suit0 == suit1)) continue;
+                if ((combos == Combos::Suited) && (suit0 != suit1)) continue;
+
+                CardID card0 = getCardIDFromValueAndSuit(static_cast<Value>(value0), static_cast<Suit>(suit0));
+                CardID card1 = getCardIDFromValueAndSuit(static_cast<Value>(value1), static_cast<Suit>(suit1));
+                CardSet hand = cardIDToSet(card0) | cardIDToSet(card1);
+                assert(getSetSize(hand) == 2);
+
+                range.emplace_back(hand, frequency);
+            }
+        }
+    }
+
+    std::sort(range.begin(), range.end(), std::greater<Holdem::RangeElement>());
+
+    for (int i = 1; i < range.size(); ++i) {
+        if(range[i].hand == range[i-1].hand) {
+            return "Error building range: Duplicate range elements.";
+        }
+    }
+
+    return range;
 }

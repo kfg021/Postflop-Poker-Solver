@@ -14,6 +14,7 @@ Player getOpposingPlayer(Player player);
 // CardID functions
 Value getCardValue(CardID cardID);
 Suit getCardSuit(CardID cardID);
+CardID getCardIDFromValueAndSuit(Value value, Suit suit);
 std::string getNameFromCardID(CardID cardID);
 Result<CardID> getCardIDFromName(const std::string& cardName);
 
