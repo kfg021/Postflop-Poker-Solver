@@ -124,8 +124,8 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
             }
         }
 
-        for (int suit0 = 0; suit0 < 4; ++suit0) {
-            for (int suit1 = 0; suit1 < 4; ++suit1) {
+        for (int suit0 = 3; suit0 >= 0; --suit0) {
+            for (int suit1 = 3; suit1 >= 0; --suit1) {
                 if (isPocketPair && (suit0 <= suit1)) continue;
                 if ((combos == Combos::Offsuit) && (suit0 == suit1)) continue;
                 if ((combos == Combos::Suited) && (suit0 != suit1)) continue;

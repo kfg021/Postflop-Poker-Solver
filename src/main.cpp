@@ -39,7 +39,7 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
         .deadMoney = 0
     };
 
-    const int PrintFrequency = 10;
+    const int PrintFrequency = 100;
 
     std::cout << "Building Holdem lookup table...\n" << std::flush;
     hand_evaluation::buildLookupTablesIfNeeded();
@@ -52,6 +52,6 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
     // trainLeducPoker(100000, "leduc_strategy.json");
-    trainHoldem(200, "holdem_strategy.json");
+    trainHoldem(1000, "holdem_strategy.json");
     return 0;
 }

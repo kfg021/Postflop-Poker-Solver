@@ -393,10 +393,12 @@ std::vector<InitialSetup> Holdem::getInitialSetups() const {
             const auto& [hand1, frequency1] = player1Range[j];
 
             if (areHandsCompatible(hand0, hand1, m_settings.startingCommunityCards)) {
-                float weight = (frequency0 / 100.0f) * (frequency1 / 100.0f);
+                float frequency0Float = frequency0 / 100.0f;
+                float frequency1Float = frequency1 / 100.0f;
+                float weight = frequency0Float * frequency1Float;
                 initialSetups.emplace_back(
                     PlayerArray<std::uint16_t>{ i, j },
-                    PlayerArray<float>{ weight, 1.0f },
+                    PlayerArray<float>{ frequency0Float, frequency1Float },
                     weight / totalWeight
                 );
             }
@@ -441,7 +443,7 @@ std::string Holdem::getActionName(ActionID actionID) const {
     auto getRaiseName = [this](int raiseSizeIndex) -> std::string {
         assert(raiseSizeIndex < m_settings.raiseSizes.size());
         int raisePercentage = m_settings.raiseSizes[raiseSizeIndex];
-        return "Bet" + std::to_string(raisePercentage) + "%";
+        return "Raise" + std::to_string(raisePercentage) + "%";
     };
 
     switch (static_cast<Action>(actionID)) {
