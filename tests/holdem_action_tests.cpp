@@ -30,7 +30,7 @@ protected:
             .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{33, 100, 150},
             .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{50, 100},
             .startingPlayerWagers = 12,
-            .effectiveStack = 360,
+            .effectiveStackRemaining = 360,
             .deadMoney = 3
         };
     }
@@ -239,7 +239,7 @@ TEST_F(HoldemActionTest, IgnoreAllInWhenSameAsCall) {
 TEST_F(HoldemActionTest, IgnoreBetWhenSameAsAllIn) {
     Holdem::Settings customTestSettings = testSettings;
     customTestSettings.startingPlayerWagers = 6;
-    customTestSettings.effectiveStack = 4;
+    customTestSettings.effectiveStackRemaining = 4;
     customTestSettings.deadMoney = 0;
 
     Holdem holdemRules{ customTestSettings };
@@ -255,7 +255,7 @@ TEST_F(HoldemActionTest, IgnoreBetWhenSameAsAllIn) {
 TEST_F(HoldemActionTest, IgnoreRaiseWhenSameAsAllIn) {
     Holdem::Settings customTestSettings = testSettings;
     customTestSettings.startingPlayerWagers = 6;
-    customTestSettings.effectiveStack = 20;
+    customTestSettings.effectiveStackRemaining = 14;
     customTestSettings.deadMoney = 0;
 
     Holdem holdemRules{ customTestSettings };

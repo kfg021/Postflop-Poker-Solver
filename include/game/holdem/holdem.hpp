@@ -29,7 +29,7 @@ public:
         FixedVector<int, holdem::MaxNumBetSizes> betSizes;
         FixedVector<int, holdem::MaxNumRaiseSizes> raiseSizes;
         int startingPlayerWagers;
-        int effectiveStack;
+        int effectiveStackRemaining;
         int deadMoney;
 
         // TODO:
@@ -54,6 +54,8 @@ public:
     std::string getActionName(ActionID actionID) const override;
 
 private:
+    int getTotalEffectiveStack() const;
+
     Settings m_settings;
 };
 

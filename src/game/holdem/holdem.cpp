@@ -117,7 +117,7 @@ GameState Holdem::getInitialGameState() const {
     };
 
     const GameState initialState = {
-        .currentBoard = 0,
+        .currentBoard = m_settings.startingCommunityCards,
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
         .deadMoney = m_settings.deadMoney,
         .playerToAct = Player::P0,
@@ -154,7 +154,7 @@ NodeType Holdem::getNodeType(const GameState& state) const {
 
             // If the previous player called an all in, then we move to showdown / runout regardless of the street
             // Otherwise, if we are at the river we are at a showdown node, and if not we are at a chance node
-            bool isAllIn = (state.totalWagers[Player::P0] == m_settings.effectiveStack);
+            bool isAllIn = (state.totalWagers[Player::P0] == getTotalEffectiveStack());
             return (state.currentStreet == Street::River || isAllIn) ? NodeType::Showdown : NodeType::Chance;
         }
 
@@ -187,7 +187,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
                 state.deadMoney,
                 state.playerToAct,
                 m_settings.betSizes[i],
-                m_settings.effectiveStack
+                getTotalEffectiveStack()
             );
             if (newWagersOption) {
                 ActionID betID = static_cast<ActionID>(Action::BetSize0) + i;
@@ -203,7 +203,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
                 state.deadMoney,
                 state.playerToAct,
                 m_settings.raiseSizes[i],
-                m_settings.effectiveStack
+                getTotalEffectiveStack()
             );
             if (newWagersOption) {
                 ActionID raiseID = static_cast<ActionID>(Action::RaiseSize0) + i;
@@ -313,7 +313,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
                 state.deadMoney,
                 state.playerToAct,
                 m_settings.betSizes[betIndex],
-                m_settings.effectiveStack
+                getTotalEffectiveStack()
             );
             assert(newWagersOption);
 
@@ -332,7 +332,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
                 state.deadMoney,
                 state.playerToAct,
                 m_settings.raiseSizes[raiseIndex],
-                m_settings.effectiveStack
+                getTotalEffectiveStack()
             );
             assert(newWagersOption);
 
@@ -342,7 +342,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 
         case Action::AllIn:
             // During an all in, the current player bets their entire stack
-            nextState.totalWagers[state.playerToAct] = m_settings.effectiveStack;
+            nextState.totalWagers[state.playerToAct] = getTotalEffectiveStack();
             break;
 
         default:
@@ -471,4 +471,8 @@ std::string Holdem::getActionName(ActionID actionID) const {
             assert(false);
             return "???";
     }
+}
+
+int Holdem::getTotalEffectiveStack() const {
+    return m_settings.startingPlayerWagers + m_settings.effectiveStackRemaining;
 }

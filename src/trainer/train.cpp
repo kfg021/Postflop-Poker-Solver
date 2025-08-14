@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-void train(const IGameRules& rules, int iterations, const std::string& strategyOutputFile) {
+void train(const IGameRules& rules, int iterations, int printFrequency, const std::string& strategyOutputFile) {
     assert(iterations > 0);
 
     Tree tree;
@@ -25,11 +25,11 @@ void train(const IGameRules& rules, int iterations, const std::string& strategyO
     std::cout << "Number of decision nodes: " << tree.getNumberOfDecisionNodes() << "\n";
     std::cout << "Total number of nodes: " << tree.allNodes.size() << "\n";
     std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
-    std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n" << std::flush;
+    std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n";
 
     std::cout << "Initializing tree...\n" << std::flush;
     tree.buildFullTree();
-    std::cout << "Finished initializing tree.\n\n" << std::flush;
+    std::cout << "Finished initializing tree.\n\n";
 
     std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
     std::vector<InitialSetup> initialSetups = rules.getInitialSetups();
@@ -41,7 +41,9 @@ void train(const IGameRules& rules, int iterations, const std::string& strategyO
             player0ExpectedValueSum += setup.matchupProbability * cfrResult;
         }
 
-        if ((i % 1000) == 0) std::cout << "Finished iteration " << i << "\n";
+        if ((printFrequency > 0) && (i % printFrequency) == 0) {
+            std::cout << "Finished iteration " << i << "\n";
+        }
     }
 
     std::cout << "Finished training.\n";
@@ -49,5 +51,5 @@ void train(const IGameRules& rules, int iterations, const std::string& strategyO
 
     std::cout << "Saving strategy to file...\n" << std::flush;
     outputStrategyToJSON(rules, tree, strategyOutputFile);
-    std::cout << "Strategy saved to " << strategyOutputFile << ".\n" << std::flush;
+    std::cout << "Strategy saved to " << strategyOutputFile << ".\n";
 }
