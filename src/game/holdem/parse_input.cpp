@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& communityCardStrings) {
@@ -60,6 +61,7 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
     }
 
     std::vector<Holdem::RangeElement> range;
+    std::unordered_set<CardSet> seenHands;
 
     for (const std::string& rangeString : rangeStrings) {
         std::string errorString = "Error building range: \"" + rangeString + "\" is not a valid range element.";
@@ -133,16 +135,13 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
                 CardSet hand = cardIDToSet(card0) | cardIDToSet(card1);
                 assert(getSetSize(hand) == 2);
 
+                if (seenHands.find(hand) != seenHands.end()) {
+                    return "Error building range: Duplicate range elements.";
+                }
+
                 range.emplace_back(hand, frequency);
+                seenHands.insert(hand);
             }
-        }
-    }
-
-    std::sort(range.begin(), range.end(), std::greater<Holdem::RangeElement>());
-
-    for (int i = 1; i < range.size(); ++i) {
-        if (range[i].hand == range[i - 1].hand) {
-            return "Error building range: Duplicate range elements.";
         }
     }
 

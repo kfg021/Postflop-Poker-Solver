@@ -22,16 +22,16 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 }
 
 void trainHoldem(int iterations, const std::string& strategyOutputFile) {
-    PlayerArray<std::vector<Holdem::RangeElement>> testingRanges = {
+    PlayerArray<std::vector<Holdem::RangeElement>> ranges = {
             buildRangeFromStrings({"AA", "KJ", "TT", "AQo:50"}).getValue(),
             buildRangeFromStrings({"AA", "KK:25", "QQ", "T9s:33", "27o:99"}).getValue(),
     };
 
-    CardSet testingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h", "7s" }).getValue();
+    CardSet communityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h", "7s" }).getValue();
 
     Holdem::Settings holdemSettings = {
-        .ranges = testingRanges,
-        .startingCommunityCards = testingCommunityCards,
+        .ranges = ranges,
+        .startingCommunityCards = communityCards,
         .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{33, 100, 150},
         .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{50, 100},
         .startingPlayerWagers = 12,
