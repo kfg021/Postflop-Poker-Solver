@@ -20,6 +20,7 @@ CardSet getAvailableCards(const IGameRules& rules, PlayerArray<std::uint16_t> ha
 
 float cfrChance(
     const IGameRules& rules,
+    Player traverser,
     PlayerArray<std::uint16_t> handIndices,
     PlayerArray<float> weights,
     const ChanceNode& chanceNode,
@@ -34,7 +35,7 @@ float cfrChance(
         assert(nextNodeIndex < tree.allNodes.size());
 
         if (setContainsCard(availableCardsForChance, nextCard)) {
-            player0ExpectedValueSum += cfr(rules, handIndices, weights, tree.allNodes[nextNodeIndex], tree);
+            player0ExpectedValueSum += cfr(rules, traverser, handIndices, weights, tree.allNodes[nextNodeIndex], tree);
         }
     }
 
@@ -43,6 +44,7 @@ float cfrChance(
 
 float cfrDecision(
     const IGameRules& rules,
+    Player traverser,
     PlayerArray<std::uint16_t> handIndices,
     PlayerArray<float> weights,
     const DecisionNode& decisionNode,
@@ -84,19 +86,22 @@ float cfrDecision(
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        float player0ExpectedValue = cfr(rules, handIndices, newWeights, tree.allNodes[nextNodeIndex], tree);
+        float player0ExpectedValue = cfr(rules, traverser, handIndices, newWeights, tree.allNodes[nextNodeIndex], tree);
         currentPlayerActionUtility[i] = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
         currentPlayerExpectedValue += currentPlayerActionUtility[i] * currentPlayerStrategy[i];
     }
 
-    for (int i = 0; i < numActions; ++i) {
-        float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
-        std::size_t trainingIndex = getTrainingDataIndex(decisionNode, trainingDataSet, i);
-        tree.allRegretSums[trainingIndex] += weights[getOpposingPlayer(decisionNode.player)] * regret;
-        tree.allStrategySums[trainingIndex] += weights[decisionNode.player] * currentPlayerStrategy[i];
+    if (decisionNode.player == traverser) {
+        // In CFR+, only update regrets for the currently traversing player
+        for (int i = 0; i < numActions; ++i) {
+            float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
+            std::size_t trainingIndex = getTrainingDataIndex(decisionNode, trainingDataSet, i);
+            tree.allRegretSums[trainingIndex] += weights[getOpposingPlayer(decisionNode.player)] * regret;
+            tree.allStrategySums[trainingIndex] += weights[decisionNode.player] * currentPlayerStrategy[i];
 
-        if (tree.allRegretSums[trainingIndex] < 0.0f) {
-            tree.allRegretSums[trainingIndex] = 0.0f;
+            if (tree.allRegretSums[trainingIndex] < 0.0f) {
+                tree.allRegretSums[trainingIndex] = 0.0f;
+            }
         }
     }
 
@@ -181,6 +186,7 @@ float cfrShowdown(
 
 float cfr(
     const IGameRules& rules,
+    Player traverser,
     PlayerArray<std::uint16_t> handIndices,
     PlayerArray<float> weights,
     const Node& node,
@@ -192,6 +198,7 @@ float cfr(
         case NodeType::Chance:
             return cfrChance(
                 rules,
+                traverser,
                 handIndices,
                 weights,
                 node.chanceNode,
@@ -200,6 +207,7 @@ float cfr(
         case NodeType::Decision:
             return cfrDecision(
                 rules,
+                traverser,
                 handIndices,
                 weights,
                 node.decisionNode,

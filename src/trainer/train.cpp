@@ -36,9 +36,15 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
 
     float player0ExpectedValueSum = 0.0f;
     for (int i = 0; i < iterations; ++i) {
-        for (const InitialSetup& setup : initialSetups) {
-            float cfrResult = cfr(rules, setup.handIndices, setup.weights, tree.getRootNode(), tree);
-            player0ExpectedValueSum += setup.matchupProbability * cfrResult;
+        for (Player traverser : { Player::P0, Player::P1 }) {
+            for (const InitialSetup& setup : initialSetups) {
+                float cfrResult = cfr(rules, traverser, setup.handIndices, setup.weights, tree.getRootNode(), tree);
+
+                // TODO: EV calculation might not be correct
+                if (traverser == Player::P0) {
+                    player0ExpectedValueSum += setup.matchupProbability * cfrResult;
+                }
+            }
         }
 
         if ((printFrequency > 0) && (i % printFrequency) == 0) {

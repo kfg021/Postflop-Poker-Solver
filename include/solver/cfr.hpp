@@ -10,6 +10,7 @@
 
 float cfr(
     const IGameRules& rules,
+    Player traverser,
     PlayerArray<std::uint16_t> handIndices,
     PlayerArray<float> weights,
     const Node& node,
