@@ -8,9 +8,27 @@
 
 #include <cstdint>
 
-float cfr(
+void cfrPlus(
     const IGameRules& rules,
     Player traverser,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
+    const Node& node,
+    Tree& tree
+);
+
+float calculatePlayerExpectedValue(
+    const IGameRules& rules,
+    Player player,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
+    const Node& node,
+    Tree& tree
+);
+
+float calculatePlayerBestResponse(
+    const IGameRules& rules,
+    Player player,
     PlayerArray<std::uint16_t> handIndices,
     PlayerArray<float> weights,
     const Node& node,

@@ -23,8 +23,8 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 
 void trainHoldem(int iterations, const std::string& strategyOutputFile) {
     PlayerArray<std::vector<Holdem::RangeElement>> ranges = {
-            buildRangeFromStrings({"AA", "KJ", "TT", "AQo:50"}).getValue(),
-            buildRangeFromStrings({"AA", "KK:25", "QQ", "T9s:33", "27o:99"}).getValue(),
+        buildRangeFromStrings({"AA", "KJ", "TT", "AQo:50"}).getValue(),
+        buildRangeFromStrings({"AA", "KK:25", "QQ", "T9s:33", "27o:99"}).getValue(),
     };
 
     CardSet communityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h", "7s" }).getValue();
@@ -50,8 +50,8 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
 }
 
 int main() {
-    // trainKuhnPoker(100000, "kuhn_strategy.json");
+    trainKuhnPoker(100000, "kuhn_strategy.json");
     // trainLeducPoker(100000, "leduc_strategy.json");
-    trainHoldem(1000, "holdem_strategy.json");
+    // trainHoldem(1000, "holdem_strategy.json");
     return 0;
 }

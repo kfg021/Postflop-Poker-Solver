@@ -34,16 +34,10 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
     std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
     std::vector<InitialSetup> initialSetups = rules.getInitialSetups();
 
-    float player0ExpectedValueSum = 0.0f;
     for (int i = 0; i < iterations; ++i) {
         for (Player traverser : { Player::P0, Player::P1 }) {
             for (const InitialSetup& setup : initialSetups) {
-                float cfrResult = cfr(rules, traverser, setup.handIndices, setup.weights, tree.getRootNode(), tree);
-
-                // TODO: EV calculation might not be correct
-                if (traverser == Player::P0) {
-                    player0ExpectedValueSum += setup.matchupProbability * cfrResult;
-                }
+                cfrPlus(rules, traverser, setup.handIndices, setup.weights, tree.getRootNode(), tree);
             }
         }
 
@@ -51,9 +45,34 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
             std::cout << "Finished iteration " << i << "\n";
         }
     }
+    std::cout << "Finished training.\n\n";
 
-    std::cout << "Finished training.\n";
-    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValueSum / iterations << "\n\n";
+    std::cout << "Calculating expected value of final strategy:\n" << std::flush;
+    float player0ExpectedValue = 0.0f;
+    for (const InitialSetup& setup : initialSetups) {
+        float setupExpectedValue = calculatePlayerExpectedValue(rules, Player::P0, setup.handIndices, setup.weights, tree.getRootNode(), tree);
+        player0ExpectedValue += setup.matchupProbability * setupExpectedValue;
+    }
+    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n\n";
+
+    std::cout << "Calculating exploitability of final strategy:\n" << std::flush;
+    float totalExploitability = 0.0f;
+    for (Player player : { Player::P0, Player::P1 }) {
+        float playerBestResponse = 0.0f;
+        for (const InitialSetup& setup : initialSetups) {
+            float setupBestResponseP0Perspective = calculatePlayerBestResponse(rules, player, setup.handIndices, setup.weights, tree.getRootNode(), tree);
+            float setupBestResponse = (player == Player::P0) ? setupBestResponseP0Perspective : -setupBestResponseP0Perspective;
+            playerBestResponse += setup.matchupProbability * setupBestResponse;
+        }
+
+        float playerExpectedValue = (player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue;
+        float playerExploitability = playerBestResponse - playerExpectedValue;
+        std::cout << "Player " << ((player == Player::P0) ? 0 : 1) << " exploitability: " << std::fixed << std::setprecision(5) << playerExploitability << "\n";
+
+        totalExploitability += playerExploitability;
+    }
+    std::cout << "Total exploitability: " << std::fixed << std::setprecision(5) << (totalExploitability / 2) << "\n\n";
+
 
     std::cout << "Saving strategy to file...\n" << std::flush;
     outputStrategyToJSON(rules, tree, strategyOutputFile);
