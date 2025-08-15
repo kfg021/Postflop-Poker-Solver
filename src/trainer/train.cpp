@@ -37,7 +37,15 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
     for (int i = 0; i < iterations; ++i) {
         for (Player traverser : { Player::P0, Player::P1 }) {
             for (const InitialSetup& setup : initialSetups) {
-                cfrPlus(rules, traverser, setup.handIndices, setup.weights, tree.getRootNode(), tree);
+                // Using Discounted CFR with alpha = 1.5, beta = 0, gamma = 2
+                // These values work very well in practice, as shown in below paper
+
+                // Brown, N., & Sandholm, T. (2019). 
+                // Solving Imperfect-Information Games via Discounted Regret Minimization. 
+                // Proceedings of the AAAI Conference on Artificial Intelligence, 33(01), 1829-1836. 
+                // https://doi.org/10.1609/aaai.v33i01.33011829
+
+                discountedCfr(rules, getDiscountParams(1.5f, 0.0f, 2.0f, i), traverser, setup.handIndices, setup.weights, tree.getRootNode(), tree);
             }
         }
 

@@ -7,16 +7,24 @@
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
 namespace {
 enum class TraversalMode : std::uint8_t {
-    CfrUpdateP0,
-    CfrUpdateP1,
-    ExpectedValue,
+    VanillaCfr,
+    CfrPlus,
+    DiscountedCfr,
+    ExpectedValue
+};
+
+struct TraversalData {
+    DiscountParams params;
+    PlayerArray<float> weights;
+    TraversalMode mode;
+    Player traverser;
 };
 
 CardSet getAvailableCards(const IGameRules& rules, PlayerArray<std::uint16_t> handIndices, CardSet board) {
@@ -27,18 +35,16 @@ CardSet getAvailableCards(const IGameRules& rules, PlayerArray<std::uint16_t> ha
 
 float traverseTree(
     const IGameRules& rules,
-    TraversalMode mode,
+    const TraversalData& data,
     PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
     const Node& node,
     Tree& tree
 );
 
 float traverseChance(
     const IGameRules& rules,
-    TraversalMode mode,
+    const TraversalData& data,
     PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
     const ChanceNode& chanceNode,
     Tree& tree
 ) {
@@ -51,45 +57,48 @@ float traverseChance(
         assert(nextNodeIndex < tree.allNodes.size());
 
         if (setContainsCard(availableCardsForChance, nextCard)) {
-            player0ExpectedValueSum += traverseTree(rules, mode, handIndices, weights, tree.allNodes[nextNodeIndex], tree);
+            player0ExpectedValueSum += traverseTree(rules, data, handIndices, tree.allNodes[nextNodeIndex], tree);
         }
     }
 
     return player0ExpectedValueSum / getSetSize(availableCardsForChance);
 }
 
-float cfrPlusDecision(
+float cfrDecision(
     const IGameRules& rules,
-    TraversalMode mode,
+    const TraversalData& data,
     PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
     const DecisionNode& decisionNode,
     Tree& tree
 ) {
     auto calculateCurrentStrategy = [&decisionNode, &tree](std::uint16_t trainingDataSet) -> FixedVector<float, MaxNumActions> {
         std::uint8_t numActions = decisionNode.decisionDataSize;
+        assert(numActions > 0);
 
-        float totalRegret = 0.0f;
+        float totalPositiveRegret = 0.0f;
         for (int i = 0; i < numActions; ++i) {
             float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
-            assert(regretSum >= 0.0f);
-            totalRegret += regretSum;
-        }
-
-        assert(numActions > 0);
-        FixedVector<float, MaxNumActions> currentStrategy(numActions, 1.0f / numActions);
-        if (totalRegret > 0.0f) {
-            for (int i = 0; i < numActions; ++i) {
-                float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
-                assert(regretSum >= 0.0f);
-                currentStrategy[i] = regretSum / totalRegret;
+            if (regretSum > 0.0f) {
+                totalPositiveRegret += regretSum;
             }
         }
 
+        if (totalPositiveRegret == 0.0f) {
+            FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
+            return uniformStrategy;
+        }
+
+        FixedVector<float, MaxNumActions> currentStrategy(numActions, 0.0f);
+        for (int i = 0; i < numActions; ++i) {
+            float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
+            if (regretSum > 0.0f) {
+                currentStrategy[i] = regretSum / totalPositiveRegret;
+            }
+        }
         return currentStrategy;
     };
 
-    assert((mode == TraversalMode::CfrUpdateP0) || (mode == TraversalMode::CfrUpdateP1));
+    assert(data.mode != TraversalMode::ExpectedValue);
 
     std::uint16_t trainingDataSet = handIndices[decisionNode.player];
     FixedVector<float, MaxNumActions> playerCurrentStrategy = calculateCurrentStrategy(trainingDataSet);
@@ -99,31 +108,42 @@ float cfrPlusDecision(
     float currentPlayerExpectedValue = 0.0f;
     FixedVector<float, MaxNumActions> currentPlayerActionUtility(numActions, 0.0f);
     for (int i = 0; i < numActions; ++i) {
-        PlayerArray<float> newWeights = weights;
-        newWeights[decisionNode.player] *= playerCurrentStrategy[i];
+        TraversalData newData = data;
+        newData.weights[decisionNode.player] *= playerCurrentStrategy[i];
 
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        float player0ExpectedValue = traverseTree(rules, mode, handIndices, newWeights, tree.allNodes[nextNodeIndex], tree);
+        float player0ExpectedValue = traverseTree(rules, newData, handIndices, tree.allNodes[nextNodeIndex], tree);
         currentPlayerActionUtility[i] = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
         currentPlayerExpectedValue += currentPlayerActionUtility[i] * playerCurrentStrategy[i];
     }
 
-    // In CFR+, we only update regrets for the currently traversing player
-    bool shouldUpdateRegrets =
-        ((mode == TraversalMode::CfrUpdateP0) && (decisionNode.player == Player::P0)) |
-        ((mode == TraversalMode::CfrUpdateP1) && (decisionNode.player == Player::P1));
-
-    if (shouldUpdateRegrets) {
+    if (data.traverser == decisionNode.player) {
         for (int i = 0; i < numActions; ++i) {
             float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
             std::size_t trainingIndex = getTrainingDataIndex(decisionNode, trainingDataSet, i);
-            tree.allRegretSums[trainingIndex] += weights[getOpposingPlayer(decisionNode.player)] * regret;
-            tree.allStrategySums[trainingIndex] += weights[decisionNode.player] * playerCurrentStrategy[i];
 
-            // In CFR+, we erase negative regrets for faster convergence
-            tree.allRegretSums[trainingIndex] = std::max(tree.allRegretSums[trainingIndex], 0.0f);
+            if (data.mode == TraversalMode::DiscountedCfr) {
+                if (tree.allRegretSums[trainingIndex] > 0.0f) {
+                    tree.allRegretSums[trainingIndex] *= data.params.alphaT;
+                }
+                else {
+                    tree.allRegretSums[trainingIndex] *= data.params.betaT;
+                }
+
+                tree.allStrategySums[trainingIndex] *= data.params.gammaT;
+            }
+
+            tree.allRegretSums[trainingIndex] += data.weights[getOpposingPlayer(decisionNode.player)] * regret;
+            tree.allStrategySums[trainingIndex] += data.weights[decisionNode.player] * playerCurrentStrategy[i];
+
+            if (data.mode == TraversalMode::CfrPlus) {
+                // In CFR+, we erase negative regrets for faster convergence
+                if (tree.allRegretSums[trainingIndex] < 0.0f) {
+                    tree.allRegretSums[trainingIndex] = 0.0f;
+                }
+            }
         }
     }
 
@@ -132,13 +152,12 @@ float cfrPlusDecision(
 
 float expectedValueDecision(
     const IGameRules& rules,
-    TraversalMode mode,
+    const TraversalData& data,
     PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
     const DecisionNode& decisionNode,
     Tree& tree
 ) {
-    assert(mode == TraversalMode::ExpectedValue);
+    assert(data.mode == TraversalMode::ExpectedValue);
 
     std::uint16_t trainingDataSet = handIndices[decisionNode.player];
     FixedVector<float, MaxNumActions> playerAverageStrategy = getAverageStrategy(decisionNode, tree, trainingDataSet);
@@ -150,7 +169,7 @@ float expectedValueDecision(
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        float player0ExpectedValue = traverseTree(rules, mode, handIndices, weights, tree.allNodes[nextNodeIndex], tree);
+        float player0ExpectedValue = traverseTree(rules, data, handIndices, tree.allNodes[nextNodeIndex], tree);
         float currentPlayerActionUtility = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
         currentPlayerExpectedValue += currentPlayerActionUtility * playerAverageStrategy[i];
     }
@@ -235,9 +254,8 @@ float traverseShowdown(
 
 float traverseTree(
     const IGameRules& rules,
-    TraversalMode mode,
+    const TraversalData& data,
     PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
     const Node& node,
     Tree& tree
 ) {
@@ -245,17 +263,13 @@ float traverseTree(
 
     switch (node.getNodeType()) {
         case NodeType::Chance:
-            return traverseChance(rules, mode, handIndices, weights, node.chanceNode, tree);
+            return traverseChance(rules, data, handIndices, node.chanceNode, tree);
         case NodeType::Decision:
-            switch (mode) {
-                case TraversalMode::CfrUpdateP0:
-                case TraversalMode::CfrUpdateP1:
-                    return cfrPlusDecision(rules, mode, handIndices, weights, node.decisionNode, tree);
-                case TraversalMode::ExpectedValue:
-                    return expectedValueDecision(rules, mode, handIndices, weights, node.decisionNode, tree);
-                default:
-                    assert(false);
-                    return 0.0f;
+            if (data.mode != TraversalMode::ExpectedValue) {
+                return cfrDecision(rules, data, handIndices, node.decisionNode, tree);
+            }
+            else {
+                return expectedValueDecision(rules, data, handIndices, node.decisionNode, tree);
             }
         case NodeType::Fold:
             return traverseFold(node.foldNode);
@@ -268,6 +282,36 @@ float traverseTree(
 }
 } // namespace
 
+DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration) {
+    // TODO: Does t start at 0 or 1?
+    float t = static_cast<float>(iteration + 1);
+    float a = std::pow(t, alpha);
+    float b = std::pow(t, beta);
+
+    return {
+        .alphaT = a / (1 + a),
+        .betaT = b / (1 + b),
+        .gammaT = std::pow(t / (t + 1), gamma)
+    };
+}
+
+void vanillaCfr(
+    const IGameRules& rules,
+    Player traverser,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
+    const Node& node,
+    Tree& tree
+) {
+    // Vanilla CFR doesn't need discount params
+    TraversalData data = {
+        .weights = weights,
+        .mode = TraversalMode::VanillaCfr,
+        .traverser = traverser,
+    };
+    static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
+}
+
 void cfrPlus(
     const IGameRules& rules,
     Player traverser,
@@ -276,8 +320,31 @@ void cfrPlus(
     const Node& node,
     Tree& tree
 ) {
-    TraversalMode mode = (traverser == Player::P0) ? TraversalMode::CfrUpdateP0 : TraversalMode::CfrUpdateP1;
-    static_cast<void>(traverseTree(rules, mode, handIndices, weights, node, tree));
+    // CFR+ doesn't need discount params
+    TraversalData data = {
+        .weights = weights,
+        .mode = TraversalMode::CfrPlus,
+        .traverser = traverser,
+    };
+    static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
+}
+
+void discountedCfr(
+    const IGameRules& rules,
+    const DiscountParams& params,
+    Player traverser,
+    PlayerArray<std::uint16_t> handIndices,
+    PlayerArray<float> weights,
+    const Node& node,
+    Tree& tree
+) {
+    TraversalData data = {
+        .params = params,
+        .weights = weights,
+        .mode = TraversalMode::DiscountedCfr,
+        .traverser = traverser
+    };
+    static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
 }
 
 float calculatePlayer0ExpectedValue(
@@ -286,7 +353,9 @@ float calculatePlayer0ExpectedValue(
     const Node& node,
     Tree& tree
 ) {
-    // The weights only matter for the CFR update step, don't need them for EV calculation
-    static constexpr PlayerArray<float> IgnoredWeights = { 0.0f, 0.0f };
-    return traverseTree(rules, TraversalMode::ExpectedValue, handIndices, IgnoredWeights, node, tree);
+    // Expected value calculation doesn't need discount params, weights, or traverser
+    TraversalData data = {
+        .mode = TraversalMode::ExpectedValue
+    };
+    return traverseTree(rules, data, handIndices, node, tree);
 }
