@@ -17,20 +17,9 @@ void cfrPlus(
     Tree& tree
 );
 
-float calculatePlayerExpectedValue(
+float calculatePlayer0ExpectedValue(
     const IGameRules& rules,
-    Player player,
     PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
-    const Node& node,
-    Tree& tree
-);
-
-float calculatePlayerBestResponse(
-    const IGameRules& rules,
-    Player player,
-    PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
     const Node& node,
     Tree& tree
 );
