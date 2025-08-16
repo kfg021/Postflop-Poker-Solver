@@ -23,23 +23,23 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 
 void trainHoldem(int iterations, const std::string& strategyOutputFile) {
     PlayerArray<std::vector<Holdem::RangeElement>> ranges = {
-        buildRangeFromStrings({"44", "33", "22"}).getValue(),
-        buildRangeFromStrings({"AA", "KK", "QQ"}).getValue(),
+        buildRangeFromStrings({"T9s", "44", "33", "22"}).getValue(),
+        buildRangeFromStrings({"AA", "AK", "AQs", "KQs"}).getValue(),
     };
 
-    CardSet communityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h", "7s" }).getValue();
+    CardSet communityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h" }).getValue();
 
     Holdem::Settings holdemSettings = {
         .ranges = ranges,
         .startingCommunityCards = communityCards,
-        .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{50},
-        .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{50},
-        .startingPlayerWagers = 12,
-        .effectiveStackRemaining = 48,
+        .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{33, 50},
+        .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{},
+        .startingPlayerWagers = 100,
+        .effectiveStackRemaining = 200,
         .deadMoney = 0,
     };
 
-    const int PrintFrequency = 100;
+    const int PrintFrequency = 1;
 
     std::cout << "Building Holdem lookup table...\n" << std::flush;
     hand_evaluation::buildLookupTablesIfNeeded();
@@ -52,6 +52,6 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
     // trainLeducPoker(100000, "leduc_strategy.json");
-    trainHoldem(10000, "holdem_strategy.json");
+    trainHoldem(500, "holdem_strategy.json");
     return 0;
 }
