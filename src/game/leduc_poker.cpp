@@ -208,7 +208,10 @@ CardSet LeducPoker::mapIndexToHand(Player /*player*/, std::uint16_t index) const
     return PossibleHands[index];
 }
 
-ShowdownResult LeducPoker::getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const {
+ShowdownResult LeducPoker::getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet board) const {
+    CardSet player0Hand = PossibleHands[handIndices[Player::P0]];
+    CardSet player1Hand = PossibleHands[handIndices[Player::P1]];
+
     assert(getSetSize(player0Hand) == 1);
     assert(getSetSize(player1Hand) == 1);
     assert(getSetSize(board) == 1);

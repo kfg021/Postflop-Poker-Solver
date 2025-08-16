@@ -24,8 +24,8 @@ public:
     virtual std::vector<InitialSetup> getInitialSetups() const = 0;
     virtual CardSet getDeck() const = 0;
     virtual CardSet mapIndexToHand(Player player, std::uint16_t index) const = 0;
-    virtual ShowdownResult getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const = 0;
-    
+    virtual ShowdownResult getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet board) const = 0;
+
     // Functions for output
     virtual std::string getActionName(ActionID actionID) const = 0;
 };

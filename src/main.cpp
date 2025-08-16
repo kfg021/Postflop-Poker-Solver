@@ -39,13 +39,12 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
         .deadMoney = 0,
     };
 
-    const int PrintFrequency = 1;
+    const int PrintFrequency = 100;
 
-    std::cout << "Building Holdem lookup table...\n" << std::flush;
-    hand_evaluation::buildLookupTablesIfNeeded();
-    std::cout << "Finished building lookup table.\n\n";
-
+    std::cout << "Building Holdem lookup tables...\n" << std::flush;
     const Holdem holdemRules{ holdemSettings };
+    std::cout << "Finished building lookup tables.\n\n";
+
     train(holdemRules, iterations, PrintFrequency, strategyOutputFile);
 }
 

@@ -55,7 +55,7 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
     }
     std::cout << "Finished training.\n\n";
 
-    std::cout << "Calculating expected value of final strategy:\n" << std::flush;
+    std::cout << "Calculating expected value of final strategy...\n" << std::flush;
     float player0ExpectedValue = 0.0f;
     for (const InitialSetup& setup : initialSetups) {
         float setupExpectedValue = calculatePlayer0ExpectedValue(rules, setup.handIndices, tree.getRootNode(), tree);

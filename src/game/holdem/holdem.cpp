@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -29,6 +30,20 @@ enum class Action : std::uint8_t {
     RaiseSize2,
     AllIn
 };
+
+static constexpr int NumPossibleTwoCardRunouts = (holdem::DeckSize * (holdem::DeckSize - 1)) / 2;
+
+int mapTwoCardSetToIndex(CardSet cardSet) {
+    assert(getSetSize(cardSet) == 2);
+
+    int card0Index = static_cast<int>(popLowestCardFromSet(cardSet));
+    int card1Index = static_cast<int>(popLowestCardFromSet(cardSet));
+    assert(cardSet == 0);
+
+    int finalIndex = card0Index + (card1Index * (card1Index - 1)) / 2;
+    assert(finalIndex < NumPossibleTwoCardRunouts);
+    return finalIndex;
+}
 
 std::optional<PlayerArray<int>> tryGetWagersAfterBet(
     PlayerArray<int> oldWagers,
@@ -99,30 +114,30 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
 
 Holdem::RangeElement::RangeElement(CardSet hand_, int frequency_) : hand{ hand_ }, frequency{ frequency_ } {}
 
-Holdem::Holdem(const Settings& settings) : m_settings{ settings } {}
+Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
+    switch (getSetSize(m_settings.startingCommunityCards)) {
+        case 3:
+            m_startingStreet = Street::Flop;
+            break;
+        case 4:
+            m_startingStreet = Street::Turn;
+            break;
+        case 5:
+            m_startingStreet = Street::River;
+            break;
+    }
+
+    buildHandRankTables();
+}
 
 GameState Holdem::getInitialGameState() const {
-    auto getStartingStreet = [](CardSet communityCards) -> Street {
-        switch (getSetSize(communityCards)) {
-            case 3:
-                return Street::Flop;
-            case 4:
-                return Street::Turn;
-            case 5:
-                return Street::River;
-            default:
-                assert(false);
-                return Street::River;
-        }
-    };
-
     const GameState initialState = {
         .currentBoard = m_settings.startingCommunityCards,
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
         .deadMoney = m_settings.deadMoney,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
-        .currentStreet = getStartingStreet(m_settings.startingCommunityCards),
+        .currentStreet = m_startingStreet
     };
     return initialState;
 }
@@ -418,9 +433,35 @@ CardSet Holdem::mapIndexToHand(Player player, std::uint16_t index) const {
     return playerRange[index].hand;
 }
 
-ShowdownResult Holdem::getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const {
-    std::uint32_t player0HandRank = hand_evaluation::getSevenCardHandRank(player0Hand | board);
-    std::uint32_t player1HandRank = hand_evaluation::getSevenCardHandRank(player1Hand | board);
+ShowdownResult Holdem::getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet board) const {
+    CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
+
+    int runoutIndex;
+    switch (m_startingStreet) {
+        case Street::River:
+            assert(getSetSize(chanceCardsDealt) == 0);
+            runoutIndex = 0;
+            break;
+        case Street::Turn:
+            assert(getSetSize(chanceCardsDealt) == 1);
+            runoutIndex = static_cast<int>(getLowestCardInSet(chanceCardsDealt));
+            break;
+        case Street::Flop:
+            assert(getSetSize(chanceCardsDealt) == 2);
+            runoutIndex = mapTwoCardSetToIndex(chanceCardsDealt);
+            break;
+        default:
+            assert(false);
+    }
+
+    int player0Index = (runoutIndex * m_settings.ranges[Player::P0].size()) + handIndices[Player::P0];
+    int player1Index = (runoutIndex * m_settings.ranges[Player::P1].size()) + handIndices[Player::P1];
+
+    std::uint32_t player0HandRank = m_handRanks[Player::P0][player0Index];
+    std::uint32_t player1HandRank = m_handRanks[Player::P1][player1Index];
+
+    // 0 is designed to be an invalid ranking
+    assert((player0HandRank != 0) && (player1HandRank != 0));
 
     if (player0HandRank > player1HandRank) {
         return ShowdownResult::P0Win;
@@ -472,6 +513,111 @@ std::string Holdem::getActionName(ActionID actionID) const {
         default:
             assert(false);
             return "???";
+    }
+}
+
+void Holdem::buildHandRankTables() {
+    std::unordered_map<CardSet, std::uint32_t> seenFiveCardHandRanks;
+
+    auto insertSevenCardHandRank = [this, &seenFiveCardHandRanks](Player player, CardSet board, int index) -> void {
+        assert(getSetSize(board) == 7);
+
+        std::array<CardID, 7> sevenCardArray;
+        CardSet temp = board;
+        for (int i = 0; i < 7; ++i) {
+            sevenCardArray[i] = popLowestCardFromSet(temp);
+        }
+        assert(temp == 0);
+
+        std::uint32_t handRanking = 0;
+        for (int i = 0; i < 7; ++i) {
+            for (int j = i + 1; j < 7; ++j) {
+                CardSet cardsToIgnore = cardIDToSet(sevenCardArray[i]) | cardIDToSet(sevenCardArray[j]);
+                CardSet fiveCardHand = board & ~cardsToIgnore;
+
+                std::uint32_t fiveCardHandRanking;
+                auto it = seenFiveCardHandRanks.find(fiveCardHand);
+                if (it != seenFiveCardHandRanks.end()) {
+                    fiveCardHandRanking = it->second;
+                }
+                else {
+                    fiveCardHandRanking = getFiveCardHandRank(fiveCardHand);
+                    seenFiveCardHandRanks.emplace(fiveCardHand, fiveCardHandRanking);
+                }
+
+                handRanking = std::max(handRanking, fiveCardHandRanking);
+            }
+        }
+
+        assert(handRanking != 0);
+        m_handRanks[player][index] = handRanking;
+    };
+
+    const auto& startingCards = m_settings.startingCommunityCards;
+    const auto& ranges = m_settings.ranges;
+
+    // TODO: Consider getting rid of empty spaces in lookup table
+    switch (m_startingStreet) {
+        case Street::River:
+            // We are starting at the river, so we can directly map player range indices into the hand ranking table
+            for (Player player : { Player::P0, Player::P1 }) {
+                int rangeSize = ranges[player].size();
+                int handRankTableSize = ranges[player].size();
+                m_handRanks[player].assign(handRankTableSize, 0);
+
+                for (int rangeIndex = 0; rangeIndex < ranges[player].size(); ++rangeIndex) {
+                    CardSet board = ranges[player][rangeIndex].hand | startingCards;
+                    if (getSetSize(board) != 7) continue;
+
+                    insertSevenCardHandRank(player, board, rangeIndex);
+                }
+            }
+            break;
+
+        case Street::Turn:
+            // We are starting at the turn, so we have to consider each possible river runout
+            for (Player player : { Player::P0, Player::P1 }) {
+                int rangeSize = ranges[player].size();
+                int handRankTableSize = holdem::DeckSize * rangeSize;
+                m_handRanks[player].assign(handRankTableSize, 0);
+
+                for (CardID riverCard = 0; riverCard < holdem::DeckSize; ++riverCard) {
+                    for (int rangeIndex = 0; rangeIndex < rangeSize; ++rangeIndex) {
+                        CardSet board = ranges[player][rangeIndex].hand | startingCards | cardIDToSet(riverCard);
+                        if (getSetSize(board) != 7) continue;
+
+                        int handRankIndex = (static_cast<int>(riverCard) * rangeSize) + rangeIndex;
+                        insertSevenCardHandRank(player, board, handRankIndex);
+                    }
+                }
+            }
+            break;
+
+        case Street::Flop:
+            // We are starting at the flop, so we have to consider each possible turn and river runout
+            for (Player player : { Player::P0, Player::P1 }) {
+                int rangeSize = ranges[player].size();
+                int handRankTableSize = NumPossibleTwoCardRunouts * rangeSize;
+                m_handRanks[player].assign(handRankTableSize, 0);
+
+                for (CardID turnCard = 0; turnCard < holdem::DeckSize; ++turnCard) {
+                    for (CardID riverCard = turnCard + 1; riverCard < holdem::DeckSize; ++riverCard) {
+                        for (int rangeIndex = 0; rangeIndex < rangeSize; ++rangeIndex) {
+                            CardSet runout = cardIDToSet(turnCard) | cardIDToSet(riverCard);
+                            CardSet board = ranges[player][rangeIndex].hand | startingCards | runout;
+                            if (getSetSize(board) != 7) continue;
+
+                            int handRankIndex = (mapTwoCardSetToIndex(runout) * rangeSize) + rangeIndex;
+                            insertSevenCardHandRank(player, board, handRankIndex);
+                        }
+                    }
+                }
+            }
+            break;
+
+        default:
+            assert(false);
+            break;
     }
 }
 

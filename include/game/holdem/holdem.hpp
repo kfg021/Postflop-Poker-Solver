@@ -49,13 +49,16 @@ public:
     std::vector<InitialSetup> getInitialSetups() const override;
     CardSet getDeck() const override;
     CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
-    ShowdownResult getShowdownResult(CardSet player0Hand, CardSet player1Hand, CardSet board) const override;
+    ShowdownResult getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet board) const override;
     std::string getActionName(ActionID actionID) const override;
 
 private:
+    void buildHandRankTables();
     int getTotalEffectiveStack() const;
 
     Settings m_settings;
+    PlayerArray<std::vector<std::int32_t>> m_handRanks;
+    Street m_startingStreet;
 };
 
 #endif // HOLDEM_HPP

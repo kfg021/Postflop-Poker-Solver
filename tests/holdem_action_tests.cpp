@@ -14,9 +14,9 @@
 namespace {
 class HoldemActionTest : public ::testing::Test {
 protected:
-    Holdem::Settings testSettings;
+    static inline Holdem::Settings testSettings;
 
-    void SetUp() override {
+    static void SetUpTestSuite() {
         PlayerArray<std::vector<Holdem::RangeElement>> testingRanges = {
             buildRangeFromStrings({"AA", "KJ", "TT", "AQo:50"}).getValue(),
             buildRangeFromStrings({"AA", "KK:25", "QQ", "T9s:33", "27o:99"}).getValue(),

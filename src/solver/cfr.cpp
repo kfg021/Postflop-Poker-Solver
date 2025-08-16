@@ -189,9 +189,7 @@ float traverseShowdown(
     const ShowdownNode& showdownNode
 ) {
     auto getPlayer0Reward = [&rules, &handIndices, &showdownNode](CardSet board) -> int {
-        CardSet player0Hand = rules.mapIndexToHand(Player::P0, handIndices[Player::P0]);
-        CardSet player1Hand = rules.mapIndexToHand(Player::P1, handIndices[Player::P1]);
-        switch (rules.getShowdownResult(player0Hand, player1Hand, board)) {
+        switch (rules.getShowdownResult(handIndices, board)) {
             case ShowdownResult::P0Win:
                 return showdownNode.reward;
             case ShowdownResult::P1Win:
@@ -207,10 +205,9 @@ float traverseShowdown(
     CardSet availableCardsForRunout = getAvailableCards(rules, handIndices, showdownNode.board);
 
     switch (showdownNode.street) {
-        case Street::River: {
+        case Street::River:
             // All cards dealt - no runout needed
             return static_cast<float>(getPlayer0Reward(showdownNode.board));
-        }
 
         case Street::Turn: {
             // One runout card neeed
