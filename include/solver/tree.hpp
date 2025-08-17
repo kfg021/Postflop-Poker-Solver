@@ -23,7 +23,7 @@ public:
     void buildFullTree();
     Node getRootNode() const;
 
-    // Using SoA instead of AoS for performacne
+    // Using SoA instead of AoS for performance
 
     // Vector containing all nodes
     std::vector<Node> allNodes;
