@@ -16,9 +16,9 @@
 namespace {
 using json = nlohmann::ordered_json;
 
-json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree);
+json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree, CardSet board);
 
-json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, const Tree& tree) {
+json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, const Tree& tree, CardSet board) {
     json j;
     j["NodeType"] = "Chance";
 
@@ -32,13 +32,15 @@ json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, cons
     for (int i = 0; i < chanceNode.chanceDataSize; ++i) {
         std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
-        children.push_back(buildJSON(rules, tree.allNodes[nextNodeIndex], tree));
+
+        CardID nextChanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + i];
+        children.push_back(buildJSON(rules, tree.allNodes[nextNodeIndex], tree, board | cardIDToSet(nextChanceCard)));
     }
 
     return j;
 }
 
-json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
+json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree, CardSet board) {
     json j;
     j["NodeType"] = "Decision";
     j["Player"] = (decisionNode.player == Player::P0) ? 0 : 1;
@@ -54,6 +56,12 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     for (int i = 0; i < decisionNode.numTrainingDataSets; ++i) {
         auto averageStrategy = getAverageStrategy(decisionNode, tree, i);
         CardSet hand = rules.mapIndexToHand(decisionNode.player, i);
+
+        if ((hand & board) != 0) {
+            // Hand is not possible given the board
+            continue;
+        }
+
         std::string handName;
         for (std::string cardName : getCardSetNames(hand)) {
             handName += cardName;
@@ -68,7 +76,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
         assert(nextNodeIndex < tree.allNodes.size());
-        children.push_back(buildJSON(rules, tree.allNodes[nextNodeIndex], tree));
+        children.push_back(buildJSON(rules, tree.allNodes[nextNodeIndex], tree, board));
     }
 
     return j;
@@ -89,12 +97,12 @@ json buildJSONShowdown(const ShowdownNode& showdownNode) {
     return j;
 }
 
-json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree) {
+json buildJSON(const IGameRules& rules, const Node& node, const Tree& tree, CardSet board) {
     switch (node.getNodeType()) {
         case NodeType::Chance:
-            return buildJSONChance(rules, node.chanceNode, tree);
+            return buildJSONChance(rules, node.chanceNode, tree, board);
         case NodeType::Decision:
-            return buildJSONDecision(rules, node.decisionNode, tree);
+            return buildJSONDecision(rules, node.decisionNode, tree, board);
         case NodeType::Fold:
             return buildJSONFold(node.foldNode);
         case NodeType::Showdown:
@@ -110,6 +118,6 @@ void outputStrategyToJSON(const IGameRules& rules, const Tree& tree, const std::
     std::ofstream file(filePath);
     assert(file.is_open());
 
-    json j = buildJSON(rules, tree.getRootNode(), tree);
+    json j = buildJSON(rules, tree.getRootNode(), tree, rules.getInitialGameState().currentBoard);
     file << j.dump(4) << std::endl;
 }
