@@ -424,8 +424,8 @@ std::vector<InitialSetup> Holdem::getInitialSetups() const {
 }
 
 CardSet Holdem::getDeck() const {
-    static constexpr CardSet StartingDeck = (1LL << holdem::DeckSize) - 1;
-    return StartingDeck & ~m_settings.startingCommunityCards;
+    static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
+    return Deck;
 }
 
 CardSet Holdem::mapIndexToHand(Player player, std::uint16_t index) const {
