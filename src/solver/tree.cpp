@@ -199,11 +199,17 @@ std::size_t getTrainingDataIndex(const DecisionNode& decisionNode, std::uint16_t
 
 FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree, std::uint16_t trainingDataSet) {
     std::uint8_t numActions = decisionNode.decisionDataSize;
+    assert(numActions > 0);
+
     float total = 0.0f;
     for (int i = 0; i < numActions; ++i) {
         total += tree.allStrategySums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
     }
-    // assert(total != 0.0f);
+
+    if (total == 0.0f) {
+        FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
+        return uniformStrategy;
+    }
 
     FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
     for (int i = 0; i < numActions; ++i) {
