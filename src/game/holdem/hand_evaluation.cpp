@@ -118,7 +118,7 @@ std::uint32_t getFiveCardHandRank(CardSet hand) {
 
         // Check for flushes
         bool isFlush = false;
-        const CardSet SingleSuitMask = 0x1111111111111;
+        static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
         for (int i = 0; i < 4; ++i) {
             bool isFlushThisSuit = (getSetSize(hand & (SingleSuitMask << i)) == 5);
             isFlush |= isFlushThisSuit;
