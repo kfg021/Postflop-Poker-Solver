@@ -411,8 +411,12 @@ std::vector<InitialSetup> Holdem::getInitialSetups() const {
                 float frequency0Float = frequency0 / 100.0f;
                 float frequency1Float = frequency1 / 100.0f;
                 float weight = frequency0Float * frequency1Float;
+                PlayerArray<std::uint16_t> handIndices = {
+                    static_cast<std::uint16_t>(i),
+                    static_cast<std::uint16_t>(j)
+                };
                 initialSetups.emplace_back(
-                    PlayerArray<std::uint16_t>{ i, j },
+                    handIndices,
                     PlayerArray<float>{ frequency0Float, frequency1Float },
                     weight / totalWeight
                 );
