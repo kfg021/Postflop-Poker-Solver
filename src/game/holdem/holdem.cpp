@@ -17,8 +17,7 @@
 
 namespace {
 enum class Action : std::uint8_t {
-    GameStart,
-    DealCard,
+    StreetStart,
     Fold,
     Check,
     Call,
@@ -32,6 +31,7 @@ enum class Action : std::uint8_t {
 };
 
 static constexpr int NumPossibleTwoCardRunouts = (holdem::DeckSize * (holdem::DeckSize - 1)) / 2;
+static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
 
 int mapTwoCardSetToIndex(CardSet cardSet) {
     assert(getSetSize(cardSet) == 2);
@@ -136,7 +136,7 @@ GameState Holdem::getInitialGameState() const {
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
         .deadMoney = m_settings.deadMoney,
         .playerToAct = Player::P0,
-        .lastAction = static_cast<ActionID>(Action::GameStart),
+        .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = m_startingStreet
     };
     return initialState;
@@ -144,10 +144,21 @@ GameState Holdem::getInitialGameState() const {
 
 NodeType Holdem::getNodeType(const GameState& state) const {
     switch (static_cast<Action>(state.lastAction)) {
-        case Action::GameStart:
-        case Action::DealCard:
-            // Start of street, next player can decide to check / bet
-            return NodeType::Decision;
+        case Action::StreetStart:
+            if (areBothPlayersAllIn(state)) {
+                // Both players are all in, so we need to simulate a runout.
+                // We do this by adding chance nodes to the tree until we reach the river.
+                if (state.currentStreet == Street::River) {
+                    return NodeType::Showdown;
+                }
+                else {
+                    return NodeType::Chance;
+                }
+            }
+            else {
+                // Start of street, next player can decide to check / bet
+                return NodeType::Decision;
+            }
 
         case Action::Fold:
             // Last player folded, action is over
@@ -167,10 +178,8 @@ NodeType Holdem::getNodeType(const GameState& state) const {
             // After a call both players should have the same amount wagered
             assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
 
-            // If the previous player called an all in, then we move to showdown / runout regardless of the street
-            // Otherwise, if we are at the river we are at a showdown node, and if not we are at a chance node
-            bool isAllIn = (state.totalWagers[Player::P0] == getTotalEffectiveStack());
-            return (state.currentStreet == Street::River || isAllIn) ? NodeType::Showdown : NodeType::Chance;
+            // If we are at the river we are at a showdown node, and if not we are at a chance node
+            return (state.currentStreet == Street::River) ? NodeType::Showdown : NodeType::Chance;
         }
 
         case Action::BetSize0:
@@ -186,12 +195,6 @@ NodeType Holdem::getNodeType(const GameState& state) const {
             assert(false);
             return NodeType::Fold;
     }
-}
-
-ActionType Holdem::getActionType(ActionID actionID) const {
-    Action action = static_cast<Action>(actionID);
-    assert(action != Action::GameStart);
-    return (action == Action::DealCard) ? ActionType::Chance : ActionType::Decision;
 }
 
 FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& state) const {
@@ -228,11 +231,10 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
     };
 
     NodeType nodeType = getNodeType(state);
-    assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
+    assert(nodeType == NodeType::Decision);
 
     switch (static_cast<Action>(state.lastAction)) {
-        case Action::GameStart:
-        case Action::DealCard: {
+        case Action::StreetStart: {
             FixedVector<ActionID, MaxNumActions> validActions = {
                 static_cast<ActionID>(Action::Check)
             };
@@ -241,29 +243,20 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
             return validActions;
         }
 
-        case Action::Check:
-            if (getOpposingPlayer(state.playerToAct) == Player::P1) {
-                // Player 1 checked, move to next street
-                return {
-                    static_cast<ActionID>(Action::DealCard)
-                };
-            }
-            else {
-                // Player 0 checked, player 1 can check or bet
-                FixedVector<ActionID, MaxNumActions> validActions = {
-                    static_cast<ActionID>(Action::Check)
-                };
-                addAllValidBetSizes(validActions);
-                validActions.pushBack(
-                    static_cast<ActionID>(Action::AllIn)
-                );
-                return validActions;
-            }
+        case Action::Check: {
+            // The checking player can only be player 0, because otherwise we would be at a chance node
+            assert(getOpposingPlayer(state.playerToAct) == Player::P0);
 
-        case Action::Call:
-            return {
-                static_cast<ActionID>(Action::DealCard)
+            // Player 0 checked, player 1 can check or bet
+            FixedVector<ActionID, MaxNumActions> validActions = {
+                static_cast<ActionID>(Action::Check)
             };
+            addAllValidBetSizes(validActions);
+            validActions.pushBack(
+                static_cast<ActionID>(Action::AllIn)
+            );
+            return validActions;
+        }
 
         case Action::BetSize0:
         case Action::BetSize1:
@@ -368,6 +361,33 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     return nextState;
 }
 
+FixedVector<GameState, MaxNumDealCards> Holdem::getNewStatesAfterChance(const GameState& state) const {
+    assert(getNodeType(state) == NodeType::Chance);
+    assert(state.currentStreet != Street::River);
+
+    FixedVector<GameState, MaxNumDealCards> statesAfterChance;
+
+    CardSet availableCards = Deck & ~state.currentBoard;
+    int numChanceCards = getSetSize(availableCards);
+    for (int i = 0; i < numChanceCards; ++i) {
+        CardID dealCard = popLowestCardFromSet(availableCards);
+        CardSet newBoard = state.currentBoard | cardIDToSet(dealCard);
+
+        GameState newState = {
+            .currentBoard = newBoard,
+            .totalWagers = state.totalWagers,
+            .deadMoney = state.deadMoney,
+            .playerToAct = Player::P0, // Player 0 always starts a new betting round
+            .lastAction = static_cast<ActionID>(Action::StreetStart),
+            .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
+        };
+        statesAfterChance.pushBack(newState);
+    }
+    assert(availableCards == 0);
+
+    return statesAfterChance;
+}
+
 std::uint16_t Holdem::getRangeSize(Player player) const {
     const auto& playerRange = m_settings.ranges[player];
     return static_cast<std::uint16_t>(playerRange.size());
@@ -428,7 +448,6 @@ std::vector<InitialSetup> Holdem::getInitialSetups() const {
 }
 
 CardSet Holdem::getDeck() const {
-    static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
     return Deck;
 }
 
@@ -492,8 +511,6 @@ std::string Holdem::getActionName(ActionID actionID) const {
     };
 
     switch (static_cast<Action>(actionID)) {
-        case Action::DealCard:
-            return "DealCard";
         case Action::Fold:
             return "Fold";
         case Action::Check:
@@ -627,4 +644,9 @@ void Holdem::buildHandRankTables() {
 
 int Holdem::getTotalEffectiveStack() const {
     return m_settings.startingPlayerWagers + m_settings.effectiveStackRemaining;
+}
+
+bool Holdem::areBothPlayersAllIn(const GameState& state) const {
+    int totalStack = getTotalEffectiveStack();
+    return (state.totalWagers[Player::P0] == totalStack) && (state.totalWagers[Player::P1] == totalStack);
 }

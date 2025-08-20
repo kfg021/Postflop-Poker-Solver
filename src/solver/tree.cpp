@@ -70,30 +70,17 @@ std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
 }
 
 std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& state) {
-    // There should only be one action and it should be a chance action
-    FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
-    assert(validActions.size() == 1 && rules.getActionType(validActions[0]) == ActionType::Chance);
-
     // Recurse to child nodes
-    CardSet availableCards = rules.getDeck() & ~state.currentBoard;
     FixedVector<CardID, MaxNumDealCards> nextCards;
     FixedVector<std::size_t, MaxNumDealCards> nextNodeIndices;
-    for (CardID cardID = 0; cardID < StandardDeckSize; ++cardID) {
-        if (setContainsCard(availableCards, cardID)) {
-            CardSet newBoard = state.currentBoard | cardIDToSet(cardID);
+    for (const GameState& newState : rules.getNewStatesAfterChance(state)) {
+        // A chance node adds exactly one card to the board
+        CardSet addedCards = newState.currentBoard & ~state.currentBoard;
+        assert(getSetSize(addedCards) == 1);
+        CardID newCard = getLowestCardInSet(addedCards);
 
-            GameState newState = {
-                .currentBoard = newBoard,
-                .totalWagers = state.totalWagers,
-                .deadMoney = state.deadMoney,
-                .playerToAct = Player::P0, // Player 0 always starts a new betting round
-                .lastAction = validActions[0],
-                .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
-            };
-
-            nextCards.pushBack(cardID);
-            nextNodeIndices.pushBack(createNode(rules, newState));
-        }
+        nextCards.pushBack(newCard);
+        nextNodeIndices.pushBack(createNode(rules, newState));
     }
     assert(nextCards.size() == nextNodeIndices.size());
 
@@ -118,8 +105,6 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
     FixedVector<std::size_t, MaxNumActions> nextNodeIndices;
     for (ActionID actionID : validActions) {
-        assert(rules.getActionType(actionID) == ActionType::Decision);
-
         GameState newState = rules.getNewStateAfterDecision(state, actionID);
         nextNodeIndices.pushBack(createNode(rules, newState));
     }
@@ -167,10 +152,12 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
     // The reward is the amount wagered plus any dead money
     int reward = state.totalWagers[Player::P0] + state.deadMoney;
 
+    // Showdowns can only happen on the river
+    assert(state.currentStreet == Street::River);
+
     ShowdownNode showdownNode = {
         .board = state.currentBoard,
         .reward = reward,
-        .street = state.currentStreet
     };
 
     allNodes.emplace_back(showdownNode);

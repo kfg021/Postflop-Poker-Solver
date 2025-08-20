@@ -37,8 +37,7 @@ protected:
 };
 
 enum HoldemActionID : std::uint8_t {
-    GameStart,
-    DealCard,
+    StreetStart,
     Fold,
     Check,
     Call,
@@ -52,15 +51,34 @@ enum HoldemActionID : std::uint8_t {
 };
 
 GameState simulateStreet(const Holdem& holdemRules, Street street, const std::vector<HoldemActionID>& actions) {
-    GameState state = holdemRules.getInitialGameState();
+    auto simulateFromState = [&holdemRules](const GameState& state, const std::vector<HoldemActionID>& actions) -> GameState {
+        GameState newState = state;
+        for (HoldemActionID actionID : actions) {
+            newState = holdemRules.getNewStateAfterDecision(newState, actionID);
+        }
+        return newState;
+    };
 
-    // TODO: Also edit the board to be consistent with the street
-    state.currentStreet = street;
+    auto getStateAfterChance = [&holdemRules](const GameState& state) -> GameState {
+        return holdemRules.getNewStatesAfterChance(state)[0];
+    };
 
-    for (HoldemActionID actionID : actions) {
-        state = holdemRules.getNewStateAfterDecision(state, actionID);
-    }
-    return state;
+    auto getStateAtStartOfStreet = [&holdemRules, &simulateFromState, &getStateAfterChance](Street street) {
+        if (street == Street::Flop) {
+            return holdemRules.getInitialGameState();
+        }
+        else if (street == Street::Turn) {
+            GameState endFlopState = simulateFromState(holdemRules.getInitialGameState(), { Check, Check });
+            return getStateAfterChance(endFlopState);
+        }
+        else {
+            GameState endFlopState = simulateFromState(holdemRules.getInitialGameState(), { Check, Check });
+            GameState endTurnState = simulateFromState(getStateAfterChance(endFlopState), { Check, Check });
+            return getStateAfterChance(endTurnState);
+        }
+    };
+
+    return simulateFromState(getStateAtStartOfStreet(street), actions);
 }
 } // namespace
 
@@ -149,14 +167,49 @@ TEST_F(HoldemActionTest, EndOfRiverIsShowdown) {
     EXPECT_EQ(state.totalWagers, ExpectedWagers);
 }
 
-TEST_F(HoldemActionTest, AllInBeforeRiverIsShowdown) {
+TEST_F(HoldemActionTest, RiverAllInIsShowdown) {
+    Holdem holdemRules{ testSettings };
+    GameState state = simulateStreet(holdemRules, Street::River, { Check, BetSize1, AllIn, Call });
+    EXPECT_EQ(holdemRules.getNodeType(state), NodeType::Showdown);
+}
+
+TEST_F(HoldemActionTest, TurnAllInIsChanceShowdown) {
+    Holdem holdemRules{ testSettings };
+    GameState state = simulateStreet(holdemRules, Street::Turn, { Check, BetSize1, AllIn, Call });
+    EXPECT_EQ(holdemRules.getNodeType(state), NodeType::Chance);
+
+    for (GameState stateAfterChance : holdemRules.getNewStatesAfterChance(state)) {
+        EXPECT_EQ(holdemRules.getNodeType(stateAfterChance), NodeType::Showdown);
+    }
+}
+
+TEST_F(HoldemActionTest, FlopAllInIsChanceChanceShowdown) {
+    Holdem holdemRules{ testSettings };
+    GameState state = simulateStreet(holdemRules, Street::Flop, { Check, BetSize1, AllIn, Call });
+    EXPECT_EQ(holdemRules.getNodeType(state), NodeType::Chance);
+
+    for (GameState stateAfterFirstChance : holdemRules.getNewStatesAfterChance(state)) {
+        EXPECT_EQ(holdemRules.getNodeType(stateAfterFirstChance), NodeType::Chance);
+        for (GameState stateAfterSecondChance : holdemRules.getNewStatesAfterChance(stateAfterFirstChance)) {
+            EXPECT_EQ(holdemRules.getNodeType(stateAfterSecondChance), NodeType::Showdown);
+        }
+    }
+}
+
+TEST_F(HoldemActionTest, CorrectNumberOfChanceNodes) {
     Holdem holdemRules{ testSettings };
 
-    GameState allInFlop = simulateStreet(holdemRules, Street::Flop, { Check, BetSize1, RaiseSize0, AllIn, Call });
-    EXPECT_EQ(holdemRules.getNodeType(allInFlop), NodeType::Showdown);
+    GameState endFlopState = simulateStreet(holdemRules, Street::Flop, { Check, Check });
+    EXPECT_EQ(holdemRules.getNodeType(endFlopState), NodeType::Chance);
 
-    GameState allInTurn = simulateStreet(holdemRules, Street::Turn, { Check, BetSize2, AllIn, Call });
-    EXPECT_EQ(holdemRules.getNodeType(allInTurn), NodeType::Showdown);
+    auto endFlopChanceNodes = holdemRules.getNewStatesAfterChance(endFlopState);
+    EXPECT_EQ(endFlopChanceNodes.size(), holdem::DeckSize - 3);
+
+    GameState endTurnState = simulateStreet(holdemRules, Street::Turn, { Check, Check });
+    EXPECT_EQ(holdemRules.getNodeType(endTurnState), NodeType::Chance);
+
+    auto endTurnChanceNodes = holdemRules.getNewStatesAfterChance(endTurnState);
+    EXPECT_EQ(endTurnChanceNodes.size(), holdem::DeckSize - 4);
 }
 
 TEST_F(HoldemActionTest, BetSizesRoundUp) {

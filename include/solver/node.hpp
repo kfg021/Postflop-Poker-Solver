@@ -48,9 +48,6 @@ struct ShowdownNode {
 
     // The winner of the showdown will profit this amount
     int reward;
-
-    // If we are not at the river, we need to simulate a runout
-    Street street;
 };
 
 class Node {

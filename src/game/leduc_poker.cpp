@@ -13,8 +13,7 @@
 
 namespace {
 enum class Action : std::uint8_t {
-    GameStart,
-    DealCard,
+    StreetStart,
     Fold,
     Check,
     Call,
@@ -40,7 +39,7 @@ GameState LeducPoker::getInitialGameState() const {
         .totalWagers = { 1, 1 }, // Each player antes 1
         .deadMoney = 0,
         .playerToAct = Player::P0,
-        .lastAction = static_cast<ActionID>(Action::GameStart),
+        .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = Street::Turn, // Since Leduc poker has one street, we begin action on the turn 
     };
     return InitialState;
@@ -48,8 +47,7 @@ GameState LeducPoker::getInitialGameState() const {
 
 NodeType LeducPoker::getNodeType(const GameState& state) const {
     switch (static_cast<Action>(state.lastAction)) {
-        case Action::GameStart:
-        case Action::DealCard:
+        case Action::StreetStart:
             // Start of street, next player can decide to check / bet
             return NodeType::Decision;
         case Action::Fold:
@@ -78,40 +76,24 @@ NodeType LeducPoker::getNodeType(const GameState& state) const {
     }
 }
 
-ActionType LeducPoker::getActionType(ActionID actionID) const {
-    Action action = static_cast<Action>(actionID);
-    assert(action != Action::GameStart);
-    return (action == Action::DealCard) ? ActionType::Chance : ActionType::Decision;
-}
-
 FixedVector<ActionID, MaxNumActions> LeducPoker::getValidActions(const GameState& state) const {
     NodeType nodeType = getNodeType(state);
     assert((nodeType == NodeType::Decision) || (nodeType == NodeType::Chance));
 
     switch (static_cast<Action>(state.lastAction)) {
-        case Action::GameStart:
-        case Action::DealCard:
+        case Action::StreetStart:
             return {
                 static_cast<ActionID>(Action::Check),
                 static_cast<ActionID>(Action::Bet)
             };
         case Action::Check:
-            if (getOpposingPlayer(state.playerToAct) == Player::P1) {
-                // Player 1 checked, move to next street
-                return {
-                    static_cast<ActionID>(Action::DealCard)
-                };
-            }
-            else {
-                // Player 0 checked, player 1 can check or bet
-                return {
-                    static_cast<ActionID>(Action::Check),
-                    static_cast<ActionID>(Action::Bet)
-                };
-            }
-        case Action::Call:
+            // The checking player can only be player 0, because otherwise we would be at a chance node
+            assert(getOpposingPlayer(state.playerToAct) == Player::P0);
+
+            // Player 0 checked, player 1 can check or bet
             return {
-                static_cast<ActionID>(Action::DealCard)
+                static_cast<ActionID>(Action::Check),
+                static_cast<ActionID>(Action::Bet)
             };
         case Action::Bet:
             return {
@@ -163,6 +145,27 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     }
 
     return nextState;
+}
+
+FixedVector<GameState, MaxNumDealCards> LeducPoker::getNewStatesAfterChance(const GameState& state) const {
+    assert(getNodeType(state) == NodeType::Chance);
+    assert(state.currentStreet == Street::Turn);
+
+    FixedVector<GameState, MaxNumDealCards> statesAfterChance;
+
+    for (CardSet hand : PossibleHands) {
+        GameState newState = {
+            .currentBoard = state.currentBoard | hand,
+            .totalWagers = state.totalWagers,
+            .deadMoney = state.deadMoney,
+            .playerToAct = Player::P0, // Player 0 always starts a new betting round
+            .lastAction = static_cast<ActionID>(Action::StreetStart),
+            .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
+        };
+        statesAfterChance.pushBack(newState);
+    }
+
+    return statesAfterChance;
 }
 
 std::uint16_t LeducPoker::getRangeSize(Player /*player*/) const {
@@ -243,8 +246,6 @@ ShowdownResult LeducPoker::getShowdownResult(PlayerArray<std::uint16_t> handIndi
 
 std::string LeducPoker::getActionName(ActionID actionID) const {
     switch (static_cast<Action>(actionID)) {
-        case Action::DealCard:
-            return "DealCard";
         case Action::Fold:
             return "Fold";
         case Action::Check:
