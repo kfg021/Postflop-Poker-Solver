@@ -63,12 +63,6 @@ NodeType KuhnPoker::getNodeType(const GameState& state) const {
     }
 }
 
-ActionType KuhnPoker::getActionType(ActionID actionID) const {
-    // Kuhn poker has no chance nodes
-    assert(static_cast<Action>(actionID) != Action::GameStart);
-    return ActionType::Decision;
-}
-
 FixedVector<ActionID, MaxNumActions>  KuhnPoker::getValidActions(const GameState& state) const {
     assert(getNodeType(state) == NodeType::Decision);
 
@@ -117,6 +111,12 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
     }
 
     return nextState;
+}
+
+FixedVector<GameState, MaxNumDealCards> KuhnPoker::getNewStatesAfterChance(const GameState& /*state*/) const {
+    // Kuhn poker has no chance nodes
+    assert(false);
+    return {};
 }
 
 std::uint16_t KuhnPoker::getRangeSize(Player /*player*/) const {

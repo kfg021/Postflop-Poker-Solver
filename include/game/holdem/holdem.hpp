@@ -42,9 +42,9 @@ public:
 
     GameState getInitialGameState() const override;
     NodeType getNodeType(const GameState& state) const override;
-    ActionType getActionType(ActionID actionID) const override;
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
+    FixedVector<GameState, MaxNumDealCards> getNewStatesAfterChance(const GameState& state) const override;
     std::uint16_t getRangeSize(Player player) const override;
     std::vector<InitialSetup> getInitialSetups() const override;
     CardSet getDeck() const override;
@@ -55,9 +55,10 @@ public:
 private:
     void buildHandRankTables();
     int getTotalEffectiveStack() const;
+    bool areBothPlayersAllIn(const GameState& state) const;
 
     Settings m_settings;
-    PlayerArray<std::vector<std::int32_t>> m_handRanks;
+    PlayerArray<std::vector<std::uint32_t>> m_handRanks;
     Street m_startingStreet;
 };
 

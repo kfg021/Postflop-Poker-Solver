@@ -32,11 +32,6 @@ enum class NodeType : std::uint8_t {
     Showdown
 };
 
-enum class ActionType : std::uint8_t {
-    Chance,
-    Decision
-};
-
 enum class ShowdownResult : std::uint8_t {
     P0Win,
     P1Win,
