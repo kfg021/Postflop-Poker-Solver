@@ -5,6 +5,7 @@
 #include "game/game_types.hpp"
 #include "solver/node.hpp"
 #include "solver/tree.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <cstdint>
 
@@ -41,5 +42,7 @@ float calculatePlayer0ExpectedValue(
     const Node& node,
     Tree& tree
 );
+
+FixedVector<float, MaxNumActions> getAverageStrategy();
 
 #endif // CFR_HPP

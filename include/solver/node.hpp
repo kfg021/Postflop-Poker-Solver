@@ -27,7 +27,7 @@ struct DecisionNode {
     std::size_t decisionDataOffset;
 
     // There is one set of training data for each hand in the current player's range
-    std::uint16_t numTrainingDataSets;
+    int numTrainingDataSets;
 
     // Equal to the number of actions that can be taken from this node by the player
     std::uint8_t decisionDataSize;

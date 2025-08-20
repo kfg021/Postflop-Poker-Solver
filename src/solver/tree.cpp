@@ -82,14 +82,14 @@ std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& sta
         if (setContainsCard(availableCards, cardID)) {
             CardSet newBoard = state.currentBoard | cardIDToSet(cardID);
 
-            GameState newState = {
-                .currentBoard = newBoard,
-                .totalWagers = state.totalWagers,
-                .deadMoney = state.deadMoney,
-                .playerToAct = Player::P0, // Player 0 always starts a new betting round
-                .lastAction = validActions[0],
-                .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
-            };
+            // GameState newState = {
+            //     .currentBoard = newBoard,
+            //     .totalWagers = state.totalWagers,
+            //     .deadMoney = state.deadMoney,
+            //     .playerToAct = Player::P0, // Player 0 always starts a new betting round
+            //     .lastAction = static_cast<ActionID>(Action::StreetStart),
+            //     .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
+            // };
 
             nextCards.pushBack(cardID);
             nextNodeIndices.pushBack(createNode(rules, newState));
@@ -190,31 +190,4 @@ void Tree::buildFullTree() {
 Node Tree::getRootNode() const {
     assert(isTreeSkeletonBuilt() && isFullTreeBuilt());
     return allNodes.back();
-}
-
-std::size_t getTrainingDataIndex(const DecisionNode& decisionNode, std::uint16_t trainingDataSet, std::uint8_t actionIndex) {
-    assert(trainingDataSet < decisionNode.numTrainingDataSets);
-    return decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize) + actionIndex;
-}
-
-FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree, std::uint16_t trainingDataSet) {
-    std::uint8_t numActions = decisionNode.decisionDataSize;
-    assert(numActions > 0);
-
-    float total = 0.0f;
-    for (int i = 0; i < numActions; ++i) {
-        total += tree.allStrategySums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
-    }
-
-    if (total == 0.0f) {
-        FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
-        return uniformStrategy;
-    }
-
-    FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
-    for (int i = 0; i < numActions; ++i) {
-        averageStrategy[i] = tree.allStrategySums[getTrainingDataIndex(decisionNode, trainingDataSet, i)] / total;
-    }
-
-    return averageStrategy;
 }
