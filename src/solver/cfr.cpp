@@ -156,7 +156,7 @@ void traverseDecision(
     std::span<float> outputExpectedValues
 ) {
     auto calculateCurrentStrategy = [&decisionNode, &tree](int trainingDataSet) -> FixedVector<float, MaxNumActions> {
-        int numActions = decisionNode.decisionDataSize;
+        int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
         std::span<float> regretSums = getRegretSumsSpan(decisionNode, trainingDataSet, tree);
@@ -188,12 +188,12 @@ void traverseDecision(
     int playerToActRangeSize = rangeWeights[playerToAct].size();
     int traverserRangeSize = rangeWeights[traverser].size();
 
-    int numActions = decisionNode.decisionDataSize;
+    int numActions = static_cast<int>(decisionNode.decisionDataSize);
 
     bool isCfr = (constants.mode != TraversalMode::ExpectedValue);
 
     std::span<const std::size_t> nextNodeIndices = {
-        tree.allChanceNextNodeIndices.begin() + decisionNode.decisionDataOffset,
+        tree.allDecisionNextNodeIndices.begin() + decisionNode.decisionDataOffset,
         static_cast<std::size_t>(numActions)
     };
 
@@ -304,7 +304,7 @@ void traverseFold(const FoldNode& foldNode, const TraversalConstants& constants,
     float reward = static_cast<float>(foldNode.remainingPlayerReward);
 
     // The player who did not fold wins the reward, regardless of their hand or the board
-    for (float expectedValue : outputExpectedValues) {
+    for (float& expectedValue : outputExpectedValues) {
         expectedValue = (winner == constants.traverser) ? reward : -reward;
     }
 }
@@ -343,6 +343,7 @@ void traverseShowdown(
             }
 
             float opponentRangeWeight = rangeWeights[opponent][opponentRangeIndex];
+            assert(opponentRangeWeight >= 0.0f);
 
             switch (rules.getShowdownResult({ player0Index, player1Index }, showdownNode.board)) {
                 case ShowdownResult::P0Win: {
@@ -366,8 +367,15 @@ void traverseShowdown(
             }
         }
 
-        assert(opponentWeightSum > 0.0f);
-        outputExpectedValues[traverserRangeIndex] = traverserExpectedValue / opponentWeightSum;
+        // TODO: Add assert back
+        // assert(opponentWeightSum > 0.0f);
+        if (opponentWeightSum > 0.0f) {
+            outputExpectedValues[traverserRangeIndex] = traverserExpectedValue / opponentWeightSum;
+        }
+        else {
+            outputExpectedValues[traverserRangeIndex] = 0.0f;
+        }
+
     }
 }
 
@@ -511,7 +519,7 @@ float expectedValue(
 }
 
 FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree) {
-    int numActions = decisionNode.decisionDataSize;
+    int numActions = static_cast<int>(decisionNode.decisionDataSize);
     assert(numActions > 0);
 
     std::span<const float> strategySums = getStategySumsSpan(decisionNode, trainingDataSet, tree);

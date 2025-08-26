@@ -174,7 +174,7 @@ const std::vector<CardSet>& LeducPoker::getRangeHands(Player /*player*/) const {
 }
 
 const std::vector<float>& LeducPoker::getInitialRangeWeights(Player /*player*/) const {
-    static const std::vector<float> Weights(1.0f / 6.0f, 6);
+    static const std::vector<float> Weights(6, 1.0f / 6.0f);
     return Weights;
 }
 
