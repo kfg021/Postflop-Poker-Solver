@@ -21,7 +21,7 @@ public:
     std::size_t getTreeSkeletonSize() const;
     std::size_t estimateFullTreeSize() const;
     void buildFullTree();
-    Node getRootNode() const;
+    std::size_t getRootNodeIndex() const;
 
     // Using SoA instead of AoS for performance
 
@@ -49,11 +49,9 @@ private:
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
 
+    PlayerArray<int> m_rangeSizes;
     std::size_t m_trainingDataLength;
     std::size_t m_numDecisionNodes;
 };
-
-std::size_t getTrainingDataIndex(const DecisionNode& decisionNode, std::uint16_t trainingDataSet, std::uint8_t actionIndex);
-FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree, std::uint16_t trainingDataSet);
 
 #endif // TREE_HPP

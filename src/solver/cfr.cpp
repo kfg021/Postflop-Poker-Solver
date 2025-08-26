@@ -13,6 +13,8 @@
 #include <cstdint>
 #include <span>
 
+// TODO: Do arithmetic with doubles, then store result in floats
+
 namespace {
 enum class TraversalMode : std::uint8_t {
     VanillaCfr,
@@ -21,26 +23,17 @@ enum class TraversalMode : std::uint8_t {
     ExpectedValue
 };
 
-// struct TraversalData {
-//     DiscountParams params;
-//     PlayerArray<float> weights;
-//     TraversalMode mode;
-//     Player traverser;
-// };
-
 struct TraversalConstants {
-    IGameRules* rules;
     Player traverser;
     TraversalMode mode;
     DiscountParams params;
-    PlayerArray<std::vector<CardSet>> rangeHands;
 };
 
-PlayerArray<std::span<float>> getInputWeightSpans(std::size_t nodeIndex, const TraversalConstants& constants, Tree& tree) {
+PlayerArray<std::span<float>> getInputWeightSpans(std::size_t nodeIndex, const IGameRules& rules, Tree& tree) {
     PlayerArray<std::span<float>> inputWeightSpans;
 
     for (Player player : { Player::P0, Player::P1 }) {
-        std::size_t playerRangeSize = constants.rangeHands[player].size();
+        std::size_t playerRangeSize = rules.getRangeHands(player).size();
         inputWeightSpans[player] = {
             tree.allInputWeights[player].begin() + (nodeIndex * playerRangeSize),
             playerRangeSize
@@ -50,8 +43,8 @@ PlayerArray<std::span<float>> getInputWeightSpans(std::size_t nodeIndex, const T
     return inputWeightSpans;
 }
 
-std::span<float> getOutputExpectedValueSpan(std::size_t nodeIndex, const TraversalConstants& constants, Tree& tree) {
-    std::size_t traverserRangeSize = constants.rangeHands[constants.traverser].size();
+std::span<float> getOutputExpectedValueSpan(std::size_t nodeIndex, const TraversalConstants& constants, const IGameRules& rules, Tree& tree) {
+    std::size_t traverserRangeSize = rules.getRangeHands(constants.traverser).size();
     return {
         tree.allOutputExpectedValues.begin() + (nodeIndex * traverserRangeSize),
         traverserRangeSize
@@ -85,21 +78,23 @@ std::span<float> getRegretSumsSpan(const DecisionNode& decisionNode, int trainin
 void traverseTree(
     const Node& node,
     const TraversalConstants& constants,
+    const IGameRules& rules,
     const PlayerArray<std::span<float>>& rangeWeights,
     Tree& tree,
-    std::span<float>& outputExpectedValues
+    std::span<float> outputExpectedValues
 );
 
 void traverseChance(
     const ChanceNode& chanceNode,
     const TraversalConstants& constants,
+    const IGameRules& rules,
     const PlayerArray<std::span<float>>& rangeWeights,
     Tree& tree,
     std::span<float> outputExpectedValues
 ) {
     // TODO: This function assumes that chance cards are equally likely to be dealt.
     // In reality, this is NOT true.
-    // The ranges of both players affect the probability that a specific card is dealt.
+    // The ranges of both players affect the probability that a specific card is dealt
 
     std::span<const CardID> nextCards = {
         tree.allChanceCards.begin() + chanceNode.chanceDataOffset,
@@ -113,14 +108,14 @@ void traverseChance(
 
     std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
     for (int chanceCardIndex = 0; chanceCardIndex < chanceNode.chanceDataSize; ++chanceCardIndex) {
-        const CardID& nextCard = nextCards[chanceCardIndex];
-        const std::size_t& nextNodeIndex = nextNodeIndices[chanceCardIndex];
+        CardID nextCard = nextCards[chanceCardIndex];
+        std::size_t nextNodeIndex = nextNodeIndices[chanceCardIndex];
         assert(nextNodeIndices[chanceCardIndex] < tree.allNodes.size());
 
-        PlayerArray<std::span<float>> newRangeWeights = getInputWeightSpans(nextNodeIndex, constants, tree);
+        PlayerArray<std::span<float>> newRangeWeights = getInputWeightSpans(nextNodeIndex, rules, tree);
         for (Player player : { Player::P0, Player::P1 }) {
             for (int rangeIndex = 0; rangeIndex < newRangeWeights[player].size(); ++rangeIndex) {
-                const CardSet& playerHand = constants.rangeHands[player][rangeIndex];
+                CardSet playerHand = rules.getRangeHands(player)[rangeIndex];
                 if (setContainsCard(playerHand, nextCard)) {
                     // The chance card we are about to deal conflicts with a hand in the player's range
                     newRangeWeights[player][rangeIndex] = 0.0f;
@@ -135,8 +130,15 @@ void traverseChance(
             }
         }
 
-        std::span<float> expectedValueAfterCard = getOutputExpectedValueSpan(nextNodeIndex, constants, tree);
-        traverseTree(tree.allNodes[nextNodeIndex], constants, newRangeWeights, tree, expectedValueAfterCard);
+        std::span<float> expectedValueAfterCard = getOutputExpectedValueSpan(nextNodeIndex, constants, rules, tree);
+        traverseTree(
+            tree.allNodes[nextNodeIndex],
+            constants,
+            rules,
+            newRangeWeights,
+            tree,
+            expectedValueAfterCard
+        );
 
         assert(expectedValueAfterCard.size() == outputExpectedValues.size());
         for (int rangeIndex = 0; rangeIndex < expectedValueAfterCard.size(); ++rangeIndex) {
@@ -148,17 +150,19 @@ void traverseChance(
 void traverseDecision(
     const DecisionNode& decisionNode,
     const TraversalConstants& constants,
+    const IGameRules& rules,
     const PlayerArray<std::span<float>>& rangeWeights,
     Tree& tree,
     std::span<float> outputExpectedValues
 ) {
     auto calculateCurrentStrategy = [&decisionNode, &tree](int trainingDataSet) -> FixedVector<float, MaxNumActions> {
-        std::uint8_t numActions = decisionNode.decisionDataSize;
+        int numActions = decisionNode.decisionDataSize;
         assert(numActions > 0);
 
+        std::span<float> regretSums = getRegretSumsSpan(decisionNode, trainingDataSet, tree);
+
         float totalPositiveRegret = 0.0f;
-        for (int i = 0; i < numActions; ++i) {
-            float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
+        for (float regretSum : regretSums) {
             if (regretSum > 0.0f) {
                 totalPositiveRegret += regretSum;
             }
@@ -171,264 +175,343 @@ void traverseDecision(
 
         FixedVector<float, MaxNumActions> currentStrategy(numActions, 0.0f);
         for (int i = 0; i < numActions; ++i) {
-            float regretSum = tree.allRegretSums[getTrainingDataIndex(decisionNode, trainingDataSet, i)];
-            if (regretSum > 0.0f) {
-                currentStrategy[i] = regretSum / totalPositiveRegret;
+            if (regretSums[i] > 0.0f) {
+                currentStrategy[i] = regretSums[i] / totalPositiveRegret;
             }
         }
         return currentStrategy;
     };
 
-    std::span<const ActionID> decisions = {
-        tree.allDecisions.begin() + decisionNode.decisionDataOffset,
-        decisionNode.decisionDataSize
-    };
+    Player playerToAct = decisionNode.player;
+    Player traverser = constants.traverser;
+
+    int playerToActRangeSize = rangeWeights[playerToAct].size();
+    int traverserRangeSize = rangeWeights[traverser].size();
+
+    int numActions = decisionNode.decisionDataSize;
+
+    bool isCfr = (constants.mode != TraversalMode::ExpectedValue);
 
     std::span<const std::size_t> nextNodeIndices = {
         tree.allChanceNextNodeIndices.begin() + decisionNode.decisionDataOffset,
-        decisionNode.decisionDataSize
+        static_cast<std::size_t>(numActions)
     };
 
-    std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
-    for (int rangeIndex = 0; rangeIndex < rangeWeights[constants.traverser].size(); ++rangeIndex) {
-        FixedVector<float, MaxNumActions> trCurrentStrategy = calculateCurrentStrategy(rangeIndex);
-        std::uint8_t numActions = decisionNode.decisionDataSize;
-
-        // Calculate the utility for each hand in the traverser's range by playing all actions weighted by the strategy
-        FixedVector<float, MaxNumActions> rangeElementActionUtility(numActions, 0.0f);
-        for (int actionIndex = 0; actionIndex < numActions; ++actionIndex) {
-            const std::size_t& nextNodeIndex = nextNodeIndices[actionIndex];
-            assert(nextNodeIndex < tree.allNodes.size());
-
-            PlayerArray<std::span<float>> newRangeWeights = getInputWeightSpans(nextNodeIndex, constants, tree);
-            for (float& weight : newRangeWeights[decisionNode.player]) {
-                weight = rangeWeights[decisionNode.player][actionIndex] * playerCurrentStrategy[actionIndex];
-            }
-
-            std::span<float> expectedValueAfterAction = getOutputExpectedValueSpan(nextNodeIndex, constants, tree);
-            traverseTree(tree.allNodes[nextNodeIndex], constants, newRangeWeights, tree, expectedValueAfterAction);
-        }
-
-        // if()
-
+    // TODO: Avoid heap allocation
+    std::vector<FixedVector<float, MaxNumActions>> playerToActStrategies(playerToActRangeSize);
+    for (int i = 0; i < playerToActRangeSize; ++i) {
+        playerToActStrategies[i] = (isCfr ? calculateCurrentStrategy(i) : getAverageStrategy(decisionNode, i, tree));
     }
 
-    // std::uint16_t trainingDataSet = handIndices[decisionNode.player];
-    // FixedVector<float, MaxNumActions> playerCurrentStrategy = calculateCurrentStrategy(trainingDataSet);
-    // std::uint8_t numActions = decisionNode.decisionDataSize;
-
-    // // Calculate a player's expected value by playing all actions weighted by the strategy
-    // float currentPlayerExpectedValue = 0.0f;
-    // FixedVector<float, MaxNumActions> currentPlayerActionUtility(numActions, 0.0f);
-    // for (int i = 0; i < numActions; ++i) {
-    //     TraversalData newData = data;
-    //     newData.weights[decisionNode.player] *= playerCurrentStrategy[i];
-
-    //     std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
-    //     assert(nextNodeIndex < tree.allNodes.size());
-
-    //     float player0ExpectedValue = traverseTree(rules, newData, handIndices, tree.allNodes[nextNodeIndex], tree);
-    //     currentPlayerActionUtility[i] = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
-    //     currentPlayerExpectedValue += currentPlayerActionUtility[i] * playerCurrentStrategy[i];
-    // }
-
-    // if (data.traverser == decisionNode.player) {
-    //     for (int i = 0; i < numActions; ++i) {
-    //         float regret = currentPlayerActionUtility[i] - currentPlayerExpectedValue;
-    //         std::size_t trainingIndex = getTrainingDataIndex(decisionNode, trainingDataSet, i);
-
-    //         if (data.mode == TraversalMode::DiscountedCfr) {
-    //             if (tree.allRegretSums[trainingIndex] > 0.0f) {
-    //                 tree.allRegretSums[trainingIndex] *= data.params.alphaT;
-    //             }
-    //             else {
-    //                 tree.allRegretSums[trainingIndex] *= data.params.betaT;
-    //             }
-
-    //             tree.allStrategySums[trainingIndex] *= data.params.gammaT;
-    //         }
-
-    //         tree.allRegretSums[trainingIndex] += data.weights[getOpposingPlayer(decisionNode.player)] * regret;
-    //         tree.allStrategySums[trainingIndex] += data.weights[decisionNode.player] * playerCurrentStrategy[i];
-
-    //         if (data.mode == TraversalMode::CfrPlus) {
-    //             // In CFR+, we erase negative regrets for faster convergence
-    //             if (tree.allRegretSums[trainingIndex] < 0.0f) {
-    //                 tree.allRegretSums[trainingIndex] = 0.0f;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // return (decisionNode.player == Player::P0) ? currentPlayerExpectedValue : -currentPlayerExpectedValue; // Return EV from player 0's perspective
-}
-
-float expectedValueDecision(
-    const IGameRules& rules,
-    const TraversalData& data,
-    PlayerArray<std::uint16_t> handIndices,
-    const DecisionNode& decisionNode,
-    Tree& tree
-) {
-    assert(data.mode == TraversalMode::ExpectedValue);
-
-    std::uint16_t trainingDataSet = handIndices[decisionNode.player];
-    FixedVector<float, MaxNumActions> playerAverageStrategy = getAverageStrategy(decisionNode, tree, trainingDataSet);
-    std::uint8_t numActions = decisionNode.decisionDataSize;
-
-    // Calculate a player's expected value by playing all actions weighted by the strategy
-    float currentPlayerExpectedValue = 0.0f;
-    for (int i = 0; i < numActions; ++i) {
-        std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + i];
+    // Fill new weight buffers
+    for (int actionIndex = 0; actionIndex < numActions; ++actionIndex) {
+        std::size_t nextNodeIndex = nextNodeIndices[actionIndex];
         assert(nextNodeIndex < tree.allNodes.size());
 
-        float player0ExpectedValue = traverseTree(rules, data, handIndices, tree.allNodes[nextNodeIndex], tree);
-        float currentPlayerActionUtility = (decisionNode.player == Player::P0) ? player0ExpectedValue : -player0ExpectedValue; // Zero-sum game
-        currentPlayerExpectedValue += currentPlayerActionUtility * playerAverageStrategy[i];
+        // Copy old weights into new buffer
+        PlayerArray<std::span<float>> newRangeWeights = getInputWeightSpans(nextNodeIndex, rules, tree);
+        for (Player player : { Player::P0, Player::P1 }) {
+            assert(newRangeWeights[player].size() == rangeWeights[player].size());
+            for (int i = 0; i < newRangeWeights[player].size(); ++i) {
+                newRangeWeights[player][i] = rangeWeights[player][i];
+            }
+        }
+
+        // Update new weights based on strategies
+        for (int rangeIndex = 0; rangeIndex < playerToActRangeSize; ++rangeIndex) {
+            newRangeWeights[playerToAct][rangeIndex] *= playerToActStrategies[rangeIndex][actionIndex];
+        }
     }
 
-    return (decisionNode.player == Player::P0) ? currentPlayerExpectedValue : -currentPlayerExpectedValue; // Return EV from player 0's perspective
+    // Clear output buffer before using
+    assert(outputExpectedValues.size() == traverserRangeSize);
+    std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
+
+    // Calculate expected values for each hand in the traverser's range
+    for (int actionIndex = 0; actionIndex < numActions; ++actionIndex) {
+        std::size_t nextNodeIndex = nextNodeIndices[actionIndex];
+
+        // The new range weights have already been copied into this buffer 
+        PlayerArray<std::span<float>> newRangeWeights = getInputWeightSpans(nextNodeIndex, rules, tree);
+
+        std::span<float> expectedValuesAfterAction = getOutputExpectedValueSpan(nextNodeIndex, constants, rules, tree);
+        traverseTree(
+            tree.allNodes[nextNodeIndex],
+            constants,
+            rules,
+            newRangeWeights,
+            tree,
+            expectedValuesAfterAction
+        );
+
+        for (int rangeIndex = 0; rangeIndex < traverserRangeSize; ++rangeIndex) {
+            if (traverser == playerToAct) {
+                // Traverser is the player to act - weight expected value by strategy
+                outputExpectedValues[rangeIndex] += expectedValuesAfterAction[rangeIndex] * playerToActStrategies[rangeIndex][actionIndex];
+            }
+            else {
+                // Traverser is not the player to act - no weighting needed
+                outputExpectedValues[rangeIndex] += expectedValuesAfterAction[rangeIndex];
+            }
+        }
+    }
+
+    if (isCfr && (traverser == playerToAct)) {
+        float opponentWeightSum = 0.0f;
+        for (float weight : rangeWeights[getOpposingPlayer(playerToAct)]) {
+            opponentWeightSum += weight;
+        }
+
+        for (int rangeIndex = 0; rangeIndex < traverserRangeSize; ++rangeIndex) {
+            auto strategySums = getStategySumsSpan(decisionNode, rangeIndex, tree);
+            auto regretSums = getRegretSumsSpan(decisionNode, rangeIndex, tree);
+
+            for (int actionIndex = 0; actionIndex < numActions; ++actionIndex) {
+                std::size_t nextNodeIndex = nextNodeIndices[actionIndex];
+
+                // The expected values have already been copied into this buffer 
+                auto expectedValuesAfterAction = getOutputExpectedValueSpan(nextNodeIndex, constants, rules, tree);
+
+                float regret = expectedValuesAfterAction[rangeIndex] - outputExpectedValues[rangeIndex];
+
+                if (constants.mode == TraversalMode::DiscountedCfr) {
+                    if (regretSums[actionIndex] > 0.0f) {
+                        regretSums[actionIndex] *= constants.params.alphaT;
+                    }
+                    else {
+                        regretSums[actionIndex] *= constants.params.betaT;
+                    }
+
+                    strategySums[actionIndex] *= constants.params.gammaT;
+                }
+
+                regretSums[actionIndex] += opponentWeightSum * regret;
+                strategySums[actionIndex] += rangeWeights[playerToAct][rangeIndex] * playerToActStrategies[rangeIndex][actionIndex];
+
+                if (constants.mode == TraversalMode::CfrPlus) {
+                    // In CFR+, we erase negative regrets for faster convergence
+                    if (regretSums[actionIndex] < 0.0f) {
+                        regretSums[actionIndex] = 0.0f;
+                    }
+                }
+            }
+        }
+    }
 }
 
-float traverseFold(const FoldNode& foldNode, const TraversalConstants& constants, std::span<float> outputExpectedValues) {
+void traverseFold(const FoldNode& foldNode, const TraversalConstants& constants, std::span<float> outputExpectedValues) {
     Player winner = foldNode.remainingPlayer;
     float reward = static_cast<float>(foldNode.remainingPlayerReward);
 
     // The player who did not fold wins the reward, regardless of their hand or the board
-    for (float& expectedValue : outputExpectedValues) {
+    for (float expectedValue : outputExpectedValues) {
         expectedValue = (winner == constants.traverser) ? reward : -reward;
     }
 }
 
-float traverseShowdown(
+void traverseShowdown(
+    const ShowdownNode& showdownNode,
+    const TraversalConstants& constants,
     const IGameRules& rules,
-    PlayerArray<std::uint16_t> handIndices,
-    const ShowdownNode& showdownNode
+    const PlayerArray<std::span<float>>& rangeWeights,
+    std::span<float> outputExpectedValues
 ) {
-    float reward = static_cast<float>(showdownNode.reward);
+    auto doHandsOverlap = [&rules](int player0Index, int player1Index, CardSet board) -> bool {
+        CardSet player0Hand = rules.getRangeHands(Player::P0)[player0Index];
+        CardSet player1Hand = rules.getRangeHands(Player::P1)[player1Index];
 
-    switch (rules.getShowdownResult(handIndices, showdownNode.board)) {
-        case ShowdownResult::P0Win:
-            return reward;
-        case ShowdownResult::P1Win:
-            return -reward;
-        case ShowdownResult::Tie:
-            return 0.0f;
-        default:
-            assert(false);
-            return 0.0f;
+        int individualSize = getSetSize(player0Hand) + getSetSize(player1Hand) + getSetSize(board);
+        int combinedSize = getSetSize(player0Hand | player1Hand | board);
+        assert(individualSize >= combinedSize);
+        return individualSize > combinedSize;
+    };
+
+    Player traverser = constants.traverser;
+    Player opponent = getOpposingPlayer(traverser);
+
+    // TODO: Complexity can be improved to O(n log n)
+    for (int traverserRangeIndex = 0; traverserRangeIndex < rangeWeights[traverser].size(); ++traverserRangeIndex) {
+        float traverserExpectedValue = 0.0f;
+        float opponentWeightSum = 0.0f;
+
+        for (int opponentRangeIndex = 0; opponentRangeIndex < rangeWeights[opponent].size(); ++opponentRangeIndex) {
+            int player0Index = (traverser == Player::P0) ? traverserRangeIndex : opponentRangeIndex;
+            int player1Index = (traverser == Player::P1) ? traverserRangeIndex : opponentRangeIndex;
+
+            if (doHandsOverlap(player0Index, player1Index, showdownNode.board)) {
+                continue;
+            }
+
+            float opponentRangeWeight = rangeWeights[opponent][opponentRangeIndex];
+
+            switch (rules.getShowdownResult({ player0Index, player1Index }, showdownNode.board)) {
+                case ShowdownResult::P0Win: {
+                    int multiplier = (traverser == Player::P0) ? 1 : -1;
+                    traverserExpectedValue += opponentRangeWeight * multiplier * showdownNode.reward;
+                    opponentWeightSum += opponentRangeWeight;
+                    break;
+                }
+                case ShowdownResult::P1Win: {
+                    int multiplier = (traverser == Player::P1) ? 1 : -1;
+                    traverserExpectedValue += opponentRangeWeight * multiplier * showdownNode.reward;
+                    opponentWeightSum += opponentRangeWeight;
+                    break;
+                }
+                case ShowdownResult::Tie:
+                    opponentWeightSum += opponentRangeWeight;
+                    break;
+                default:
+                    assert(false);
+                    break;
+            }
+        }
+
+        assert(opponentWeightSum > 0.0f);
+        outputExpectedValues[traverserRangeIndex] = traverserExpectedValue / opponentWeightSum;
     }
 }
 
 void traverseTree(
     const Node& node,
     const TraversalConstants& constants,
+    const IGameRules& rules,
     const PlayerArray<std::span<float>>& rangeWeights,
     Tree& tree,
-    std::span<float>& outputExpectedValues
+    std::span<float> outputExpectedValues
 ) {
     assert(tree.isTreeSkeletonBuilt() && tree.isFullTreeBuilt());
 
     switch (node.getNodeType()) {
         case NodeType::Chance:
-            traverseChance(node.chanceNode, constants, rangeWeights, tree, outputExpectedValues);
+            traverseChance(node.chanceNode, constants, rules, rangeWeights, tree, outputExpectedValues);
             break;
         case NodeType::Decision:
-            traverseDecision(node.chanceNode, constants, rangeWeights, tree, outputExpectedValues);
+            traverseDecision(node.decisionNode, constants, rules, rangeWeights, tree, outputExpectedValues);
             break;
         case NodeType::Fold:
             traverseFold(node.foldNode, constants, outputExpectedValues);
             break;
         case NodeType::Showdown:
-            traverseShowdown(node.showdownNode, constants, rangeWeights, outputExpectedValues);
+            traverseShowdown(node.showdownNode, constants, rules, rangeWeights, outputExpectedValues);
             break;
         default:
             assert(false);
             break;
     }
 }
+
+std::span<float> traverseFromRoot(const TraversalConstants& constants, const IGameRules& rules, Tree& tree) {
+    std::size_t rootNodeIndex = tree.getRootNodeIndex();
+
+    PlayerArray<std::span<float>> inputWeights = getInputWeightSpans(rootNodeIndex, rules, tree);
+    assert(rules.getInitialRangeWeights(Player::P0).size() == inputWeights[Player::P0].size());
+    assert(rules.getInitialRangeWeights(Player::P1).size() == inputWeights[Player::P1].size());
+
+    // Copy initial weights into input span
+    for (Player player : { Player::P0, Player::P1 }) {
+        for (int i = 0; i < rules.getInitialRangeWeights(player).size(); ++i) {
+            inputWeights[player][i] = rules.getInitialRangeWeights(player)[i];
+        }
+    }
+
+    std::span<float> outputExpectedValues = getOutputExpectedValueSpan(rootNodeIndex, constants, rules, tree);
+
+    traverseTree(
+        tree.allNodes[rootNodeIndex],
+        constants,
+        rules,
+        inputWeights,
+        tree,
+        outputExpectedValues
+    );
+
+    return outputExpectedValues;
+}
 } // namespace
 
 DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration) {
-    // TODO: Does t start at 0 or 1?
     float t = static_cast<float>(iteration + 1);
     float a = std::pow(t, alpha);
     float b = std::pow(t, beta);
 
     return {
-        .alphaT = a / (1 + a),
-        .betaT = b / (1 + b),
+        .alphaT = a / (a + 1),
+        .betaT = b / (b + 1),
         .gammaT = std::pow(t / (t + 1), gamma)
     };
 }
 
-void vanillaCfr(
-    const IGameRules& rules,
-    Player traverser,
-    PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
-    const Node& node,
-    Tree& tree
-) {
-    // Vanilla CFR doesn't need discount params
-    TraversalData data = {
-        .weights = weights,
-        .mode = TraversalMode::VanillaCfr,
-        .traverser = traverser,
-    };
-    static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
-}
+// void vanillaCfr(
+//     const IGameRules& rules,
+//     Player traverser,
+//     PlayerArray<float> weights,
+//     const Node& node,
+//     Tree& tree
+// ) {
+//     // Vanilla CFR doesn't need discount params
+//     TraversalData data = {
+//         .weights = weights,
+//         .mode = TraversalMode::VanillaCfr,
+//         .traverser = traverser,
+//     };
+//     static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
+// }
 
-void cfrPlus(
-    const IGameRules& rules,
-    Player traverser,
-    PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
-    const Node& node,
-    Tree& tree
-) {
-    // CFR+ doesn't need discount params
-    TraversalData data = {
-        .weights = weights,
-        .mode = TraversalMode::CfrPlus,
-        .traverser = traverser,
-    };
-    static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
-}
+// void cfrPlus(
+//     const IGameRules& rules,
+//     Player traverser,
+//     PlayerArray<std::uint16_t> handIndices,
+//     PlayerArray<float> weights,
+//     const Node& node,
+//     Tree& tree
+// ) {
+//     // CFR+ doesn't need discount params
+//     TraversalData data = {
+//         .weights = weights,
+//         .mode = TraversalMode::CfrPlus,
+//         .traverser = traverser,
+//     };
+//     static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
+// }
 
 void discountedCfr(
+    Player traverser,
     const IGameRules& rules,
     const DiscountParams& params,
-    Player traverser,
-    PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
-    const Node& node,
     Tree& tree
 ) {
-    TraversalData data = {
-        .params = params,
-        .weights = weights,
+    TraversalConstants constants = {
+        .traverser = traverser,
         .mode = TraversalMode::DiscountedCfr,
-        .traverser = traverser
+        .params = params
     };
-    static_cast<void>(traverseTree(rules, data, handIndices, node, tree));
+
+    static_cast<void>(traverseFromRoot(constants, rules, tree));
 }
 
-float calculatePlayer0ExpectedValue(
+float expectedValue(
+    Player traverser,
     const IGameRules& rules,
-    PlayerArray<std::uint16_t> handIndices,
-    const Node& node,
     Tree& tree
 ) {
-    // Expected value calculation doesn't need discount params, weights, or traverser
-//     TraversalData data = {
-//         .mode = TraversalMode::ExpectedValue
-//     };
-//     return traverseTree(rules, data, handIndices, node, tree);
+    TraversalConstants constants = {
+        .traverser = traverser,
+        .mode = TraversalMode::ExpectedValue
+    };
+
+    std::span<float> expectedValueRange = traverseFromRoot(constants, rules, tree);
+    const auto& traverserRangeWeights = rules.getInitialRangeWeights(traverser);
+    assert(expectedValueRange.size() == traverserRangeWeights.size());
+
+    float expectedValue = 0.0f;
+    for (int i = 0; i < expectedValueRange.size(); ++i) {
+        expectedValue += expectedValueRange[i] * traverserRangeWeights[i];
+    }
+    return expectedValue;
 }
 
 FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree) {
-    std::uint8_t numActions = decisionNode.decisionDataSize;
+    int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
 
     std::span<const float> strategySums = getStategySumsSpan(decisionNode, trainingDataSet, tree);

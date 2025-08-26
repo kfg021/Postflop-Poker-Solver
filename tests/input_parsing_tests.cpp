@@ -4,7 +4,10 @@
 #include "game/holdem/parse_input.hpp"
 #include "util/result.hpp"
 
+#include <cmath>
 #include <string>
+
+static constexpr float Epsilon = 1e-5;
 
 TEST(CardNameParsingTest, CorrectCardNameParsing) {
     const std::string CardValueNames = "23456789TJQKA";
@@ -137,7 +140,8 @@ TEST(RangeParsingTest, CorrectNumberOfTotalCombos) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    EXPECT_EQ(range.size(), 16);
+    EXPECT_EQ(range.hands.size(), 16);
+    EXPECT_EQ(range.weights.size(), 16);
 }
 
 TEST(RangeParsingTest, CorrectNumberOfSuitedCombos) {
@@ -145,7 +149,8 @@ TEST(RangeParsingTest, CorrectNumberOfSuitedCombos) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    EXPECT_EQ(range.size(), 4);
+    EXPECT_EQ(range.hands.size(), 4);
+    EXPECT_EQ(range.weights.size(), 4);
 }
 
 TEST(RangeParsingTest, CorrectNumberOfOffsuitCombos) {
@@ -153,7 +158,8 @@ TEST(RangeParsingTest, CorrectNumberOfOffsuitCombos) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    EXPECT_EQ(range.size(), 12);
+    EXPECT_EQ(range.hands.size(), 12);
+    EXPECT_EQ(range.weights.size(), 12);
 }
 
 TEST(RangeParsingTest, CorrectNumberOfPocketPairs) {
@@ -161,7 +167,8 @@ TEST(RangeParsingTest, CorrectNumberOfPocketPairs) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    EXPECT_EQ(range.size(), 6);
+    EXPECT_EQ(range.hands.size(), 6);
+    EXPECT_EQ(range.weights.size(), 6);
 }
 
 TEST(RangeParsingTest, NoFrequencyDefaultsTo100) {
@@ -169,8 +176,8 @@ TEST(RangeParsingTest, NoFrequencyDefaultsTo100) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    for (const auto& rangeElement : range) {
-        EXPECT_EQ(rangeElement.frequency, 100);
+    for (float frequency : range.weights) {
+        EXPECT_NEAR(frequency, 1.0f, Epsilon);
     }
 }
 
@@ -179,8 +186,8 @@ TEST(RangeParsingTest, CorrectFrequency) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    for (const auto& rangeElement : range) {
-        EXPECT_EQ(rangeElement.frequency, 67);
+    for (float frequency : range.weights) {
+        EXPECT_NEAR(frequency, 0.67f, Epsilon);
     }
 }
 
@@ -189,13 +196,14 @@ TEST(RangeParsingTest, CombineSuitedAndOffsuitCombos) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    EXPECT_EQ(range.size(), 16);
+    EXPECT_EQ(range.hands.size(), 16);
+    EXPECT_EQ(range.weights.size(), 16);
 
     int fullCount = 0;
     int halfCount = 0;
-    for (const auto& rangeElement : range) {
-        if (rangeElement.frequency == 100) ++fullCount;
-        else if (rangeElement.frequency == 50) ++halfCount;
+    for (float frequency : range.weights) {
+        if (std::abs(frequency - 1.0f) < Epsilon) ++fullCount;
+        else if (std::abs(frequency - 0.5f) < Epsilon) ++halfCount;
     }
 
     EXPECT_EQ(fullCount, 4);
@@ -207,6 +215,7 @@ TEST(RangeParsingTest, CombineAllComboTypes) {
     EXPECT_TRUE(rangeResult.isValue());
 
     const auto& range = rangeResult.getValue();
-    const int ExpectedSize = 4 + 12 + 12 + 4 + 6 + 16;
-    EXPECT_EQ(range.size(), ExpectedSize);
+    static constexpr int ExpectedSize = 4 + 12 + 12 + 4 + 6 + 16;
+    EXPECT_EQ(range.hands.size(), ExpectedSize);
+    EXPECT_EQ(range.weights.size(), ExpectedSize);
 }

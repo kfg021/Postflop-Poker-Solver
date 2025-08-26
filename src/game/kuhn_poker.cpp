@@ -119,49 +119,17 @@ FixedVector<GameState, MaxNumDealCards> KuhnPoker::getNewStatesAfterChance(const
     return {};
 }
 
-std::uint16_t KuhnPoker::getRangeSize(Player /*player*/) const {
-    return static_cast<std::uint16_t>(PossibleHands.size());
+const std::vector<CardSet>& KuhnPoker::getRangeHands(Player /*player*/) const {
+    static const std::vector<CardSet> PossibleHandsVector(PossibleHands.begin(), PossibleHands.end());
+    return PossibleHandsVector;
 }
 
-std::vector<InitialSetup> KuhnPoker::getInitialSetups() const {
-    std::vector<InitialSetup> initialSetups;
-    initialSetups.reserve(6);
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            if (i == j) continue;
-
-            PlayerArray<std::uint16_t> playerHandIndices = {
-                static_cast<std::uint16_t>(i),
-                static_cast<std::uint16_t>(j)
-            };
-            static constexpr PlayerArray<float> PlayerWeights = { 1.0f, 1.0f };
-            static constexpr float MatchupProbability = 1.0f / 6.0f;
-
-            initialSetups.emplace_back(
-                playerHandIndices,
-                PlayerWeights,
-                MatchupProbability
-            );
-        }
-    }
-
-    return initialSetups;
+const std::vector<float>& KuhnPoker::getInitialRangeWeights(Player /*player*/) const {
+    static const std::vector<float> Weights(1.0f / 3.0f, 3);
+    return Weights;
 }
 
-CardSet KuhnPoker::getDeck() const {
-    CardSet deckSet = 0;
-    for (CardSet hand : PossibleHands) {
-        deckSet |= hand;
-    }
-    return deckSet;
-}
-
-CardSet KuhnPoker::mapIndexToHand(Player /*player*/, std::uint16_t index) const {
-    assert(index < 3);
-    return PossibleHands[index];
-}
-
-ShowdownResult KuhnPoker::getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet /*board*/) const {
+ShowdownResult KuhnPoker::getShowdownResult(PlayerArray<int> handIndices, CardSet /*board*/) const {
     CardSet player0Hand = PossibleHands[handIndices[Player::P0]];
     CardSet player1Hand = PossibleHands[handIndices[Player::P1]];
 
@@ -173,6 +141,11 @@ ShowdownResult KuhnPoker::getShowdownResult(PlayerArray<std::uint16_t> handIndic
     assert(player0CardValue != player1CardValue);
 
     return (player0CardValue > player1CardValue) ? ShowdownResult::P0Win : ShowdownResult::P1Win;
+}
+
+CardSet KuhnPoker::mapIndexToHand(Player /*player*/, int index) const {
+    assert(index < 3);
+    return PossibleHands[index];
 }
 
 std::string KuhnPoker::getActionName(ActionID actionID) const {

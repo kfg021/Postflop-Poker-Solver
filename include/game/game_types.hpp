@@ -94,20 +94,4 @@ struct GameState {
     Street currentStreet;
 };
 
-struct InitialSetup {
-    InitialSetup(
-        PlayerArray<std::uint16_t> handIndices_,
-        PlayerArray<float> weights_,
-        float matchupProbability_
-    ) :
-        handIndices{ handIndices_ },
-        weights{ weights_ },
-        matchupProbability{ matchupProbability_ } {
-    }
-
-    PlayerArray<std::uint16_t> handIndices;
-    PlayerArray<float> weights;
-    float matchupProbability;
-};
-
 #endif // GAME_TYPES_HPP

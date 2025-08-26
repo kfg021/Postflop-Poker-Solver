@@ -22,7 +22,7 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 }
 
 void trainHoldem(int iterations, const std::string& strategyOutputFile) {
-    PlayerArray<std::vector<Holdem::RangeElement>> ranges = {
+    PlayerArray<Holdem::Range> ranges = {
         buildRangeFromStrings({"T9s", "44", "33", "22"}).getValue(),
         buildRangeFromStrings({"AA", "AK", "AQs", "KQs"}).getValue(),
     };

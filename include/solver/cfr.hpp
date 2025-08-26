@@ -17,32 +17,30 @@ struct DiscountParams {
 
 DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration);
 
-void cfrPlus(
-    const IGameRules& rules,
-    Player traverser,
-    PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
-    const Node& node,
-    Tree& tree
-);
+// void vanillaCfr
+
+// void cfrPlus(
+//     const IGameRules& rules,
+//     Player traverser,
+//     PlayerArray<std::uint16_t> handIndices,
+//     PlayerArray<float> weights,
+//     const Node& node,
+//     Tree& tree
+// );
 
 void discountedCfr(
+    Player traverser,
     const IGameRules& rules,
     const DiscountParams& params,
+    Tree& tree
+);
+
+float expectedValue(
     Player traverser,
-    PlayerArray<std::uint16_t> handIndices,
-    PlayerArray<float> weights,
-    const Node& node,
-    Tree& tree
-);
-
-float calculatePlayer0ExpectedValue(
     const IGameRules& rules,
-    PlayerArray<std::uint16_t> handIndices,
-    const Node& node,
     Tree& tree
 );
 
-FixedVector<float, MaxNumActions> getAverageStrategy();
+FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree);
 
 #endif // CFR_HPP

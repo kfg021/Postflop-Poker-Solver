@@ -4,7 +4,6 @@
 #include "game/game_types.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -18,15 +17,14 @@ public:
     virtual FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const = 0;
     virtual GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const = 0;
     virtual FixedVector<GameState, MaxNumDealCards> getNewStatesAfterChance(const GameState& state) const = 0;
-    virtual std::uint16_t getRangeSize(Player player) const = 0;
+    virtual const std::vector<CardSet>& getRangeHands(Player player) const = 0;
 
     // Functions for the CFR algorithm
-    virtual std::vector<InitialSetup> getInitialSetups() const = 0;
-    virtual CardSet getDeck() const = 0;
-    virtual CardSet mapIndexToHand(Player player, std::uint16_t index) const = 0;
-    virtual ShowdownResult getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet board) const = 0;
+    virtual const std::vector<float>& getInitialRangeWeights(Player player) const = 0;
+    virtual ShowdownResult getShowdownResult(PlayerArray<int> handIndices, CardSet board) const = 0;
 
     // Functions for output
+    virtual CardSet mapIndexToHand(Player player, int index) const = 0;
     virtual std::string getActionName(ActionID actionID) const = 0;
 };
 

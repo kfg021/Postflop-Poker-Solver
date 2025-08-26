@@ -19,6 +19,11 @@ bool Tree::isFullTreeBuilt() const {
 }
 
 void Tree::buildTreeSkeleton(const IGameRules& rules) {
+    m_rangeSizes = {
+        rules.getRangeHands(Player::P0).size(),
+        rules.getRangeHands(Player::P1).size()
+    };
+
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
@@ -50,7 +55,11 @@ std::size_t Tree::estimateFullTreeSize() const {
 
     // allStrategySums and allRegretSums will each have length of trainingDataLength
     std::size_t trainingDataHeapSize = (m_trainingDataLength * 2) * sizeof(float);
-    return getTreeSkeletonSize() + trainingDataHeapSize;
+
+    std::size_t inputHeapSize = (m_rangeSizes[Player::P0] + m_rangeSizes[Player::P1]) * allNodes.size() * sizeof(float);
+    std::size_t outputHeapSize = std::max(m_rangeSizes[Player::P0], m_rangeSizes[Player::P1]) * allNodes.size() * sizeof(float);
+
+    return getTreeSkeletonSize() + trainingDataHeapSize + inputHeapSize + outputHeapSize;
 }
 
 std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
@@ -114,7 +123,7 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
     DecisionNode decisionNode = {
         .trainingDataOffset = m_trainingDataLength,
         .decisionDataOffset = allDecisions.size(),
-        .numTrainingDataSets = rules.getRangeSize(state.playerToAct),
+        .numTrainingDataSets = m_rangeSizes[state.playerToAct],
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
         .player = state.playerToAct
     };
@@ -172,9 +181,18 @@ void Tree::buildFullTree() {
 
     allRegretSums.assign(m_trainingDataLength, 0.0f);
     allRegretSums.shrink_to_fit();
+
+    for (Player player : { Player::P0, Player::P1 }) {
+        allInputWeights[player].assign(m_rangeSizes[player] * allNodes.size(), 0.0f);
+        allInputWeights[player].shrink_to_fit();
+    }
+
+    std::size_t maxRangeSize = std::max(m_rangeSizes[Player::P0], m_rangeSizes[Player::P1]);
+    allOutputExpectedValues.assign(maxRangeSize * allNodes.size(), 0.0f);
+    allOutputExpectedValues.shrink_to_fit();
 }
 
-Node Tree::getRootNode() const {
+std::size_t Tree::getRootNodeIndex() const {
     assert(isTreeSkeletonBuilt() && isFullTreeBuilt());
-    return allNodes.back();
+    return allNodes.size() - 1;
 }

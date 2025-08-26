@@ -17,7 +17,7 @@ protected:
     static inline Holdem::Settings testSettings;
 
     static void SetUpTestSuite() {
-        PlayerArray<std::vector<Holdem::RangeElement>> testingRanges = {
+        PlayerArray<Holdem::Range> testingRanges = {
             buildRangeFromStrings({"AA", "KJ", "TT", "AQo:50"}).getValue(),
             buildRangeFromStrings({"AA", "KK:25", "QQ", "T9s:33", "27o:99"}).getValue(),
         };

@@ -3,6 +3,7 @@
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
+#include "solver/cfr.hpp"
 #include "solver/tree.hpp"
 
 #include <nlohmann/json.hpp>
@@ -52,8 +53,8 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     }
 
     auto& strategy = j["Strategy"];
-    for (int i = 0; i < decisionNode.numTrainingDataSets; ++i) {
-        auto averageStrategy = getAverageStrategy(decisionNode, tree, i);
+    for (int i = 0; i < rules.getRangeHands(decisionNode.player).size(); ++i) {
+        auto averageStrategy = getAverageStrategy(decisionNode, i, tree);
         CardSet hand = rules.mapIndexToHand(decisionNode.player, i);
 
         if ((hand & board) != 0) {
@@ -117,6 +118,6 @@ void outputStrategyToJSON(const IGameRules& rules, const Tree& tree, const std::
     std::ofstream file(filePath);
     assert(file.is_open());
 
-    json j = buildJSON(rules, tree.getRootNode(), tree, rules.getInitialGameState().currentBoard);
+    json j = buildJSON(rules, tree.allNodes[tree.getRootNodeIndex()], tree, rules.getInitialGameState().currentBoard);
     file << j.dump(4) << std::endl;
 }

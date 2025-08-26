@@ -33,7 +33,7 @@ Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& c
     return communityCards;
 }
 
-Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
+Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
     auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {
             case '2': case '3': case '4': case '5':
@@ -60,7 +60,7 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
         return "Error building range: Range is empty.";
     }
 
-    std::vector<Holdem::RangeElement> range;
+    Holdem::Range range;
     std::unordered_set<CardSet> seenHands;
 
     for (const std::string& rangeString : rangeStrings) {
@@ -139,7 +139,9 @@ Result<std::vector<Holdem::RangeElement>> buildRangeFromStrings(const std::vecto
                     return "Error building range: Duplicate range elements.";
                 }
 
-                range.emplace_back(hand, frequency);
+                range.hands.push_back(hand);
+                range.weights.push_back(frequency / 100.0f);
+
                 seenHands.insert(hand);
             }
         }

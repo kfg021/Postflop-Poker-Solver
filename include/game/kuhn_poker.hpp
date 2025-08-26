@@ -5,7 +5,6 @@
 #include "game/game_types.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -16,11 +15,10 @@ public:
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;
     FixedVector<GameState, MaxNumDealCards> getNewStatesAfterChance(const GameState& state) const override;
-    std::uint16_t getRangeSize(Player player) const override;
-    std::vector<InitialSetup> getInitialSetups() const override;
-    CardSet getDeck() const override;
-    CardSet mapIndexToHand(Player player, std::uint16_t index) const override;
-    ShowdownResult getShowdownResult(PlayerArray<std::uint16_t> handIndices, CardSet board) const override;
+    const std::vector<CardSet>& getRangeHands(Player player) const override;
+    const std::vector<float>& getInitialRangeWeights(Player player) const override;
+    ShowdownResult getShowdownResult(PlayerArray<int> handIndices, CardSet board) const override;
+    CardSet mapIndexToHand(Player player, int index) const override;
     std::string getActionName(ActionID actionID) const override;
 };
 
