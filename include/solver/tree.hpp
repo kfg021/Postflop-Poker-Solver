@@ -38,10 +38,6 @@ public:
     std::vector<float> allStrategySums;
     std::vector<float> allRegretSums;
 
-    // Reusable scratch space for CFR functions
-    PlayerArray<std::vector<float>> allInputWeights;
-    std::vector<float> allOutputExpectedValues;
-
 private:
     std::size_t createNode(const IGameRules& rules, const GameState& state);
     std::size_t createChanceNode(const IGameRules& rules, const GameState& state);

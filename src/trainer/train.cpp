@@ -43,7 +43,7 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
             // Proceedings of the AAAI Conference on Artificial Intelligence, 33(01), 1829-1836. 
             // https://doi.org/10.1609/aaai.v33i01.33011829
 
-            discountedCfr(traverser, rules, getDiscountParams(1.5f, 0.0f, 2.0f, i), tree);
+            vanillaCfr(traverser, rules, tree);
         }
 
         if ((printFrequency > 0) && (i % printFrequency) == 0) {

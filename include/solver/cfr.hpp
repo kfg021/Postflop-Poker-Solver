@@ -17,16 +17,17 @@ struct DiscountParams {
 
 DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration);
 
-// void vanillaCfr
+void vanillaCfr(
+    Player traverser,
+    const IGameRules& rules,
+    Tree& tree
+);
 
-// void cfrPlus(
-//     const IGameRules& rules,
-//     Player traverser,
-//     PlayerArray<std::uint16_t> handIndices,
-//     PlayerArray<float> weights,
-//     const Node& node,
-//     Tree& tree
-// );
+void cfrPlus(
+    Player traverser,
+    const IGameRules& rules,
+    Tree& tree
+);
 
 void discountedCfr(
     Player traverser,
