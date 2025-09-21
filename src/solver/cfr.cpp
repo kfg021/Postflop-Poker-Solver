@@ -107,13 +107,13 @@ std::vector<float> traverseDecision(
     const PlayerArray<std::vector<float>>& rangeWeights,
     Tree& tree
 ) {
-    bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
     int numActions = static_cast<int>(decisionNode.decisionDataSize);
 
     Player playerToAct = decisionNode.player;
     int playerToActRangeSize = rangeWeights[decisionNode.player].size();
     std::vector<FixedVector<float, MaxNumActions>> strategies(playerToActRangeSize);
 
+    bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
     if (isTraining) {
         for (int i = 0; i < playerToActRangeSize; ++i) {
             strategies[i] = getCurrentStrategy(decisionNode, i, tree);
@@ -125,16 +125,44 @@ std::vector<float> traverseDecision(
         }
     }
 
-    for (int action = 0; action < numActions; ++action) {
-        PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
-        for (int i = 0; i < playerToActRangeSize; ++i) {
-            newRangeWeights[playerToAct][i] *= strategies[i][action];
-        }
+    std::vector<float> expectedValues(playerToActRangeSize, 0.0f);
 
-        // TODO: Recursive call
+    if (playerToAct == constants.hero) {
+        // TODO: Strategy and regret updates
+
+        for (int action = 0; action < numActions; ++action) {
+            PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
+            for (int i = 0; i < playerToActRangeSize; ++i) {
+                newRangeWeights[playerToAct][i] *= strategies[i][action];
+            }
+
+            std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
+            assert(nextNodeIndex < tree.allNodes.size());
+            const Node& nextNode = tree.allNodes[nextNodeIndex];
+
+            std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
+        }
+    }
+    else {
+        // Not the hero's turn; no strategy or regret updates
+        for (int action = 0; action < numActions; ++action) {
+            PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
+            for (int i = 0; i < playerToActRangeSize; ++i) {
+                newRangeWeights[playerToAct][i] *= strategies[i][action];
+            }
+
+            std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
+            assert(nextNodeIndex < tree.allNodes.size());
+            const Node& nextNode = tree.allNodes[nextNodeIndex];
+
+            std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
+            for (int i = 0; i < playerToActRangeSize; ++i) {
+                expectedValues[i] += actionExpectedValues[action];
+            }
+        }
     }
 
-    // TODO: Strategy updates
+    return expectedValues;
 }
 
 std::vector<float> traverseFold(const FoldNode& foldNode, const TraversalConstants& constants, const IGameRules& rules) {
