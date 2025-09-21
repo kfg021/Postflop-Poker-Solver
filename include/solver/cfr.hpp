@@ -18,26 +18,26 @@ struct DiscountParams {
 DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration);
 
 void vanillaCfr(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     Tree& tree
 );
 
 void cfrPlus(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     Tree& tree
 );
 
 void discountedCfr(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     const DiscountParams& params,
     Tree& tree
 );
 
 float expectedValue(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     Tree& tree
 );

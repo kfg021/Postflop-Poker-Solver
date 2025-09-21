@@ -25,7 +25,7 @@ enum class TraversalMode : std::uint8_t {
 };
 
 struct TraversalConstants {
-    Player traverser;
+    Player hero;
     TraversalMode mode;
     DiscountParams params;
 };
@@ -54,6 +54,33 @@ std::span<float> getRegretSumsSpan(const DecisionNode& decisionNode, int trainin
     };
 }
 
+FixedVector<float, MaxNumActions> getCurrentStrategy(const DecisionNode& decisionNode, int trainingDataSet, Tree& tree) {
+    int numActions = static_cast<int>(decisionNode.decisionDataSize);
+    assert(numActions > 0);
+
+    std::span<float> regretSums = getRegretSumsSpan(decisionNode, trainingDataSet, tree);
+
+    float totalPositiveRegret = 0.0f;
+    for (float regretSum : regretSums) {
+        if (regretSum > 0.0f) {
+            totalPositiveRegret += regretSum;
+        }
+    }
+
+    if (totalPositiveRegret == 0.0f) {
+        FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
+        return uniformStrategy;
+    }
+
+    FixedVector<float, MaxNumActions> currentStrategy(numActions, 0.0f);
+    for (int i = 0; i < numActions; ++i) {
+        if (regretSums[i] > 0.0f) {
+            currentStrategy[i] = regretSums[i] / totalPositiveRegret;
+        }
+    }
+    return currentStrategy;
+};
+
 std::vector<float> traverseTree(
     const Node& node,
     const TraversalConstants& constants,
@@ -80,16 +107,42 @@ std::vector<float> traverseDecision(
     const PlayerArray<std::vector<float>>& rangeWeights,
     Tree& tree
 ) {
-    // TODO: Implement
-    return {};
+    bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
+    int numActions = static_cast<int>(decisionNode.decisionDataSize);
+
+    Player playerToAct = decisionNode.player;
+    int playerToActRangeSize = rangeWeights[decisionNode.player].size();
+    std::vector<FixedVector<float, MaxNumActions>> strategies(playerToActRangeSize);
+
+    if (isTraining) {
+        for (int i = 0; i < playerToActRangeSize; ++i) {
+            strategies[i] = getCurrentStrategy(decisionNode, i, tree);
+        }
+    }
+    else {
+        for (int i = 0; i < playerToActRangeSize; ++i) {
+            strategies[i] = getAverageStrategy(decisionNode, i, tree);
+        }
+    }
+
+    for (int action = 0; action < numActions; ++action) {
+        PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
+        for (int i = 0; i < playerToActRangeSize; ++i) {
+            newRangeWeights[playerToAct][i] *= strategies[i][action];
+        }
+
+        // TODO: Recursive call
+    }
+
+    // TODO: Strategy updates
 }
 
 std::vector<float> traverseFold(const FoldNode& foldNode, const TraversalConstants& constants, const IGameRules& rules) {
     // The expected value of a fold depends only on the size of the pot
     float reward = foldNode.remainingPlayerReward;
-    float payoff = (constants.traverser == foldNode.remainingPlayer) ? static_cast<float>(reward) : -static_cast<float>(reward);
-    int traverserRangeSize = rules.getInitialRangeWeights(constants.traverser).size();
-    return std::vector<float>(traverserRangeSize, payoff);
+    float payoff = (constants.hero == foldNode.remainingPlayer) ? static_cast<float>(reward) : -static_cast<float>(reward);
+    int heroRangeSize = rules.getInitialRangeWeights(constants.hero).size();
+    return std::vector<float>(heroRangeSize, payoff);
 }
 
 std::vector<float> traverseShowdown(
@@ -98,28 +151,28 @@ std::vector<float> traverseShowdown(
     const IGameRules& rules,
     const PlayerArray<std::vector<float>>& rangeWeights
 ) {
-    auto areHandsDisjoint = [&showdownNode, &constants, &rules](int traverserIndex, int villianIndex) -> bool {
-        CardSet traverserHand = rules.mapIndexToHand(constants.traverser, traverserIndex);
-        CardSet villianHand = rules.mapIndexToHand(getOpposingPlayer(constants.traverser), villianIndex);
+    auto areHandsDisjoint = [&showdownNode, &constants, &rules](int heroIndex, int villianIndex) -> bool {
+        CardSet heroHand = rules.mapIndexToHand(constants.hero, heroIndex);
+        CardSet villianHand = rules.mapIndexToHand(getOpposingPlayer(constants.hero), villianIndex);
         CardSet board = showdownNode.board;
 
-        int individualSize = getSetSize(traverserHand) + getSetSize(villianHand) + getSetSize(board);
-        int combinedSize = getSetSize(traverserHand | villianHand | board);
+        int individualSize = getSetSize(heroHand) + getSetSize(villianHand) + getSetSize(board);
+        int combinedSize = getSetSize(heroHand | villianHand | board);
         assert(individualSize >= combinedSize);
 
         return individualSize == combinedSize;
     };
 
-    auto getMultiplier = [&showdownNode, &constants, &rules](int traverserIndex, int villianIndex) -> int {
-        PlayerArray<int> playerIndices = (constants.traverser == Player::P0) ?
-            PlayerArray<int>{ traverserIndex, villianIndex } :
-            PlayerArray<int>{ villianIndex, traverserIndex };
+    auto getMultiplier = [&showdownNode, &constants, &rules](int heroIndex, int villianIndex) -> int {
+        PlayerArray<int> playerIndices = (constants.hero == Player::P0) ?
+            PlayerArray<int>{ heroIndex, villianIndex } :
+            PlayerArray<int>{ villianIndex, heroIndex };
 
         switch (rules.getShowdownResult(playerIndices, showdownNode.board)) {
             case ShowdownResult::P0Win:
-                return (constants.traverser == Player::P0) ? 1 : -1;
+                return (constants.hero == Player::P0) ? 1 : -1;
             case ShowdownResult::P1Win:
-                return (constants.traverser == Player::P1) ? 1 : -1;
+                return (constants.hero == Player::P1) ? 1 : -1;
             case ShowdownResult::Tie:
                 return 0;
             default:
@@ -128,18 +181,18 @@ std::vector<float> traverseShowdown(
         }
     };
 
-    const std::vector<float>& traverserWeights = rangeWeights[constants.traverser];
-    const std::vector<float>& villianWeights = rangeWeights[getOpposingPlayer(constants.traverser)];
+    const std::vector<float>& heroWeights = rangeWeights[constants.hero];
+    const std::vector<float>& villianWeights = rangeWeights[getOpposingPlayer(constants.hero)];
 
-    int traverserRangeSize = traverserWeights.size();
+    int heroRangeSize = heroWeights.size();
     int villianRangeSize = villianWeights.size();
 
-    assert(traverserRangeSize == rules.getInitialRangeWeights(constants.traverser).size());
-    assert(villianRangeSize == rules.getInitialRangeWeights(getOpposingPlayer(constants.traverser)).size());
+    assert(heroRangeSize == rules.getInitialRangeWeights(constants.hero).size());
+    assert(villianRangeSize == rules.getInitialRangeWeights(getOpposingPlayer(constants.hero)).size());
 
-    std::vector<float> expectedValues(traverserRangeSize, 0.0f);
+    std::vector<float> expectedValues(heroRangeSize, 0.0f);
 
-    for (int i = 0; i < traverserRangeSize; ++i) {
+    for (int i = 0; i < heroRangeSize; ++i) {
         float villianPossibleHandSum = 0.0f;
         for (int j = 0; j < villianRangeSize; ++j) {
             if (areHandsDisjoint(i, j)) {
@@ -212,12 +265,12 @@ DiscountParams getDiscountParams(float alpha, float beta, float gamma, int itera
 }
 
 void vanillaCfr(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     Tree& tree
 ) {
     TraversalConstants constants = {
-        .traverser = traverser,
+        .hero = hero,
         .mode = TraversalMode::VanillaCfr,
         .params = {} // No params needed for vanilla CFR
     };
@@ -226,12 +279,12 @@ void vanillaCfr(
 }
 
 void cfrPlus(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     Tree& tree
 ) {
     TraversalConstants constants = {
-        .traverser = traverser,
+        .hero = hero,
         .mode = TraversalMode::CfrPlus,
         .params = {} // No params needed for CFR+
     };
@@ -240,13 +293,13 @@ void cfrPlus(
 }
 
 void discountedCfr(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     const DiscountParams& params,
     Tree& tree
 ) {
     TraversalConstants constants = {
-        .traverser = traverser,
+        .hero = hero,
         .mode = TraversalMode::DiscountedCfr,
         .params = params
     };
@@ -255,22 +308,22 @@ void discountedCfr(
 }
 
 float expectedValue(
-    Player traverser,
+    Player hero,
     const IGameRules& rules,
     Tree& tree
 ) {
     TraversalConstants constants = {
-        .traverser = traverser,
+        .hero = hero,
         .mode = TraversalMode::ExpectedValue
     };
 
     std::vector<float> expectedValueRange = traverseFromRoot(constants, rules, tree);
-    const auto& traverserRangeWeights = rules.getInitialRangeWeights(traverser);
-    assert(expectedValueRange.size() == traverserRangeWeights.size());
+    const auto& heroRangeWeights = rules.getInitialRangeWeights(hero);
+    assert(expectedValueRange.size() == heroRangeWeights.size());
 
     float expectedValue = 0.0f;
     for (int i = 0; i < expectedValueRange.size(); ++i) {
-        expectedValue += expectedValueRange[i] * traverserRangeWeights[i];
+        expectedValue += expectedValueRange[i] * heroRangeWeights[i];
     }
     return expectedValue;
 }

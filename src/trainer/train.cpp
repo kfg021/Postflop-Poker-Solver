@@ -34,7 +34,7 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
     std::cout << "Training for " << iterations << " iterations...\n" << std::flush;
 
     for (int i = 0; i < iterations; ++i) {
-        for (Player traverser : { Player::P0, Player::P1 }) {
+        for (Player hero : { Player::P0, Player::P1 }) {
             // Using Discounted CFR with alpha = 1.5, beta = 0, gamma = 2
             // These values work very well in practice, as shown in below paper
 
@@ -43,7 +43,7 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
             // Proceedings of the AAAI Conference on Artificial Intelligence, 33(01), 1829-1836. 
             // https://doi.org/10.1609/aaai.v33i01.33011829
 
-            vanillaCfr(traverser, rules, tree);
+            vanillaCfr(hero, rules, tree);
         }
 
         if ((printFrequency > 0) && (i % printFrequency) == 0) {
