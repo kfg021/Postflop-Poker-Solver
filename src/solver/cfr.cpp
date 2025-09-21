@@ -85,8 +85,11 @@ std::vector<float> traverseDecision(
 }
 
 std::vector<float> traverseFold(const FoldNode& foldNode, const TraversalConstants& constants, const IGameRules& rules) {
-    // TODO: Implement
-    return {};
+    // The expected value of a fold depends only on the size of the pot
+    float reward = foldNode.remainingPlayerReward;
+    float payoff = (constants.traverser == foldNode.remainingPlayer) ? static_cast<float>(reward) : -static_cast<float>(reward);
+    int traverserRangeSize = rules.getInitialRangeWeights(constants.traverser).size();
+    return std::vector<float>(traverserRangeSize, payoff);
 }
 
 std::vector<float> traverseShowdown(
@@ -95,8 +98,68 @@ std::vector<float> traverseShowdown(
     const IGameRules& rules,
     const PlayerArray<std::vector<float>>& rangeWeights
 ) {
-    // TODO: Implement
-    return {};
+    auto areHandsDisjoint = [&showdownNode, &constants, &rules](int traverserIndex, int villianIndex) -> bool {
+        CardSet traverserHand = rules.mapIndexToHand(constants.traverser, traverserIndex);
+        CardSet villianHand = rules.mapIndexToHand(getOpposingPlayer(constants.traverser), villianIndex);
+        CardSet board = showdownNode.board;
+
+        int individualSize = getSetSize(traverserHand) + getSetSize(villianHand) + getSetSize(board);
+        int combinedSize = getSetSize(traverserHand | villianHand | board);
+        assert(individualSize >= combinedSize);
+
+        return individualSize == combinedSize;
+    };
+
+    auto getMultiplier = [&showdownNode, &constants, &rules](int traverserIndex, int villianIndex) -> int {
+        PlayerArray<int> playerIndices = (constants.traverser == Player::P0) ?
+            PlayerArray<int>{ traverserIndex, villianIndex } :
+            PlayerArray<int>{ villianIndex, traverserIndex };
+
+        switch (rules.getShowdownResult(playerIndices, showdownNode.board)) {
+            case ShowdownResult::P0Win:
+                return (constants.traverser == Player::P0) ? 1 : -1;
+            case ShowdownResult::P1Win:
+                return (constants.traverser == Player::P1) ? 1 : -1;
+            case ShowdownResult::Tie:
+                return 0;
+            default:
+                assert(false);
+                return 0;
+        }
+    };
+
+    const std::vector<float>& traverserWeights = rangeWeights[constants.traverser];
+    const std::vector<float>& villianWeights = rangeWeights[getOpposingPlayer(constants.traverser)];
+
+    int traverserRangeSize = traverserWeights.size();
+    int villianRangeSize = villianWeights.size();
+
+    assert(traverserRangeSize == rules.getInitialRangeWeights(constants.traverser).size());
+    assert(villianRangeSize == rules.getInitialRangeWeights(getOpposingPlayer(constants.traverser)).size());
+
+    std::vector<float> expectedValues(traverserRangeSize, 0.0f);
+
+    for (int i = 0; i < traverserRangeSize; ++i) {
+        float villianPossibleHandSum = 0.0f;
+        for (int j = 0; j < villianRangeSize; ++j) {
+            if (areHandsDisjoint(i, j)) {
+                assert(villianWeights[j] >= 0.0f);
+                villianPossibleHandSum += villianWeights[j];
+            }
+        }
+
+        assert(villianPossibleHandSum >= 0.0f);
+        if (villianPossibleHandSum > 0.0f) {
+            for (int j = 0; j < villianRangeSize; ++j) {
+                if (areHandsDisjoint(i, j)) {
+                    float matchupProbability = villianWeights[j] / villianPossibleHandSum;
+                    expectedValues[i] += static_cast<float>(getMultiplier(i, j)) * showdownNode.reward * matchupProbability;
+                }
+            }
+        }
+    }
+
+    return expectedValues;
 }
 
 std::vector<float> traverseTree(
