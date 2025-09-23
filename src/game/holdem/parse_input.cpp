@@ -33,6 +33,7 @@ Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& c
     return communityCards;
 }
 
+// TODO: Filter out hands that overlap with initial board
 Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
     auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {

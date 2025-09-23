@@ -36,6 +36,17 @@ std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decis
     return decisionNode.trainingDataOffset + (action * decisionNode.numTrainingDataSets) + hand;
 }
 
+bool areHandsDisjoint(int heroIndex, int villainIndex, const TraversalConstants& constants, const IGameRules& rules) {
+    CardSet heroHand = rules.mapIndexToHand(constants.hero, heroIndex);
+    CardSet villainHand = rules.mapIndexToHand(getOpposingPlayer(constants.hero), villainIndex);
+
+    int individualSize = getSetSize(heroHand) + getSetSize(villainHand);
+    int combinedSize = getSetSize(heroHand | villainHand);
+    assert(individualSize >= combinedSize);
+
+    return individualSize == combinedSize;
+};
+
 std::vector<std::vector<float>> getCurrentStrategy(const DecisionNode& decisionNode, Tree& tree) {
     int rangeSize = decisionNode.numTrainingDataSets;
     int numActions = decisionNode.decisionDataSize;
@@ -232,18 +243,6 @@ std::vector<float> traverseShowdown(
     const IGameRules& rules,
     const PlayerArray<std::vector<float>>& rangeWeights
 ) {
-    auto areHandsDisjoint = [&showdownNode, &constants, &rules](int heroIndex, int villainIndex) -> bool {
-        CardSet heroHand = rules.mapIndexToHand(constants.hero, heroIndex);
-        CardSet villainHand = rules.mapIndexToHand(getOpposingPlayer(constants.hero), villainIndex);
-        CardSet board = showdownNode.board;
-
-        int individualSize = getSetSize(heroHand) + getSetSize(villainHand) + getSetSize(board);
-        int combinedSize = getSetSize(heroHand | villainHand | board);
-        assert(individualSize >= combinedSize);
-
-        return individualSize == combinedSize;
-    };
-
     auto getMultiplier = [&showdownNode, &constants, &rules](int heroIndex, int villainIndex) -> int {
         PlayerArray<int> playerIndices = (constants.hero == Player::P0) ?
             PlayerArray<int>{ heroIndex, villainIndex } :
@@ -276,7 +275,7 @@ std::vector<float> traverseShowdown(
     for (int i = 0; i < heroRangeSize; ++i) {
         float villainPossibleHandSum = 0.0f;
         for (int j = 0; j < villainRangeSize; ++j) {
-            if (areHandsDisjoint(i, j)) {
+            if (areHandsDisjoint(i, j, constants, rules)) {
                 assert(villainWeights[j] >= 0.0f);
                 villainPossibleHandSum += villainWeights[j];
             }
@@ -285,7 +284,7 @@ std::vector<float> traverseShowdown(
         assert(villainPossibleHandSum >= 0.0f);
         if (villainPossibleHandSum > 0.0f) {
             for (int j = 0; j < villainRangeSize; ++j) {
-                if (areHandsDisjoint(i, j)) {
+                if (areHandsDisjoint(i, j, constants, rules)) {
                     float matchupProbability = villainWeights[j] / villainPossibleHandSum;
                     expectedValues[i] += static_cast<float>(getMultiplier(i, j)) * showdownNode.reward * matchupProbability;
                 }
