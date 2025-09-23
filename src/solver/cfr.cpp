@@ -101,6 +101,7 @@ std::vector<float> traverseDecision(
 ) {
     int numActions = static_cast<int>(decisionNode.decisionDataSize);
     Player hero = constants.hero;
+    Player villian = getOpposingPlayer(hero);
     Player playerToAct = decisionNode.player;
 
     // TODO: Average strategy when not training
@@ -112,6 +113,12 @@ std::vector<float> traverseDecision(
 
     if (hero == playerToAct) {
         assert(heroRangeSize == strategies.size());
+
+        // Calculate villian reach sum - used to weight regrets
+        float villianReachSum = 0.0f;
+        for (float f : rangeWeights[villian]) {
+            villianReachSum += f;
+        }
 
         // Regret and strategy discounting for DCFR
         if (constants.mode == TraversalMode::DiscountedCfr) {
@@ -151,7 +158,7 @@ std::vector<float> traverseDecision(
 
                 // Regret update part 1 - add EV of action
                 float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
-                regretSum += actionExpectedValues[hand];
+                regretSum += villianReachSum * actionExpectedValues[hand];
             }
         }
 
@@ -163,7 +170,7 @@ std::vector<float> traverseDecision(
                 float& regretSum = tree.allRegretSums[index];
                 float& strategySum = tree.allStrategySums[index];
 
-                regretSum -= expectedValues[hand];
+                regretSum -= villianReachSum * expectedValues[hand];
                 strategySum += strategies[action][hand] * rangeWeights[hero][hand];
 
                 // In CFR+, we erase negative regrets for faster convergence
@@ -176,7 +183,6 @@ std::vector<float> traverseDecision(
         }
     }
     else {
-        Player villian = getOpposingPlayer(hero);
         assert(villian == playerToAct);
         int villianRangeSize = rangeWeights[villian].size();
         assert(villianRangeSize == strategies.size());
