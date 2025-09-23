@@ -103,7 +103,7 @@ std::vector<float> traverseDecision(
     assert(numActions > 0);
 
     Player hero = constants.hero;
-    Player villian = getOpposingPlayer(hero);
+    Player villain = getOpposingPlayer(hero);
     Player playerToAct = decisionNode.player;
 
     // TODO: Average strategy when not training
@@ -117,10 +117,10 @@ std::vector<float> traverseDecision(
     if (hero == playerToAct) {
         assert(heroRangeSize == strategies[0].size());
 
-        // Calculate villian reach sum - used to weight regrets
-        float villianReachSum = 0.0f;
-        for (float f : rangeWeights[villian]) {
-            villianReachSum += f;
+        // Calculate villain reach sum - used to weight regrets
+        float villainReachSum = 0.0f;
+        for (float f : rangeWeights[villain]) {
+            villainReachSum += f;
         }
 
         // Regret and strategy discounting for DCFR
@@ -162,7 +162,7 @@ std::vector<float> traverseDecision(
                 // Regret update part 1 - add EV of action
                 if (isTraining) {
                     float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
-                    regretSum += villianReachSum * actionExpectedValues[hand];
+                    regretSum += villainReachSum * actionExpectedValues[hand];
                 }
             }
         }
@@ -176,7 +176,7 @@ std::vector<float> traverseDecision(
                     float& regretSum = tree.allRegretSums[index];
                     float& strategySum = tree.allStrategySums[index];
 
-                    regretSum -= villianReachSum * expectedValues[hand];
+                    regretSum -= villainReachSum * expectedValues[hand];
                     strategySum += strategies[action][hand] * rangeWeights[hero][hand];
 
                     // In CFR+, we erase negative regrets for faster convergence
@@ -190,14 +190,14 @@ std::vector<float> traverseDecision(
         }
     }
     else {
-        assert(villian == playerToAct);
-        int villianRangeSize = rangeWeights[villian].size();
-        assert(villianRangeSize == strategies[0].size());
+        assert(villain == playerToAct);
+        int villainRangeSize = rangeWeights[villain].size();
+        assert(villainRangeSize == strategies[0].size());
 
         // Not the hero's turn; no strategy or regret updates
         for (int action = 0; action < numActions; ++action) {
             PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
-            for (int hand = 0; hand < villianRangeSize; ++hand) {
+            for (int hand = 0; hand < villainRangeSize; ++hand) {
                 newRangeWeights[playerToAct][hand] *= strategies[action][hand];
             }
 
@@ -208,6 +208,8 @@ std::vector<float> traverseDecision(
             std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
             assert(actionExpectedValues.size() == heroRangeSize);
             for (int hand = 0; hand < heroRangeSize; ++hand) {
+                // TODO: Incorrect, we need to calculate the correct coefficients for the villain
+                // Pr(Villain plays action | hero has hand)
                 expectedValues[hand] += actionExpectedValues[hand];
             }
         }
@@ -230,22 +232,22 @@ std::vector<float> traverseShowdown(
     const IGameRules& rules,
     const PlayerArray<std::vector<float>>& rangeWeights
 ) {
-    auto areHandsDisjoint = [&showdownNode, &constants, &rules](int heroIndex, int villianIndex) -> bool {
+    auto areHandsDisjoint = [&showdownNode, &constants, &rules](int heroIndex, int villainIndex) -> bool {
         CardSet heroHand = rules.mapIndexToHand(constants.hero, heroIndex);
-        CardSet villianHand = rules.mapIndexToHand(getOpposingPlayer(constants.hero), villianIndex);
+        CardSet villainHand = rules.mapIndexToHand(getOpposingPlayer(constants.hero), villainIndex);
         CardSet board = showdownNode.board;
 
-        int individualSize = getSetSize(heroHand) + getSetSize(villianHand) + getSetSize(board);
-        int combinedSize = getSetSize(heroHand | villianHand | board);
+        int individualSize = getSetSize(heroHand) + getSetSize(villainHand) + getSetSize(board);
+        int combinedSize = getSetSize(heroHand | villainHand | board);
         assert(individualSize >= combinedSize);
 
         return individualSize == combinedSize;
     };
 
-    auto getMultiplier = [&showdownNode, &constants, &rules](int heroIndex, int villianIndex) -> int {
+    auto getMultiplier = [&showdownNode, &constants, &rules](int heroIndex, int villainIndex) -> int {
         PlayerArray<int> playerIndices = (constants.hero == Player::P0) ?
-            PlayerArray<int>{ heroIndex, villianIndex } :
-            PlayerArray<int>{ villianIndex, heroIndex };
+            PlayerArray<int>{ heroIndex, villainIndex } :
+            PlayerArray<int>{ villainIndex, heroIndex };
 
         switch (rules.getShowdownResult(playerIndices, showdownNode.board)) {
             case ShowdownResult::P0Win:
@@ -261,30 +263,30 @@ std::vector<float> traverseShowdown(
     };
 
     const std::vector<float>& heroWeights = rangeWeights[constants.hero];
-    const std::vector<float>& villianWeights = rangeWeights[getOpposingPlayer(constants.hero)];
+    const std::vector<float>& villainWeights = rangeWeights[getOpposingPlayer(constants.hero)];
 
     int heroRangeSize = heroWeights.size();
-    int villianRangeSize = villianWeights.size();
+    int villainRangeSize = villainWeights.size();
 
     assert(heroRangeSize == rules.getInitialRangeWeights(constants.hero).size());
-    assert(villianRangeSize == rules.getInitialRangeWeights(getOpposingPlayer(constants.hero)).size());
+    assert(villainRangeSize == rules.getInitialRangeWeights(getOpposingPlayer(constants.hero)).size());
 
     std::vector<float> expectedValues(heroRangeSize, 0.0f);
 
     for (int i = 0; i < heroRangeSize; ++i) {
-        float villianPossibleHandSum = 0.0f;
-        for (int j = 0; j < villianRangeSize; ++j) {
+        float villainPossibleHandSum = 0.0f;
+        for (int j = 0; j < villainRangeSize; ++j) {
             if (areHandsDisjoint(i, j)) {
-                assert(villianWeights[j] >= 0.0f);
-                villianPossibleHandSum += villianWeights[j];
+                assert(villainWeights[j] >= 0.0f);
+                villainPossibleHandSum += villainWeights[j];
             }
         }
 
-        assert(villianPossibleHandSum >= 0.0f);
-        if (villianPossibleHandSum > 0.0f) {
-            for (int j = 0; j < villianRangeSize; ++j) {
+        assert(villainPossibleHandSum >= 0.0f);
+        if (villainPossibleHandSum > 0.0f) {
+            for (int j = 0; j < villainRangeSize; ++j) {
                 if (areHandsDisjoint(i, j)) {
-                    float matchupProbability = villianWeights[j] / villianPossibleHandSum;
+                    float matchupProbability = villainWeights[j] / villainPossibleHandSum;
                     expectedValues[i] += static_cast<float>(getMultiplier(i, j)) * showdownNode.reward * matchupProbability;
                 }
             }
