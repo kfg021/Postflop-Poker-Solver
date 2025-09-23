@@ -12,7 +12,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-#include <span>
 
 // TODO: Do arithmetic with doubles, then store result in floats
 
@@ -30,54 +29,47 @@ struct TraversalConstants {
     DiscountParams params;
 };
 
-std::span<const float> getStategySumsSpan(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree) {
-    assert(trainingDataSet < decisionNode.numTrainingDataSets);
-    return {
-        tree.allStrategySums.begin() + decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize),
-        decisionNode.decisionDataSize
-    };
+std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree) {
+    // TODO: Remove numTrainingDataSets
+    assert(action >= 0 && action < decisionNode.decisionDataSize);
+    assert(hand >= 0 && hand < decisionNode.numTrainingDataSets);
+    return decisionNode.trainingDataOffset + (action * decisionNode.numTrainingDataSets) + hand;
 }
 
-std::span<float> getStategySumsSpan(const DecisionNode& decisionNode, int trainingDataSet, Tree& tree) {
-    assert(trainingDataSet < decisionNode.numTrainingDataSets);
-    return {
-        tree.allStrategySums.begin() + decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize),
-        decisionNode.decisionDataSize
-    };
-}
+std::vector<std::vector<float>> getCurrentStrategy(const DecisionNode& decisionNode, Tree& tree) {
+    int rangeSize = decisionNode.numTrainingDataSets;
+    int numActions = decisionNode.decisionDataSize;
+    std::vector<std::vector<float>> currentStrategy(numActions, std::vector<float>(rangeSize));
 
-std::span<float> getRegretSumsSpan(const DecisionNode& decisionNode, int trainingDataSet, Tree& tree) {
-    assert(trainingDataSet < decisionNode.numTrainingDataSets);
-    return {
-        tree.allRegretSums.begin() + decisionNode.trainingDataOffset + (trainingDataSet * decisionNode.decisionDataSize),
-        decisionNode.decisionDataSize
-    };
-}
+    for (int hand = 0; hand < rangeSize; ++hand) {
+        float totalPositiveRegret = 0.0f;
 
-FixedVector<float, MaxNumActions> getCurrentStrategy(const DecisionNode& decisionNode, int trainingDataSet, Tree& tree) {
-    int numActions = static_cast<int>(decisionNode.decisionDataSize);
-    assert(numActions > 0);
+        for (int action = 0; action < numActions; ++action) {
+            float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+            if (regretSum > 0.0f) {
+                totalPositiveRegret += regretSum;
+            }
+        }
 
-    std::span<float> regretSums = getRegretSumsSpan(decisionNode, trainingDataSet, tree);
-
-    float totalPositiveRegret = 0.0f;
-    for (float regretSum : regretSums) {
-        if (regretSum > 0.0f) {
-            totalPositiveRegret += regretSum;
+        if (totalPositiveRegret == 0.0f) {
+            // Uniform strategy
+            for (int action = 0; action < numActions; ++action) {
+                currentStrategy[action][hand] = 1.0f / numActions;
+            }
+        }
+        else {
+            for (int action = 0; action < numActions; ++action) {
+                const float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+                if (regretSum > 0.0f) {
+                    currentStrategy[action][hand] = regretSum / totalPositiveRegret;
+                }
+                else {
+                    currentStrategy[action][hand] = 0.0f;
+                }
+            }
         }
     }
 
-    if (totalPositiveRegret == 0.0f) {
-        FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
-        return uniformStrategy;
-    }
-
-    FixedVector<float, MaxNumActions> currentStrategy(numActions, 0.0f);
-    for (int i = 0; i < numActions; ++i) {
-        if (regretSums[i] > 0.0f) {
-            currentStrategy[i] = regretSums[i] / totalPositiveRegret;
-        }
-    }
     return currentStrategy;
 };
 
@@ -108,32 +100,43 @@ std::vector<float> traverseDecision(
     Tree& tree
 ) {
     int numActions = static_cast<int>(decisionNode.decisionDataSize);
-
+    Player hero = constants.hero;
     Player playerToAct = decisionNode.player;
-    int playerToActRangeSize = rangeWeights[decisionNode.player].size();
-    std::vector<FixedVector<float, MaxNumActions>> strategies(playerToActRangeSize);
 
-    bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
-    if (isTraining) {
-        for (int i = 0; i < playerToActRangeSize; ++i) {
-            strategies[i] = getCurrentStrategy(decisionNode, i, tree);
+    // TODO: Average strategy when not training
+    // bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
+    std::vector<std::vector<float>> strategies = getCurrentStrategy(decisionNode, tree);
+
+    int heroRangeSize = rangeWeights[hero].size();
+    std::vector<float> expectedValues(heroRangeSize, 0.0f);
+
+    if (hero == playerToAct) {
+        assert(heroRangeSize == strategies.size());
+
+        // Regret and strategy discounting for DCFR
+        if (constants.mode == TraversalMode::DiscountedCfr) {
+            for (int action = 0; action < numActions; ++action) {
+                for (int hand = 0; hand < heroRangeSize; ++hand) {
+                    std::size_t index = getTrainingDataIndex(action, hand, decisionNode, tree);
+                    float& regretSum = tree.allRegretSums[index];
+                    float& strategySum = tree.allStrategySums[index];
+
+                    if (regretSum > 0.0f) {
+                        regretSum *= constants.params.alphaT;
+                    }
+                    else {
+                        regretSum *= constants.params.betaT;
+                    }
+
+                    strategySum *= constants.params.gammaT;
+                }
+            }
         }
-    }
-    else {
-        for (int i = 0; i < playerToActRangeSize; ++i) {
-            strategies[i] = getAverageStrategy(decisionNode, i, tree);
-        }
-    }
-
-    std::vector<float> expectedValues(playerToActRangeSize, 0.0f);
-
-    if (playerToAct == constants.hero) {
-        // TODO: Strategy and regret updates
 
         for (int action = 0; action < numActions; ++action) {
             PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
-            for (int i = 0; i < playerToActRangeSize; ++i) {
-                newRangeWeights[playerToAct][i] *= strategies[i][action];
+            for (int i = 0; i < heroRangeSize; ++i) {
+                newRangeWeights[hero][i] *= strategies[i][action];
             }
 
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
@@ -141,14 +144,48 @@ std::vector<float> traverseDecision(
             const Node& nextNode = tree.allNodes[nextNodeIndex];
 
             std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
+            assert(actionExpectedValues.size() == heroRangeSize);
+
+            for (int hand = 0; hand < heroRangeSize; ++hand) {
+                expectedValues[hand] += actionExpectedValues[hand] * strategies[action][hand];
+
+                // Regret update part 1 - add EV of action
+                float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+                regretSum += actionExpectedValues[hand];
+            }
+        }
+
+        // Regret update part 2 - subtract total EV
+        // Strategy update
+        for (int action = 0; action < numActions; ++action) {
+            for (int hand = 0; hand < heroRangeSize; ++hand) {
+                std::size_t index = getTrainingDataIndex(action, hand, decisionNode, tree);
+                float& regretSum = tree.allRegretSums[index];
+                float& strategySum = tree.allStrategySums[index];
+
+                regretSum -= expectedValues[hand];
+                strategySum += strategies[action][hand] * rangeWeights[hero][hand];
+
+                // In CFR+, we erase negative regrets for faster convergence
+                if (constants.mode == TraversalMode::CfrPlus) {
+                    if (regretSum < 0.0f) {
+                        regretSum = 0.0f;
+                    }
+                }
+            }
         }
     }
     else {
+        Player villian = getOpposingPlayer(hero);
+        assert(villian == playerToAct);
+        int villianRangeSize = rangeWeights[villian].size();
+        assert(villianRangeSize == strategies.size());
+
         // Not the hero's turn; no strategy or regret updates
         for (int action = 0; action < numActions; ++action) {
             PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
-            for (int i = 0; i < playerToActRangeSize; ++i) {
-                newRangeWeights[playerToAct][i] *= strategies[i][action];
+            for (int hand = 0; hand < villianRangeSize; ++hand) {
+                newRangeWeights[playerToAct][hand] *= strategies[action][hand];
             }
 
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
@@ -156,8 +193,9 @@ std::vector<float> traverseDecision(
             const Node& nextNode = tree.allNodes[nextNodeIndex];
 
             std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
-            for (int i = 0; i < playerToActRangeSize; ++i) {
-                expectedValues[i] += actionExpectedValues[action];
+            assert(actionExpectedValues.size() == heroRangeSize);
+            for (int hand = 0; hand < heroRangeSize; ++hand) {
+                expectedValues[hand] += actionExpectedValues[hand];
             }
         }
     }
@@ -356,26 +394,28 @@ float expectedValue(
     return expectedValue;
 }
 
+// TODO: Refactor 
 FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree) {
-    int numActions = static_cast<int>(decisionNode.decisionDataSize);
-    assert(numActions > 0);
+    assert(false);
+    // int numActions = static_cast<int>(decisionNode.decisionDataSize);
+    // assert(numActions > 0);
 
-    std::span<const float> strategySums = getStategySumsSpan(decisionNode, trainingDataSet, tree);
+    // std::span<const float> strategySums = getStategySumsSpan(decisionNode, trainingDataSet, tree);
 
-    float total = 0.0f;
-    for (float strategySum : strategySums) {
-        total += strategySum;
-    }
+    // float total = 0.0f;
+    // for (float strategySum : strategySums) {
+    //     total += strategySum;
+    // }
 
-    if (total == 0.0f) {
-        FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
-        return uniformStrategy;
-    }
+    // if (total == 0.0f) {
+    //     FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
+    //     return uniformStrategy;
+    // }
 
-    FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
-    for (int i = 0; i < numActions; ++i) {
-        averageStrategy[i] = strategySums[i] / total;
-    }
+    // FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
+    // for (int i = 0; i < numActions; ++i) {
+    //     averageStrategy[i] = strategySums[i] / total;
+    // }
 
-    return averageStrategy;
+    // return averageStrategy;
 }
