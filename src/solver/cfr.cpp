@@ -100,19 +100,22 @@ std::vector<float> traverseDecision(
     Tree& tree
 ) {
     int numActions = static_cast<int>(decisionNode.decisionDataSize);
+    assert(numActions > 0);
+
     Player hero = constants.hero;
     Player villian = getOpposingPlayer(hero);
     Player playerToAct = decisionNode.player;
 
     // TODO: Average strategy when not training
-    // bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
+    bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
     std::vector<std::vector<float>> strategies = getCurrentStrategy(decisionNode, tree);
+    assert(numActions == strategies.size());
 
     int heroRangeSize = rangeWeights[hero].size();
     std::vector<float> expectedValues(heroRangeSize, 0.0f);
 
     if (hero == playerToAct) {
-        assert(heroRangeSize == strategies.size());
+        assert(heroRangeSize == strategies[0].size());
 
         // Calculate villian reach sum - used to weight regrets
         float villianReachSum = 0.0f;
@@ -142,8 +145,8 @@ std::vector<float> traverseDecision(
 
         for (int action = 0; action < numActions; ++action) {
             PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
-            for (int i = 0; i < heroRangeSize; ++i) {
-                newRangeWeights[hero][i] *= strategies[i][action];
+            for (int hand = 0; hand < heroRangeSize; ++hand) {
+                newRangeWeights[hero][hand] *= strategies[action][hand];
             }
 
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
@@ -157,26 +160,30 @@ std::vector<float> traverseDecision(
                 expectedValues[hand] += actionExpectedValues[hand] * strategies[action][hand];
 
                 // Regret update part 1 - add EV of action
-                float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
-                regretSum += villianReachSum * actionExpectedValues[hand];
+                if (isTraining) {
+                    float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+                    regretSum += villianReachSum * actionExpectedValues[hand];
+                }
             }
         }
 
         // Regret update part 2 - subtract total EV
         // Strategy update
-        for (int action = 0; action < numActions; ++action) {
-            for (int hand = 0; hand < heroRangeSize; ++hand) {
-                std::size_t index = getTrainingDataIndex(action, hand, decisionNode, tree);
-                float& regretSum = tree.allRegretSums[index];
-                float& strategySum = tree.allStrategySums[index];
+        if (isTraining) {
+            for (int action = 0; action < numActions; ++action) {
+                for (int hand = 0; hand < heroRangeSize; ++hand) {
+                    std::size_t index = getTrainingDataIndex(action, hand, decisionNode, tree);
+                    float& regretSum = tree.allRegretSums[index];
+                    float& strategySum = tree.allStrategySums[index];
 
-                regretSum -= villianReachSum * expectedValues[hand];
-                strategySum += strategies[action][hand] * rangeWeights[hero][hand];
+                    regretSum -= villianReachSum * expectedValues[hand];
+                    strategySum += strategies[action][hand] * rangeWeights[hero][hand];
 
-                // In CFR+, we erase negative regrets for faster convergence
-                if (constants.mode == TraversalMode::CfrPlus) {
-                    if (regretSum < 0.0f) {
-                        regretSum = 0.0f;
+                    // In CFR+, we erase negative regrets for faster convergence
+                    if (constants.mode == TraversalMode::CfrPlus) {
+                        if (regretSum < 0.0f) {
+                            regretSum = 0.0f;
+                        }
                     }
                 }
             }
@@ -185,7 +192,7 @@ std::vector<float> traverseDecision(
     else {
         assert(villian == playerToAct);
         int villianRangeSize = rangeWeights[villian].size();
-        assert(villianRangeSize == strategies.size());
+        assert(villianRangeSize == strategies[0].size());
 
         // Not the hero's turn; no strategy or regret updates
         for (int action = 0; action < numActions; ++action) {

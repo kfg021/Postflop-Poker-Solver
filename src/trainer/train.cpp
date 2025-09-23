@@ -43,7 +43,8 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
             // Proceedings of the AAAI Conference on Artificial Intelligence, 33(01), 1829-1836. 
             // https://doi.org/10.1609/aaai.v33i01.33011829
 
-            vanillaCfr(hero, rules, tree);
+            discountedCfr(hero, rules, getDiscountParams(1.5f, 0.0f, 2.0f, i), tree);
+            // vanillaCfr(hero, rules, tree);
         }
 
         if ((printFrequency > 0) && (i % printFrequency) == 0) {
@@ -56,7 +57,7 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
     float player0ExpectedValue = expectedValue(Player::P0, rules, tree);
     std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n\n";
 
-    std::cout << "Saving strategy to file...\n" << std::flush;
-    outputStrategyToJSON(rules, tree, strategyOutputFile);
-    std::cout << "Strategy saved to " << strategyOutputFile << ".\n";
+    // std::cout << "Saving strategy to file...\n" << std::flush;
+    // outputStrategyToJSON(rules, tree, strategyOutputFile);
+    // std::cout << "Strategy saved to " << strategyOutputFile << ".\n";
 }
