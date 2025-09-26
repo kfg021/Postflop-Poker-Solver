@@ -47,16 +47,18 @@ bool areHandsDisjoint(int heroIndex, int villainIndex, const TraversalConstants&
     return individualSize == combinedSize;
 };
 
-std::vector<std::vector<float>> getCurrentStrategy(const DecisionNode& decisionNode, Tree& tree) {
+std::vector<std::vector<float>> getCurrentStrategy(const DecisionNode& decisionNode, const Tree& tree) {
     int rangeSize = decisionNode.numTrainingDataSets;
     int numActions = decisionNode.decisionDataSize;
+    assert(numActions > 0);
+
     std::vector<std::vector<float>> currentStrategy(numActions, std::vector<float>(rangeSize));
 
     for (int hand = 0; hand < rangeSize; ++hand) {
         float totalPositiveRegret = 0.0f;
 
         for (int action = 0; action < numActions; ++action) {
-            float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+            float regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
             if (regretSum > 0.0f) {
                 totalPositiveRegret += regretSum;
             }
@@ -70,7 +72,7 @@ std::vector<std::vector<float>> getCurrentStrategy(const DecisionNode& decisionN
         }
         else {
             for (int action = 0; action < numActions; ++action) {
-                const float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+                float regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)];
                 if (regretSum > 0.0f) {
                     currentStrategy[action][hand] = regretSum / totalPositiveRegret;
                 }
@@ -119,7 +121,7 @@ std::vector<float> traverseDecision(
 
     // TODO: Average strategy when not training
     bool isTraining = (constants.mode != TraversalMode::ExpectedValue);
-    std::vector<std::vector<float>> strategies = getCurrentStrategy(decisionNode, tree);
+    std::vector<std::vector<float>> strategies = isTraining ? getCurrentStrategy(decisionNode, tree) : getAverageStrategy(decisionNode, tree);
     assert(numActions == strategies.size());
 
     int heroRangeSize = rangeWeights[hero].size();
@@ -230,6 +232,7 @@ std::vector<float> traverseDecision(
                 if (villianPossibleHandSum > 0.0f) {
                     for (int j = 0; j < villainRangeSize; ++j) {
                         if (areHandsDisjoint(i, j, constants, rules)) {
+                            // TODO: Don't recalculate villainHandProbability for each action
                             float villainHandProbability = rangeWeights[villain][j] / villianPossibleHandSum;
                             float villainActionProbability = villainHandProbability * strategies[action][j];
                             expectedValues[i] += actionExpectedValues[i] * villainActionProbability;
@@ -422,28 +425,33 @@ float expectedValue(
     return expectedValue;
 }
 
-// TODO: Refactor 
-FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree) {
-    assert(false);
-    // int numActions = static_cast<int>(decisionNode.decisionDataSize);
-    // assert(numActions > 0);
+std::vector<std::vector<float>> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree) {
+    int rangeSize = decisionNode.numTrainingDataSets;
+    int numActions = decisionNode.decisionDataSize;
+    assert(numActions > 0);
 
-    // std::span<const float> strategySums = getStategySumsSpan(decisionNode, trainingDataSet, tree);
+    std::vector<std::vector<float>> averageStrategy(numActions, std::vector<float>(rangeSize));
 
-    // float total = 0.0f;
-    // for (float strategySum : strategySums) {
-    //     total += strategySum;
-    // }
+    for (int hand = 0; hand < rangeSize; ++hand) {
+        float total = 0.0f;
+        for (int action = 0; action < numActions; ++action) {
+            float strategySum = tree.allStrategySums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+            total += strategySum;
+        }
 
-    // if (total == 0.0f) {
-    //     FixedVector<float, MaxNumActions> uniformStrategy(numActions, 1.0f / numActions);
-    //     return uniformStrategy;
-    // }
+        if (total == 0.0f) {
+            // Uniform strategy
+            for (int action = 0; action < numActions; ++action) {
+                averageStrategy[action][hand] = 1.0f / numActions;
+            }
+        }
+        else {
+            for (int action = 0; action < numActions; ++action) {
+                float strategySum = tree.allStrategySums[getTrainingDataIndex(action, hand, decisionNode, tree)];
+                averageStrategy[action][hand] = strategySum / total;
+            }
+        }
+    }
 
-    // FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
-    // for (int i = 0; i < numActions; ++i) {
-    //     averageStrategy[i] = strategySums[i] / total;
-    // }
-
-    // return averageStrategy;
+    return averageStrategy;
 }

@@ -42,6 +42,6 @@ float expectedValue(
     Tree& tree
 );
 
-FixedVector<float, MaxNumActions> getAverageStrategy(const DecisionNode& decisionNode, int trainingDataSet, const Tree& tree);
+std::vector<std::vector<float>> getAverageStrategy(const DecisionNode& decisionNode, const Tree& tree);
 
 #endif // CFR_HPP
