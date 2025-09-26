@@ -218,10 +218,24 @@ std::vector<float> traverseDecision(
 
             std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
             assert(actionExpectedValues.size() == heroRangeSize);
-            for (int hand = 0; hand < heroRangeSize; ++hand) {
-                // TODO: Incorrect, we need to calculate the correct coefficients for the villain
-                // Pr(Villain plays action | hero has hand)
-                expectedValues[hand] += actionExpectedValues[hand];
+            for (int i = 0; i < heroRangeSize; ++i) {
+                float villianPossibleHandSum = 0.0f;
+                for (int j = 0; j < villainRangeSize; ++j) {
+                    if (areHandsDisjoint(i, j, constants, rules)) {
+                        villianPossibleHandSum += rangeWeights[villain][j];
+                    }
+                }
+                assert(villianPossibleHandSum >= 0.0f);
+
+                if (villianPossibleHandSum > 0.0f) {
+                    for (int j = 0; j < villainRangeSize; ++j) {
+                        if (areHandsDisjoint(i, j, constants, rules)) {
+                            float villainHandProbability = rangeWeights[villain][j] / villianPossibleHandSum;
+                            float villainActionProbability = villainHandProbability * strategies[action][j];
+                            expectedValues[i] += actionExpectedValues[i] * villainActionProbability;
+                        }
+                    }
+                }
             }
         }
     }
