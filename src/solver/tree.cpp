@@ -19,11 +19,6 @@ bool Tree::isFullTreeBuilt() const {
 }
 
 void Tree::buildTreeSkeleton(const IGameRules& rules) {
-    m_rangeSizes = {
-        rules.getRangeHands(Player::P0).size(),
-        rules.getRangeHands(Player::P1).size()
-    };
-
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
@@ -120,13 +115,13 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
     DecisionNode decisionNode = {
         .trainingDataOffset = m_trainingDataLength,
         .decisionDataOffset = allDecisions.size(),
-        .numTrainingDataSets = m_rangeSizes[state.playerToAct],
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
         .player = state.playerToAct
     };
 
     // Update tree information
-    std::size_t nodeTrainingDataLength = static_cast<std::size_t>(decisionNode.numTrainingDataSets) * decisionNode.decisionDataSize;
+    int playerToActRangeSize = rules.getInitialRangeWeights(state.playerToAct).size();
+    std::size_t nodeTrainingDataLength = static_cast<std::size_t>(playerToActRangeSize) * decisionNode.decisionDataSize;
     m_trainingDataLength += nodeTrainingDataLength;
     allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
     allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());

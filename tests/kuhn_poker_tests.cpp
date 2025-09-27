@@ -56,7 +56,7 @@ TEST(KuhnPokerTest, KuhnPokerE2ETest) {
     // The first player is free to choose a probability 0 <= alpha <= 1/3 that they will bet with a Jack
     const Node& root = tree.allNodes[tree.getRootNodeIndex()];
     ASSERT_EQ(root.getNodeType(), NodeType::Decision);
-    auto rootStrategy = getAverageStrategy(root.decisionNode, tree);
+    auto rootStrategy = getAverageStrategy(kuhnPokerRules, root.decisionNode, tree);
     float alpha = rootStrategy[KuhnActionID::BetOrCall][KuhnHandID::Jack];
     ASSERT_GE(alpha, 0.0f);
     ASSERT_LE(alpha, 1.0f / 3.0f);
@@ -65,21 +65,21 @@ TEST(KuhnPokerTest, KuhnPokerE2ETest) {
 
     // Check, player 1 to act
     DecisionNode check = getNextDecisionNode(root.decisionNode, KuhnActionID::CheckOrFold);
-    auto checkStrategy = getAverageStrategy(check, tree);
+    auto checkStrategy = getAverageStrategy(kuhnPokerRules, check, tree);
     ASSERT_NEAR(checkStrategy[KuhnActionID::BetOrCall][KuhnHandID::Jack], 1.0f / 3.0f, StrategyEpsilon);
     ASSERT_NEAR(checkStrategy[KuhnActionID::BetOrCall][KuhnHandID::Queen], 0.0f, StrategyEpsilon);
     ASSERT_NEAR(checkStrategy[KuhnActionID::BetOrCall][KuhnHandID::King], 1.0f, StrategyEpsilon);
 
     // Check Bet, player 0 to act
     DecisionNode checkBet = getNextDecisionNode(check, KuhnActionID::BetOrCall);
-    auto checkBetStrategy = getAverageStrategy(checkBet, tree);
+    auto checkBetStrategy = getAverageStrategy(kuhnPokerRules, checkBet, tree);
     ASSERT_NEAR(checkBetStrategy[KuhnActionID::BetOrCall][KuhnHandID::Jack], 0.0f, StrategyEpsilon);
     ASSERT_NEAR(checkBetStrategy[KuhnActionID::BetOrCall][KuhnHandID::Queen], alpha + (1.0f / 3.0f), StrategyEpsilon);
     ASSERT_NEAR(checkBetStrategy[KuhnActionID::BetOrCall][KuhnHandID::King], 1.0f, StrategyEpsilon);
 
     // Bet, player 1 to act
     DecisionNode bet = getNextDecisionNode(root.decisionNode, KuhnActionID::BetOrCall);
-    auto betStrategy = getAverageStrategy(bet, tree);
+    auto betStrategy = getAverageStrategy(kuhnPokerRules, bet, tree);
     ASSERT_NEAR(betStrategy[KuhnActionID::BetOrCall][KuhnHandID::Jack], 0.0f, StrategyEpsilon);
     ASSERT_NEAR(betStrategy[KuhnActionID::BetOrCall][KuhnHandID::Queen], 1.0f / 3.0f, StrategyEpsilon);
     ASSERT_NEAR(betStrategy[KuhnActionID::BetOrCall][KuhnHandID::King], 1.0f, StrategyEpsilon);

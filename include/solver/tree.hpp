@@ -45,7 +45,6 @@ private:
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
 
-    PlayerArray<int> m_rangeSizes;
     std::size_t m_trainingDataLength;
     std::size_t m_numDecisionNodes;
 };

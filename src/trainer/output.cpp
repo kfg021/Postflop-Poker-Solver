@@ -53,7 +53,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     }
 
     auto& strategy = j["Strategy"];
-    auto averageStrategy = getAverageStrategy(decisionNode, tree);
+    auto averageStrategy = getAverageStrategy(rules, decisionNode, tree);
     for (int i = 0; i < rules.getRangeHands(decisionNode.player).size(); ++i) {
         CardSet hand = rules.mapIndexToHand(decisionNode.player, i);
 
