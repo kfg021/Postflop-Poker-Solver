@@ -35,6 +35,7 @@ public:
         // Force all-in threshold
         // Merging threshold
         // Raise limit?
+        // Rake?
     };
 
     Holdem(const Settings& settings);
