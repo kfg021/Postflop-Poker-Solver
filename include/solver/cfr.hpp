@@ -42,6 +42,12 @@ float expectedValue(
     Tree& tree
 );
 
+float bestResponseEV(
+    Player hero,
+    const IGameRules& rules,
+    Tree& tree
+);
+
 std::vector<std::vector<float>> getAverageStrategy(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree);
 
 #endif // CFR_HPP
