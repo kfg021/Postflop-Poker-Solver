@@ -40,9 +40,22 @@ TEST(KuhnPokerTest, KuhnPokerE2ETest) {
     // Test that strategy is optimal
     // https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
 
+    // Kuhn poker has a known EV of -1/18 for the starting player
     float player0ExpectedValue = expectedValue(Player::P0, kuhnPokerRules, tree);
     static constexpr float ExpectedPlayer0ExpectedValue = -1.0f / 18.0f;
     EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+
+    // Make sure the exploitative strategies are at least as strong as the Nash strategy
+    float player0BestResponseEV = bestResponseEV(Player::P0, kuhnPokerRules, tree);
+    float player1BestResponseEV = bestResponseEV(Player::P1, kuhnPokerRules, tree);
+    ASSERT_GE(player0BestResponseEV, player0ExpectedValue);
+    ASSERT_GE(player1BestResponseEV, -player0ExpectedValue);
+
+    // Make sure exploitability is non-negative and small
+    static constexpr float ExploitabilityEpsilon = 1e-2;
+    float exploitability = (player0BestResponseEV + player1BestResponseEV) / 2.0f;
+    ASSERT_GE(exploitability, 0.0f);
+    ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
 
     auto getNextDecisionNode = [&tree](const DecisionNode& decisionNode, KuhnActionID action) -> DecisionNode {
         std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];

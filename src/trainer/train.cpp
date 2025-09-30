@@ -56,6 +56,12 @@ void train(const IGameRules& rules, int iterations, int printFrequency, const st
     float player0ExpectedValue = expectedValue(Player::P0, rules, tree);
     std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n\n";
 
+    std::cout << "Calculating exploitability of final strategy...\n" << std::flush;
+    float player0BestResponseEV = bestResponseEV(Player::P0, rules, tree);
+    float player1BestResponseEV = bestResponseEV(Player::P1, rules, tree);
+    float exploitability = (player0BestResponseEV + player1BestResponseEV) / 2.0f;
+    std::cout << "Exploitability: " << std::fixed << std::setprecision(5) << exploitability << "\n\n";
+
     std::cout << "Saving strategy to file...\n" << std::flush;
     outputStrategyToJSON(rules, tree, strategyOutputFile);
     std::cout << "Strategy saved to " << strategyOutputFile << ".\n";
