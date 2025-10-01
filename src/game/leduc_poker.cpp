@@ -149,18 +149,19 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
 
 FixedVector<GameState, MaxNumDealCards> LeducPoker::getNewStatesAfterChance(const GameState& state) const {
     assert(getNodeType(state) == NodeType::Chance);
+    assert(state.currentBoard == 0);
     assert(state.currentStreet == Street::Turn);
 
     FixedVector<GameState, MaxNumDealCards> statesAfterChance;
 
     for (CardSet hand : PossibleHands) {
         GameState newState = {
-            .currentBoard = state.currentBoard | hand,
+            .currentBoard = hand,
             .totalWagers = state.totalWagers,
-            .deadMoney = state.deadMoney,
+            .deadMoney = 0,
             .playerToAct = Player::P0, // Player 0 always starts a new betting round
             .lastAction = static_cast<ActionID>(Action::StreetStart),
-            .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
+            .currentStreet = Street::River,
         };
         statesAfterChance.pushBack(newState);
     }
