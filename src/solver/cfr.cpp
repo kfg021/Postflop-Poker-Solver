@@ -106,8 +106,46 @@ std::vector<float> traverseChance(
     const PlayerArray<std::vector<float>>& rangeWeights,
     Tree& tree
 ) {
-    // TODO: Implement
-    return {};
+    // TODO: The probability that a particular card comes on the turn/river is influenced by the ranges of the players
+
+    Player hero = constants.hero;
+
+    int heroRangeSize = rangeWeights[hero].size();
+    std::vector<float> expectedValues(heroRangeSize, 0.0f);
+
+    int numChanceCards = chanceNode.chanceDataSize;
+    for (int i = 0; i < numChanceCards; ++i) {
+        CardID chanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + i];
+        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
+        assert(nextNodeIndex < tree.allNodes.size());
+        const Node& nextNode = tree.allNodes[nextNodeIndex];
+
+        PlayerArray<std::vector<float>> newRangeWeights = rangeWeights;
+        for (Player player : { Player::P0, Player::P1 }) {
+            for (int hand = 0; hand < newRangeWeights[player].size(); ++hand) {
+                CardSet playerHand = rules.getRangeHands(player)[hand];
+                if (setContainsCard(playerHand, chanceCard)) {
+                    // The chance card we are about to deal conflicts with a hand in the player's range
+                    newRangeWeights[player][hand] = 0.0f;
+                }
+                // TODO: Do we need to divide the ranges?
+            }
+        }
+
+        std::vector<float> chanceCardExpectedValues = traverseTree(nextNode, constants, rules, newRangeWeights, tree);
+        assert(chanceCardExpectedValues.size() == heroRangeSize);
+
+        for (int hand = 0; hand < heroRangeSize; ++hand) {
+            expectedValues[hand] += chanceCardExpectedValues[hand];
+        }
+    }
+
+    // Normalize expected values
+    for (int hand = 0; hand < heroRangeSize; ++hand) {
+        expectedValues[hand] /= static_cast<float>(numChanceCards);
+    }
+
+    return expectedValues;
 }
 
 // TODO: Consider template for traverseDecision
