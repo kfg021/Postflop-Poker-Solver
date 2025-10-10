@@ -512,7 +512,10 @@ float rootExpectedValue(
         expectedValue += expectedValueRange[i] * heroRangeWeights[i];
     }
 
-    expectedValue /= getTotalRangeWeight();
+    // TODO: Check if totalRangeWeight is 0 before we even build the tree
+    float totalRangeWeight = getTotalRangeWeight();
+    assert(totalRangeWeight > 0.0f);
+    expectedValue /= totalRangeWeight;
 
     return expectedValue;
 }

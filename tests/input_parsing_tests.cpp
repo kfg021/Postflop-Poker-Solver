@@ -219,3 +219,31 @@ TEST(RangeParsingTest, CombineAllComboTypes) {
     EXPECT_EQ(range.hands.size(), ExpectedSize);
     EXPECT_EQ(range.weights.size(), ExpectedSize);
 }
+
+TEST(RangeParsingTest, CorrectRangeFiltering) {
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "As", "7s", "2s" });
+    assert(communityCardResult.isValue());
+
+    CardSet communityCards = communityCardResult.getValue();
+
+    auto rangeResult = buildRangeFromStrings({ "AKs:50", "72o" }, communityCards);
+    EXPECT_TRUE(rangeResult.isValue());
+
+    const auto& range = rangeResult.getValue();
+    
+    // 3 combos of AKs, 6 combos of 72o
+    static constexpr int ExpectedSize = 9;
+    EXPECT_EQ(range.hands.size(), ExpectedSize);
+    EXPECT_EQ(range.weights.size(), ExpectedSize);
+}
+
+TEST(RangeParsingTest, ErrorFromEmptyRangeAfterFiltering) {
+    Result<CardSet> communityCardResult = buildCommunityCardsFromStrings({ "Ac", "Ah", "Ad", "As" });
+    assert(communityCardResult.isValue());
+
+    CardSet communityCards = communityCardResult.getValue();
+
+    // No aces left, so AA and AK are impossible
+    auto rangeResult = buildRangeFromStrings({ "AKs:50", "AA" }, communityCards);
+    EXPECT_TRUE(rangeResult.isError());
+}

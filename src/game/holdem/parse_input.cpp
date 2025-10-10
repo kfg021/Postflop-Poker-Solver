@@ -33,8 +33,11 @@ Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& c
     return communityCards;
 }
 
-// TODO: Filter out hands that overlap with initial board
 Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
+    return buildRangeFromStrings(rangeStrings, 0);
+}
+
+Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings, CardSet communityCards) {
     auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {
             case '2': case '3': case '4': case '5':
@@ -140,12 +143,19 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
                     return "Error building range: Duplicate range elements.";
                 }
 
-                range.hands.push_back(hand);
-                range.weights.push_back(frequency / 100.0f);
+                bool isHandValid = (hand & communityCards) == 0;
+                if (isHandValid) {
+                    range.hands.push_back(hand);
+                    range.weights.push_back(frequency / 100.0f);
 
-                seenHands.insert(hand);
+                    seenHands.insert(hand);
+                }
             }
         }
+    }
+
+    if (range.hands.empty()) {
+        return "Error building range: No hands are possible given the starting board.";
     }
 
     return range;

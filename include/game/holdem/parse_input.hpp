@@ -9,6 +9,8 @@
 #include <vector>
 
 Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& communityCardStrings);
+
 Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings);
+Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings, CardSet communityCards);
 
 #endif // PARSE_INPUT_HPP

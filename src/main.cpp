@@ -22,12 +22,12 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 }
 
 void trainHoldem(int iterations, const std::string& strategyOutputFile) {
-    PlayerArray<Holdem::Range> ranges = {
-        buildRangeFromStrings({"T9s", "44", "33", "22"}).getValue(),
-        buildRangeFromStrings({"AA", "AK", "AQs", "KQs"}).getValue(),
-    };
-
     CardSet communityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h" }).getValue();
+
+    PlayerArray<Holdem::Range> ranges = {
+        buildRangeFromStrings({"T9s", "44", "33", "22"}, communityCards).getValue(),
+        buildRangeFromStrings({"AA", "AK", "AQs", "KQs"}, communityCards).getValue(),
+    };
 
     Holdem::Settings holdemSettings = {
         .ranges = ranges,
@@ -50,7 +50,7 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
 
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
-    trainLeducPoker(10000, "leduc_strategy.json");
-    // trainHoldem(500, "holdem_strategy.json");
+    // trainLeducPoker(10000, "leduc_strategy.json");
+    trainHoldem(500, "holdem_strategy.json");
     return 0;
 }
