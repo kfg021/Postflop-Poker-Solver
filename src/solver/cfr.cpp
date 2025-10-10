@@ -39,7 +39,7 @@ int getRangeSize(Player player, const IGameRules& rules) {
 std::size_t getTrainingDataIndex(int action, int hand, const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
     assert(action >= 0 && action < decisionNode.decisionDataSize);
 
-    int playerToActRangeSize = rules.getInitialRangeWeights(decisionNode.player).size();
+    int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
     assert(hand >= 0 && hand < playerToActRangeSize);
 
     return decisionNode.trainingDataOffset + (action * playerToActRangeSize) + hand;
@@ -57,7 +57,7 @@ bool areHandsAndBoardDisjoint(int heroIndex, int villainIndex, CardSet board, Pl
 };
 
 std::vector<std::vector<float>> getCurrentStrategy(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
-    int playerToActRangeSize = rules.getInitialRangeWeights(decisionNode.player).size();
+    int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
 
@@ -591,7 +591,7 @@ float bestResponseEV(
 }
 
 std::vector<std::vector<float>> getAverageStrategy(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
-    int playerToActRangeSize = rules.getInitialRangeWeights(decisionNode.player).size();
+    int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
 
