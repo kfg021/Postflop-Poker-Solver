@@ -123,6 +123,7 @@ std::vector<float> traverseChance(
         // TODO: Set impossible villain hands to 0 reach prob
         std::vector<float> chanceCardExpectedValues = traverseTree(nextNode, constants, rules, villainReachProbs, tree);
         for (int hand = 0; hand < heroRangeSize; ++hand) {
+            // TODO: Check for impossible hero hands
             expectedValues[hand] += chanceCardExpectedValues[hand];
         }
     }
@@ -137,7 +138,6 @@ std::vector<float> traverseChance(
     int numPossibleChanceCards = numChanceCards - (2 * gameHandSize);
 
     for (int hand = 0; hand < heroRangeSize; ++hand) {
-        // TODO: Check for impossible hero hands
         expectedValues[hand] /= static_cast<float>(numPossibleChanceCards);
     }
 
