@@ -19,6 +19,7 @@ add_executable(run_tests
     holdem_action_tests.cpp
     input_parsing_tests.cpp
     kuhn_poker_tests.cpp
+    leduc_poker_tests.cpp
 )
 
 target_link_libraries(run_tests PRIVATE

@@ -512,8 +512,7 @@ float rootExpectedValue(
         expectedValue += expectedValueRange[i] * heroRangeWeights[i];
     }
 
-    static float totalRangeWeight = getTotalRangeWeight();
-    expectedValue /= totalRangeWeight;
+    expectedValue /= getTotalRangeWeight();
 
     return expectedValue;
 }
