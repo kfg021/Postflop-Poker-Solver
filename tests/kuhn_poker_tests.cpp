@@ -17,7 +17,7 @@ TEST(KuhnPokerTest, KuhnPokerE2ETest) {
 
     tree.buildFullTree();
 
-    static constexpr float Iterations = 10000;
+    static constexpr float Iterations = 100000;
     for (int i = 0; i < Iterations; ++i) {
         for (Player hero : { Player::P0, Player::P1 }) {
             discountedCfr(hero, kuhnPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i), tree);

@@ -34,6 +34,9 @@ struct DecisionNode {
 };
 
 struct FoldNode {
+    // State of the board after fold
+    CardSet board;
+
     // The player who did not fold wins the reward, regardless of their hand or the board
     int remainingPlayerReward;
     Player remainingPlayer;

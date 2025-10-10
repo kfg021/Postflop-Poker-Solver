@@ -138,6 +138,7 @@ std::size_t Tree::createFoldNode(const GameState& state) {
     int remaningPlayerReward = state.totalWagers[getOpposingPlayer(state.playerToAct)] + state.deadMoney;
 
     FoldNode foldNode = {
+        .board = state.currentBoard,
         .remainingPlayerReward = remaningPlayerReward,
         .remainingPlayer = state.playerToAct
     };

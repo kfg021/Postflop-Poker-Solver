@@ -125,7 +125,7 @@ const std::vector<CardSet>& KuhnPoker::getRangeHands(Player /*player*/) const {
 }
 
 const std::vector<float>& KuhnPoker::getInitialRangeWeights(Player /*player*/) const {
-    static const std::vector<float> Weights(3, 1.0f / 3.0f);
+    static const std::vector<float> Weights(3, 1.0f);
     return Weights;
 }
 
