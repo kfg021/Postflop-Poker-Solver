@@ -107,7 +107,7 @@ std::vector<std::string> getCardSetNames(CardSet cardSet) {
     return cardNames;
 }
 
-Street nextStreet(Street street) {
+Street getNextStreet(Street street) {
     switch (street) {
         case Street::Flop:
             return Street::Turn;

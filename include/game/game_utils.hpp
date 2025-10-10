@@ -27,6 +27,6 @@ CardID popLowestCardFromSet(CardSet& cardSet);
 std::vector<std::string> getCardSetNames(CardSet cardSet);
 
 // Street functions
-Street nextStreet(Street street);
+Street getNextStreet(Street street);
 
 #endif // GAME_UTILS_HPP

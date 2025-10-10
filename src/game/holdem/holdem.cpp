@@ -113,18 +113,6 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
 } // namespace
 
 Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
-    switch (getSetSize(m_settings.startingCommunityCards)) {
-        case 3:
-            m_startingStreet = Street::Flop;
-            break;
-        case 4:
-            m_startingStreet = Street::Turn;
-            break;
-        case 5:
-            m_startingStreet = Street::River;
-            break;
-    }
-
     buildHandRankTables();
 }
 
@@ -135,7 +123,7 @@ GameState Holdem::getInitialGameState() const {
         .deadMoney = m_settings.deadMoney,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
-        .currentStreet = m_startingStreet
+        .currentStreet = getStartingStreet()
     };
     return initialState;
 }
@@ -377,7 +365,7 @@ FixedVector<GameState, MaxNumDealCards> Holdem::getNewStatesAfterChance(const Ga
             .deadMoney = state.deadMoney,
             .playerToAct = Player::P0, // Player 0 always starts a new betting round
             .lastAction = static_cast<ActionID>(Action::StreetStart),
-            .currentStreet = nextStreet(state.currentStreet), // After a card is dealt we move to the next street
+            .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street
         };
         statesAfterChance.pushBack(newState);
     }
@@ -399,17 +387,17 @@ ShowdownResult Holdem::getShowdownResult(PlayerArray<int> handIndices, CardSet b
 
     CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
     int runoutIndex;
-    switch (m_startingStreet) {
-        case Street::River:
-            assert(getSetSize(chanceCardsDealt) == 0);
+    switch (getSetSize(chanceCardsDealt)) {
+        case 0:
+            assert(getStartingStreet() == Street::River);
             runoutIndex = 0;
             break;
-        case Street::Turn:
-            assert(getSetSize(chanceCardsDealt) == 1);
+        case 1:
+            assert(getStartingStreet() == Street::Turn);
             runoutIndex = static_cast<int>(getLowestCardInSet(chanceCardsDealt));
             break;
-        case Street::Flop:
-            assert(getSetSize(chanceCardsDealt) == 2);
+        case 2:
+            assert(getStartingStreet() == Street::Flop);
             runoutIndex = mapTwoCardSetToIndex(chanceCardsDealt);
             break;
         default:
@@ -522,7 +510,7 @@ void Holdem::buildHandRankTables() {
     const auto& ranges = m_settings.ranges;
 
     // TODO: Consider getting rid of empty spaces in lookup table
-    switch (m_startingStreet) {
+    switch (getStartingStreet()) {
         case Street::River:
             // We are starting at the river, so we can directly map player range indices into the hand ranking table
             for (Player player : { Player::P0, Player::P1 }) {
@@ -593,4 +581,18 @@ int Holdem::getTotalEffectiveStack() const {
 bool Holdem::areBothPlayersAllIn(const GameState& state) const {
     int totalStack = getTotalEffectiveStack();
     return (state.totalWagers[Player::P0] == totalStack) && (state.totalWagers[Player::P1] == totalStack);
+}
+
+Street Holdem::getStartingStreet() const {
+    switch (getSetSize(m_settings.startingCommunityCards)) {
+        case 3:
+            return Street::Flop;
+        case 4:
+            return Street::Turn;
+        case 5:
+            return Street::River;
+        default:
+            assert(false);
+            return Street::River;
+    }
 }

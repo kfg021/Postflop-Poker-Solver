@@ -55,10 +55,10 @@ private:
     void buildHandRankTables();
     int getTotalEffectiveStack() const;
     bool areBothPlayersAllIn(const GameState& state) const;
+    Street getStartingStreet() const;
 
     Settings m_settings;
     PlayerArray<std::vector<std::uint32_t>> m_handRanks;
-    Street m_startingStreet;
 };
 
 #endif // HOLDEM_HPP
