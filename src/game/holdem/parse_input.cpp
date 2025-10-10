@@ -76,12 +76,12 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
 
         Result<Value> value0Result = getValueFromChar(rangeString[0]);
         if (value0Result.isError()) {
-            return errorString + "(Failed to parse first character)";
+            return errorString + " (Failed to parse first character)";
         }
 
         Result<Value> value1Result = getValueFromChar(rangeString[1]);
         if (value1Result.isError()) {
-            return errorString + "(Failed to parse second character)";
+            return errorString + " (Failed to parse second character)";
         }
 
         Value value0 = value0Result.getValue();
