@@ -48,7 +48,6 @@ public:
     const std::vector<CardSet>& getRangeHands(Player player) const override;
     const std::vector<float>& getInitialRangeWeights(Player player) const override;
     ShowdownResult getShowdownResult(PlayerArray<int> handIndices, CardSet board) const override;
-    CardSet mapIndexToHand(Player player, int index) const override;
     std::string getActionName(ActionID actionID) const override;
 
 private:

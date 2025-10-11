@@ -424,11 +424,6 @@ ShowdownResult Holdem::getShowdownResult(PlayerArray<int> handIndices, CardSet b
     }
 }
 
-CardSet Holdem::mapIndexToHand(Player player, int index) const {
-    const auto& playerRange = m_settings.ranges[player];
-    return playerRange.hands[index];
-}
-
 std::string Holdem::getActionName(ActionID actionID) const {
     auto getBetName = [this](int betSizeIndex) -> std::string {
         assert(betSizeIndex < m_settings.betSizes.size());

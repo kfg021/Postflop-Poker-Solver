@@ -54,8 +54,10 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
 
     auto& strategy = j["Strategy"];
     auto averageStrategy = getAverageStrategy(rules, decisionNode, tree);
-    for (int i = 0; i < rules.getRangeHands(decisionNode.player).size(); ++i) {
-        CardSet hand = rules.mapIndexToHand(decisionNode.player, i);
+
+    const auto& playerHands = rules.getRangeHands(decisionNode.player);
+    for (int i = 0; i < playerHands.size(); ++i) {
+        CardSet hand = playerHands[i];
 
         if ((hand & board) != 0) {
             // Hand is not possible given the board

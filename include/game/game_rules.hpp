@@ -24,7 +24,6 @@ public:
     virtual ShowdownResult getShowdownResult(PlayerArray<int> handIndices, CardSet board) const = 0;
 
     // Functions for output
-    virtual CardSet mapIndexToHand(Player player, int index) const = 0;
     virtual std::string getActionName(ActionID actionID) const = 0;
 };
 

@@ -59,8 +59,8 @@ std::size_t getReachProbsIndex(int hand, std::size_t nodeIndex, const TraversalC
 }
 
 bool areHandsAndBoardDisjoint(int heroIndex, int villainIndex, CardSet board, Player hero, const IGameRules& rules) {
-    CardSet heroHand = rules.mapIndexToHand(hero, heroIndex);
-    CardSet villainHand = rules.mapIndexToHand(getOpposingPlayer(hero), villainIndex);
+    CardSet heroHand = rules.getRangeHands(hero)[heroIndex];
+    CardSet villainHand = rules.getRangeHands(getOpposingPlayer(hero))[villainIndex];
 
     int individualSize = getSetSize(heroHand) + getSetSize(villainHand) + getSetSize(board);
     int combinedSize = getSetSize(heroHand | villainHand | board);

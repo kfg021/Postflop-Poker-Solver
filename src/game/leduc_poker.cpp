@@ -212,12 +212,6 @@ ShowdownResult LeducPoker::getShowdownResult(PlayerArray<int> handIndices, CardS
     }
 }
 
-// TODO: Isomorphism
-CardSet LeducPoker::mapIndexToHand(Player /*player*/, int index) const {
-    assert(index < 6);
-    return PossibleHands[index];
-}
-
 std::string LeducPoker::getActionName(ActionID actionID) const {
     switch (static_cast<Action>(actionID)) {
         case Action::Fold:

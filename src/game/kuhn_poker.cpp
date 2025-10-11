@@ -143,11 +143,6 @@ ShowdownResult KuhnPoker::getShowdownResult(PlayerArray<int> handIndices, CardSe
     return (player0CardValue > player1CardValue) ? ShowdownResult::P0Win : ShowdownResult::P1Win;
 }
 
-CardSet KuhnPoker::mapIndexToHand(Player /*player*/, int index) const {
-    assert(index < 3);
-    return PossibleHands[index];
-}
-
 std::string KuhnPoker::getActionName(ActionID actionID) const {
     switch (static_cast<Action>(actionID)) {
         case Action::Fold:
