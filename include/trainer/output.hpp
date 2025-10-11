@@ -6,6 +6,6 @@
 
 #include <string>
 
-void outputStrategyToJSON(const IGameRules& rules, const Tree& tree, const std::string& filePath);
+void outputStrategyToJSON(const IGameRules& rules, Tree& tree, const std::string& filePath);
 
 #endif // OUTPUT_HPP

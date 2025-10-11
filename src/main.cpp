@@ -22,20 +22,20 @@ void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
 }
 
 void trainHoldem(int iterations, const std::string& strategyOutputFile) {
-    CardSet communityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3h" }).getValue();
+    CardSet communityCards = buildCommunityCardsFromStrings({ "9s", "8h", "3s" }).getValue();
 
     PlayerArray<Holdem::Range> ranges = {
-        buildRangeFromStrings({"T9s", "44", "33", "22"}, communityCards).getValue(),
-        buildRangeFromStrings({"AA", "AK", "AQs", "KQs"}, communityCards).getValue(),
+        buildRangeFromStrings({ "AA", "KK", "QQ", "AK", "AQs", "A5s" }, communityCards).getValue(),
+        buildRangeFromStrings({ "QQ", "JJ", "TT", "99", "AKo", "AQ", "AJs", "ATs", "KQs", "KJs", "KTs", "QJs", "JTs", "T9s" }, communityCards).getValue(),
     };
 
     Holdem::Settings holdemSettings = {
         .ranges = ranges,
         .startingCommunityCards = communityCards,
-        .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{33, 50},
+        .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{50},
         .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{},
-        .startingPlayerWagers = 100,
-        .effectiveStackRemaining = 200,
+        .startingPlayerWagers = 50,
+        .effectiveStackRemaining = 100,
         .deadMoney = 0,
     };
 
@@ -51,6 +51,6 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
     // trainLeducPoker(10000, "leduc_strategy.json");
-    trainHoldem(500, "holdem_strategy.json");
+    trainHoldem(2, "holdem_strategy.json");
     return 0;
 }

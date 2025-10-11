@@ -12,7 +12,7 @@
 
 class Tree {
 public:
-    Tree() : m_trainingDataLength{ 0 }, m_numDecisionNodes{ 0 }, m_cfrTemporaryDataSize{ 0, 0 } {}
+    Tree() : m_trainingDataLength{ 0 }, m_numDecisionNodes{ 0 }, m_inputOutputSize{ 0, 0 } {}
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
@@ -38,8 +38,9 @@ public:
     std::vector<float> allStrategySums;
     std::vector<float> allRegretSums;
 
-    // Temporary space for CFR input / output, reset after every iteration
-    PlayerArray<std::vector<float>> allCfrTemporaryData;
+    // Temporary space for CFR, reset after every iteration
+    std::vector<float> allStrategies;
+    PlayerArray<std::vector<float>> allInputOutput;
 
 private:
     std::size_t createNode(const IGameRules& rules, const GameState& state);
@@ -50,7 +51,7 @@ private:
 
     std::size_t m_trainingDataLength;
     std::size_t m_numDecisionNodes;
-    PlayerArray<std::size_t> m_cfrTemporaryDataSize;
+    PlayerArray<std::size_t> m_inputOutputSize;
 };
 
 #endif // TREE_HPP

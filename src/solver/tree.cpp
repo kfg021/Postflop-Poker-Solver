@@ -22,7 +22,7 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
-    m_cfrTemporaryDataSize = {
+    m_inputOutputSize = {
         allNodes.size() * rules.getRangeHands(Player::P0).size(),
         allNodes.size() * rules.getRangeHands(Player::P1).size()
     };
@@ -53,12 +53,12 @@ std::size_t Tree::getTreeSkeletonSize() const {
 std::size_t Tree::estimateFullTreeSize() const {
     assert(isTreeSkeletonBuilt());
 
-    // allStrategySums and allRegretSums will each have length of trainingDataLength
-    std::size_t trainingDataHeapSize = (m_trainingDataLength * 2) * sizeof(float);
+    // allStrategySums, allRegretSums, and currentStrategies will each have length of trainingDataLength
+    std::size_t trainingDataHeapSize = (m_trainingDataLength * 3) * sizeof(float);
 
-    std::size_t temporaryDataHeapSize = (m_cfrTemporaryDataSize[Player::P0] + m_cfrTemporaryDataSize[Player::P1]) * sizeof(float);
+    std::size_t inputOutputSize = (m_inputOutputSize[Player::P0] + m_inputOutputSize[Player::P1]) * sizeof(float);
 
-    return getTreeSkeletonSize() + trainingDataHeapSize + temporaryDataHeapSize;
+    return getTreeSkeletonSize() + trainingDataHeapSize + inputOutputSize;
 }
 
 std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
@@ -178,9 +178,10 @@ void Tree::buildFullTree() {
 
     allStrategySums.assign(m_trainingDataLength, 0.0f);
     allRegretSums.assign(m_trainingDataLength, 0.0f);
+    allStrategies.assign(m_trainingDataLength, 0.0f);
 
-    allCfrTemporaryData[Player::P0].assign(m_cfrTemporaryDataSize[Player::P0], 0.0f);
-    allCfrTemporaryData[Player::P1].assign(m_cfrTemporaryDataSize[Player::P1], 0.0f);
+    allInputOutput[Player::P0].assign(m_inputOutputSize[Player::P0], 0.0f);
+    allInputOutput[Player::P1].assign(m_inputOutputSize[Player::P1], 0.0f);
 }
 
 std::size_t Tree::getRootNodeIndex() const {

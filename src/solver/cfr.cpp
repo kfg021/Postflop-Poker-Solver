@@ -15,7 +15,6 @@
 #include <vector>
 
 // TODO: Do arithmetic with doubles, then store result in floats
-// TODO: Reduce / eliminate vector heap allocations
 
 namespace {
 enum class TraversalMode : std::uint8_t {
@@ -34,15 +33,6 @@ struct TraversalConstants {
 
 int getRangeSize(Player player, const IGameRules& rules) {
     return static_cast<int>(rules.getRangeHands(player).size());
-}
-
-std::size_t getTrainingDataIndex(int action, int hand, const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
-    assert(action >= 0 && action < decisionNode.decisionDataSize);
-
-    int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
-    assert(hand >= 0 && hand < playerToActRangeSize);
-
-    return decisionNode.trainingDataOffset + (action * playerToActRangeSize) + hand;
 }
 
 std::size_t getExpectedValueIndex(int hand, std::size_t nodeIndex, const TraversalConstants& constants, const IGameRules& rules) {
@@ -69,12 +59,10 @@ bool areHandsAndBoardDisjoint(int heroIndex, int villainIndex, CardSet board, Pl
     return individualSize == combinedSize;
 };
 
-std::vector<std::vector<float>> getCurrentStrategy(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
+void writeCurrentStrategyToBuffer(const IGameRules& rules, const DecisionNode& decisionNode, Tree& tree) {
     int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
-
-    std::vector<std::vector<float>> currentStrategy(numActions, std::vector<float>(playerToActRangeSize));
 
     for (int hand = 0; hand < playerToActRangeSize; ++hand) {
         float totalPositiveRegret = 0.0f;
@@ -89,24 +77,23 @@ std::vector<std::vector<float>> getCurrentStrategy(const IGameRules& rules, cons
         if (totalPositiveRegret == 0.0f) {
             // Uniform strategy
             for (int action = 0; action < numActions; ++action) {
-                currentStrategy[action][hand] = 1.0f / numActions;
+                tree.allStrategies[getTrainingDataIndex(action, hand, rules, decisionNode, tree)] = 1.0f / numActions;
             }
         }
         else {
             for (int action = 0; action < numActions; ++action) {
-                float regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, rules, decisionNode, tree)];
+                std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
+                float regretSum = tree.allRegretSums[trainingIndex];
                 if (regretSum > 0.0f) {
-                    currentStrategy[action][hand] = regretSum / totalPositiveRegret;
+                    tree.allStrategies[trainingIndex] = regretSum / totalPositiveRegret;
                 }
                 else {
-                    currentStrategy[action][hand] = 0.0f;
+                    tree.allStrategies[trainingIndex] = 0.0f;
                 }
             }
         }
     }
-
-    return currentStrategy;
-};
+}
 
 void traverseTree(
     const Node& node,
@@ -217,20 +204,18 @@ void traverseDecision(
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
-        std::vector<std::vector<float>> strategies = getCurrentStrategy(rules, decisionNode, tree);
+        writeCurrentStrategyToBuffer(rules, decisionNode, tree);
 
         int heroRangeSize = getRangeSize(constants.hero, rules);
-        assert(heroRangeSize == strategies[0].size());
-
         int villainRangeSize = getRangeSize(getOpposingPlayer(constants.hero), rules);
 
         // Regret and strategy discounting for DCFR
         if (constants.mode == TraversalMode::DiscountedCfr) {
             for (int action = 0; action < numActions; ++action) {
                 for (int hand = 0; hand < heroRangeSize; ++hand) {
-                    std::size_t index = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
-                    float& regretSum = tree.allRegretSums[index];
-                    float& strategySum = tree.allStrategySums[index];
+                    std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
+                    float& regretSum = tree.allRegretSums[trainingIndex];
+                    float& strategySum = tree.allStrategySums[trainingIndex];
 
                     if (regretSum > 0.0f) {
                         regretSum *= constants.params.alphaT;
@@ -256,11 +241,12 @@ void traverseDecision(
             for (int hand = 0; hand < heroRangeSize; ++hand) {
                 std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
                 std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
+                std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
 
-                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex] * strategies[action][hand];
+                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex] * tree.allStrategies[trainingIndex];
 
                 // Regret update part 1 - add EV of action
-                float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, rules, decisionNode, tree)];
+                float& regretSum = tree.allRegretSums[trainingIndex];
                 regretSum += allExpectedValues[nextNodeEVIndex];
             }
         }
@@ -276,7 +262,7 @@ void traverseDecision(
                 regretSum -= allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, rules)];
 
                 // TODO: Do we need to weight by hero reach probs?
-                strategySum += strategies[action][hand];
+                strategySum += tree.allStrategies[trainingIndex];
 
                 // In CFR+, we erase negative regrets for faster convergence
                 if (constants.mode == TraversalMode::CfrPlus) {
@@ -301,10 +287,9 @@ void traverseDecision(
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
-        std::vector<std::vector<float>> strategies = getAverageStrategy(rules, decisionNode, tree);
+        writeAverageStrategyToBuffer(rules, decisionNode, tree);
 
         int heroRangeSize = getRangeSize(constants.hero, rules);
-        assert(heroRangeSize == strategies[0].size());
 
         for (int action = 0; action < numActions; ++action) {
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
@@ -318,7 +303,8 @@ void traverseDecision(
             for (int hand = 0; hand < heroRangeSize; ++hand) {
                 std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
                 std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
-                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex] * strategies[action][hand];
+                std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
+                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex] * tree.allStrategies[trainingIndex];
             }
         }
     };
@@ -383,11 +369,10 @@ void traverseDecision(
 
         Player villain = getOpposingPlayer(constants.hero);
 
-        std::vector<std::vector<float>> strategies = getCurrentStrategy(rules, decisionNode, tree);
+        writeCurrentStrategyToBuffer(rules, decisionNode, tree);
 
         int heroRangeSize = getRangeSize(constants.hero, rules);
         int villainRangeSize = getRangeSize(villain, rules);
-        assert(villainRangeSize == strategies[0].size());
 
         // Not the hero's turn; no strategy or regret updates
         for (int action = 0; action < numActions; ++action) {
@@ -399,7 +384,8 @@ void traverseDecision(
             for (int hand = 0; hand < villainRangeSize; ++hand) {
                 std::size_t oldReachIndex = getReachProbsIndex(hand, nodeIndex, constants, rules);
                 std::size_t newReachIndex = getReachProbsIndex(hand, nextNodeIndex, constants, rules);
-                allVillainReachProbs[newReachIndex] = allVillainReachProbs[oldReachIndex] * strategies[action][hand];
+                std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
+                allVillainReachProbs[newReachIndex] = allVillainReachProbs[oldReachIndex] * tree.allStrategies[trainingIndex];
             }
 
             traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
@@ -539,10 +525,11 @@ void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rul
 
     Player villain = getOpposingPlayer(constants.hero);
 
-    std::vector<float>& allVillainReachProbs = tree.allCfrTemporaryData[villain];
-    std::vector<float>& allExpectedValues = tree.allCfrTemporaryData[constants.hero];
+    std::vector<float>& allVillainReachProbs = tree.allInputOutput[villain];
+    std::vector<float>& allExpectedValues = tree.allInputOutput[constants.hero];
 
     // Reset temporary vectors
+    std::fill(tree.allStrategies.begin(), tree.allStrategies.end(), 0.0f);
     std::fill(allVillainReachProbs.begin(), allVillainReachProbs.end(), 0.0f);
     std::fill(allExpectedValues.begin(), allExpectedValues.end(), 0.0f);
 
@@ -608,7 +595,7 @@ float rootExpectedValue(
     const auto& heroRangeWeights = rules.getInitialRangeWeights(hero);
 
     std::size_t rootNodeIndex = tree.getRootNodeIndex();
-    const std::vector<float>& allExpectedValues = tree.allCfrTemporaryData[constants.hero];
+    const std::vector<float>& allExpectedValues = tree.allInputOutput[constants.hero];
 
     int heroRangeSize = getRangeSize(hero, rules);
     float expectedValue = 0.0f;
@@ -696,12 +683,10 @@ float bestResponseEV(
     return rootExpectedValue(hero, rules, tree, TraversalMode::BestResponse);
 }
 
-std::vector<std::vector<float>> getAverageStrategy(const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
+void writeAverageStrategyToBuffer(const IGameRules& rules, const DecisionNode& decisionNode, Tree& tree) {
     int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
-
-    std::vector<std::vector<float>> averageStrategy(numActions, std::vector<float>(playerToActRangeSize));
 
     for (int hand = 0; hand < playerToActRangeSize; ++hand) {
         float total = 0.0f;
@@ -713,16 +698,24 @@ std::vector<std::vector<float>> getAverageStrategy(const IGameRules& rules, cons
         if (total == 0.0f) {
             // Uniform strategy
             for (int action = 0; action < numActions; ++action) {
-                averageStrategy[action][hand] = 1.0f / numActions;
+                tree.allStrategies[getTrainingDataIndex(action, hand, rules, decisionNode, tree)] = 1.0f / numActions;
             }
         }
         else {
             for (int action = 0; action < numActions; ++action) {
-                float strategySum = tree.allStrategySums[getTrainingDataIndex(action, hand, rules, decisionNode, tree)];
-                averageStrategy[action][hand] = strategySum / total;
+                std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
+                float strategySum = tree.allStrategySums[trainingIndex];
+                tree.allStrategies[trainingIndex] = strategySum / total;
             }
         }
     }
+}
 
-    return averageStrategy;
+std::size_t getTrainingDataIndex(int action, int hand, const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
+    assert(action >= 0 && action < decisionNode.decisionDataSize);
+
+    int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
+    assert(hand >= 0 && hand < playerToActRangeSize);
+
+    return decisionNode.trainingDataOffset + (action * playerToActRangeSize) + hand;
 }
