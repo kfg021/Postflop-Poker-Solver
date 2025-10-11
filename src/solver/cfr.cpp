@@ -33,7 +33,7 @@ struct TraversalConstants {
 };
 
 int getRangeSize(Player player, const IGameRules& rules) {
-    return static_cast<int>(rules.getInitialRangeWeights(player).size());
+    return static_cast<int>(rules.getRangeHands(player).size());
 }
 
 std::size_t getTrainingDataIndex(int action, int hand, const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree) {
@@ -43,6 +43,19 @@ std::size_t getTrainingDataIndex(int action, int hand, const IGameRules& rules, 
     assert(hand >= 0 && hand < playerToActRangeSize);
 
     return decisionNode.trainingDataOffset + (action * playerToActRangeSize) + hand;
+}
+
+std::size_t getExpectedValueIndex(int hand, std::size_t nodeIndex, const TraversalConstants& constants, const IGameRules& rules) {
+    int heroRangeSize = getRangeSize(constants.hero, rules);
+    assert(hand < heroRangeSize);
+    return nodeIndex * heroRangeSize + hand;
+}
+
+std::size_t getReachProbsIndex(int hand, std::size_t nodeIndex, const TraversalConstants& constants, const IGameRules& rules) {
+    Player villain = getOpposingPlayer(constants.hero);
+    int villainRangeSize = getRangeSize(villain, rules);
+    assert(hand < villainRangeSize);
+    return nodeIndex * villainRangeSize + hand;
 }
 
 bool areHandsAndBoardDisjoint(int heroIndex, int villainIndex, CardSet board, Player hero, const IGameRules& rules) {
@@ -95,38 +108,38 @@ std::vector<std::vector<float>> getCurrentStrategy(const IGameRules& rules, cons
     return currentStrategy;
 };
 
-std::vector<float> traverseTree(
+void traverseTree(
     const Node& node,
+    std::size_t nodeIndex,
     const TraversalConstants& constants,
     const IGameRules& rules,
-    const std::vector<float>& villainReachProbs,
+    std::vector<float>& allVillainReachProbs,
+    std::vector<float>& allExpectedValues,
     Tree& tree
 );
 
-std::vector<float> traverseChance(
+void traverseChance(
     const ChanceNode& chanceNode,
+    std::size_t nodeIndex,
     const TraversalConstants& constants,
     const IGameRules& rules,
-    const std::vector<float>& villainReachProbs,
+    std::vector<float>& allVillainReachProbs,
+    std::vector<float>& allExpectedValues,
     Tree& tree
 ) {
-    int heroRangeSize = getRangeSize(constants.hero, rules);
-    std::vector<float> expectedValues(heroRangeSize, 0.0f);
+    auto areHandAndCardDisjoint = [&rules](Player player, int hand, CardID card) -> bool {
+        int playerRangeSize = getRangeSize(player, rules);
+        assert(hand < playerRangeSize);
+        return !setContainsCard(rules.getRangeHands(player)[hand], card);
+    };
+
+    Player hero = constants.hero;
+    Player villain = getOpposingPlayer(hero);
+
+    int heroRangeSize = getRangeSize(hero, rules);
+    int villainRangeSize = getRangeSize(villain, rules);
 
     int numChanceCards = chanceNode.chanceDataSize;
-    for (int i = 0; i < numChanceCards; ++i) {
-        CardID chanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + i];
-        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + i];
-        assert(nextNodeIndex < tree.allNodes.size());
-        const Node& nextNode = tree.allNodes[nextNodeIndex];
-
-        // TODO: Set impossible villain hands to 0 reach prob
-        std::vector<float> chanceCardExpectedValues = traverseTree(nextNode, constants, rules, villainReachProbs, tree);
-        for (int hand = 0; hand < heroRangeSize; ++hand) {
-            // TODO: Check for impossible hero hands
-            expectedValues[hand] += chanceCardExpectedValues[hand];
-        }
-    }
 
     // TODO: This should be a function in the rules interface
     const auto& heroRangeHands = rules.getRangeHands(constants.hero);
@@ -135,38 +148,81 @@ std::vector<float> traverseChance(
 
     // Normalize expected values by the number of total chance cards possible
     // Hero and villain both have a hand
-    int numPossibleChanceCards = numChanceCards - (2 * gameHandSize);
+    int chanceCardReachFactor = numChanceCards - (2 * gameHandSize);
 
-    for (int hand = 0; hand < heroRangeSize; ++hand) {
-        expectedValues[hand] /= static_cast<float>(numPossibleChanceCards);
+    for (int cardIndex = 0; cardIndex < numChanceCards; ++cardIndex) {
+        CardID chanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + cardIndex];
+        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + cardIndex];
+        assert(nextNodeIndex < tree.allNodes.size());
+        const Node& nextNode = tree.allNodes[nextNodeIndex];
+
+        // Update reach probabilities
+        for (int hand = 0; hand < villainRangeSize; ++hand) {
+            std::size_t oldReachIndex = getReachProbsIndex(hand, nodeIndex, constants, rules);
+            std::size_t newReachIndex = getReachProbsIndex(hand, nextNodeIndex, constants, rules);
+
+            if (areHandAndCardDisjoint(villain, hand, chanceCard)) {
+                allVillainReachProbs[newReachIndex] = allVillainReachProbs[oldReachIndex] / static_cast<float>(chanceCardReachFactor);
+            }
+            else {
+                allVillainReachProbs[newReachIndex] = 0.0f;
+            }
+        }
+
+        traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
+
+        for (int hand = 0; hand < heroRangeSize; ++hand) {
+            std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
+            std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
+
+            if (areHandAndCardDisjoint(hero, hand, chanceCard)) {
+                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex];
+            }
+            else {
+                assert(allExpectedValues[nextNodeEVIndex] == 0.0f);
+            }
+        }
     }
-
-    return expectedValues;
 }
 
 // TODO: Consider template for traverseDecision
-std::vector<float> traverseDecision(
+void traverseDecision(
     const DecisionNode& decisionNode,
+    std::size_t nodeIndex,
     const TraversalConstants& constants,
     const IGameRules& rules,
-    const std::vector<float>& villainReachProbs,
+    std::vector<float>& allVillainReachProbs,
+    std::vector<float>& allExpectedValues,
     Tree& tree
 ) {
+    auto copyReachProbs = [&nodeIndex, &constants, &rules, &allVillainReachProbs](std::size_t nextNodeIndex) -> void {
+        int villainRangeSize = getRangeSize(getOpposingPlayer(constants.hero), rules);
+        for (int hand = 0; hand < villainRangeSize; ++hand) {
+            std::size_t oldReachIndex = getReachProbsIndex(hand, nodeIndex, constants, rules);
+            std::size_t newReachIndex = getReachProbsIndex(hand, nextNodeIndex, constants, rules);
+            allVillainReachProbs[newReachIndex] = allVillainReachProbs[oldReachIndex];
+        }
+    };
+
     auto heroToActTraining = [
         &decisionNode,
+        &nodeIndex,
         &constants,
         &rules,
-        &villainReachProbs,
-        &tree
-    ]() -> std::vector<float> {
+        &allVillainReachProbs,
+        &allExpectedValues,
+        &tree,
+        &copyReachProbs
+    ]() {
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
         std::vector<std::vector<float>> strategies = getCurrentStrategy(rules, decisionNode, tree);
 
         int heroRangeSize = getRangeSize(constants.hero, rules);
-        std::vector<float> expectedValues(heroRangeSize, 0.0f);
         assert(heroRangeSize == strategies[0].size());
+
+        int villainRangeSize = getRangeSize(getOpposingPlayer(constants.hero), rules);
 
         // Regret and strategy discounting for DCFR
         if (constants.mode == TraversalMode::DiscountedCfr) {
@@ -193,15 +249,19 @@ std::vector<float> traverseDecision(
             assert(nextNodeIndex < tree.allNodes.size());
             const Node& nextNode = tree.allNodes[nextNodeIndex];
 
-            std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, villainReachProbs, tree);
-            assert(actionExpectedValues.size() == heroRangeSize);
+            copyReachProbs(nextNodeIndex);
+
+            traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
 
             for (int hand = 0; hand < heroRangeSize; ++hand) {
-                expectedValues[hand] += actionExpectedValues[hand] * strategies[action][hand];
+                std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
+                std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
+
+                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex] * strategies[action][hand];
 
                 // Regret update part 1 - add EV of action
                 float& regretSum = tree.allRegretSums[getTrainingDataIndex(action, hand, rules, decisionNode, tree)];
-                regretSum += actionExpectedValues[hand];
+                regretSum += allExpectedValues[nextNodeEVIndex];
             }
         }
 
@@ -209,11 +269,11 @@ std::vector<float> traverseDecision(
         // Strategy update
         for (int action = 0; action < numActions; ++action) {
             for (int hand = 0; hand < heroRangeSize; ++hand) {
-                std::size_t index = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
-                float& regretSum = tree.allRegretSums[index];
-                float& strategySum = tree.allStrategySums[index];
+                std::size_t trainingIndex = getTrainingDataIndex(action, hand, rules, decisionNode, tree);
+                float& regretSum = tree.allRegretSums[trainingIndex];
+                float& strategySum = tree.allStrategySums[trainingIndex];
 
-                regretSum -= expectedValues[hand];
+                regretSum -= allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, rules)];
 
                 // TODO: Do we need to weight by hero reach probs?
                 strategySum += strategies[action][hand];
@@ -226,24 +286,24 @@ std::vector<float> traverseDecision(
                 }
             }
         }
-
-        return expectedValues;
     };
 
     auto heroToActExpectedValue = [
         &decisionNode,
+        &nodeIndex,
         &constants,
         &rules,
-        &villainReachProbs,
-        &tree
-    ]() -> std::vector<float> {
+        &allVillainReachProbs,
+        &allExpectedValues,
+        &tree,
+        &copyReachProbs
+    ]() {
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
         std::vector<std::vector<float>> strategies = getAverageStrategy(rules, decisionNode, tree);
 
         int heroRangeSize = getRangeSize(constants.hero, rules);
-        std::vector<float> expectedValues(heroRangeSize, 0.0f);
         assert(heroRangeSize == strategies[0].size());
 
         for (int action = 0; action < numActions; ++action) {
@@ -251,60 +311,73 @@ std::vector<float> traverseDecision(
             assert(nextNodeIndex < tree.allNodes.size());
             const Node& nextNode = tree.allNodes[nextNodeIndex];
 
-            std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, villainReachProbs, tree);
-            assert(actionExpectedValues.size() == heroRangeSize);
+            copyReachProbs(nextNodeIndex);
+
+            traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
 
             for (int hand = 0; hand < heroRangeSize; ++hand) {
-                expectedValues[hand] += actionExpectedValues[hand] * strategies[action][hand];
+                std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
+                std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
+                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex] * strategies[action][hand];
             }
         }
-
-        return expectedValues;
     };
 
     auto heroToActBestResponse = [
         &decisionNode,
+        &nodeIndex,
         &constants,
         &rules,
-        &villainReachProbs,
-        &tree
-    ]() -> std::vector<float> {
+        &allVillainReachProbs,
+        &allExpectedValues,
+        &tree,
+        &copyReachProbs
+    ]() -> void {
         // To calculate best response, hero plays the maximally exploitative pure strategy
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
-        static constexpr float Infinity = std::numeric_limits<float>::infinity();
         int heroRangeSize = getRangeSize(constants.hero, rules);
-        std::vector<float> expectedValues(heroRangeSize, -INFINITY);
+
+        static constexpr float Infinity = std::numeric_limits<float>::infinity();
+
+        // Initialize all EVs to lowest possible 
+        for (int hand = 0; hand < heroRangeSize; ++hand) {
+            allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, rules)] = -Infinity;
+        }
 
         for (int action = 0; action < numActions; ++action) {
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
             assert(nextNodeIndex < tree.allNodes.size());
             const Node& nextNode = tree.allNodes[nextNodeIndex];
 
-            std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, villainReachProbs, tree);
-            assert(actionExpectedValues.size() == heroRangeSize);
+            copyReachProbs(nextNodeIndex);
+
+            traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
 
             for (int hand = 0; hand < heroRangeSize; ++hand) {
+                std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
+                std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
+
                 // For each action, play the action that leads to highest EV
-                expectedValues[hand] = std::max(expectedValues[hand], actionExpectedValues[hand]);
+                allExpectedValues[currentNodeEVIndex] = std::max(allExpectedValues[currentNodeEVIndex], allExpectedValues[nextNodeEVIndex]);
             }
         }
 
-        for (float f : expectedValues) {
-            assert(f != -Infinity);
+        for (int hand = 0; hand < heroRangeSize; ++hand) {
+            assert(allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, rules)] != -Infinity);
         }
-
-        return expectedValues;
     };
 
     auto villainToAct = [
         &decisionNode,
+        &nodeIndex,
         &constants,
         &rules,
-        &villainReachProbs,
+        &allVillainReachProbs,
+        &allExpectedValues,
         &tree
-    ]() -> std::vector<float> {
+    ]() -> void {
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
 
@@ -313,30 +386,30 @@ std::vector<float> traverseDecision(
         std::vector<std::vector<float>> strategies = getCurrentStrategy(rules, decisionNode, tree);
 
         int heroRangeSize = getRangeSize(constants.hero, rules);
-        std::vector<float> expectedValues(heroRangeSize, 0.0f);
-
-        int villainRangeSize = villainReachProbs.size();
-        assert(villainRangeSize == getRangeSize(villain, rules));
+        int villainRangeSize = getRangeSize(villain, rules);
         assert(villainRangeSize == strategies[0].size());
 
         // Not the hero's turn; no strategy or regret updates
         for (int action = 0; action < numActions; ++action) {
-            std::vector<float> newVillainReachProbs(villainRangeSize);
-            for (int hand = 0; hand < villainRangeSize; ++hand) {
-                newVillainReachProbs[hand] = villainReachProbs[hand] * strategies[action][hand];
-            }
-
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
             assert(nextNodeIndex < tree.allNodes.size());
             const Node& nextNode = tree.allNodes[nextNodeIndex];
 
-            std::vector<float> actionExpectedValues = traverseTree(nextNode, constants, rules, newVillainReachProbs, tree);
+            // Update reach probabilities
+            for (int hand = 0; hand < villainRangeSize; ++hand) {
+                std::size_t oldReachIndex = getReachProbsIndex(hand, nodeIndex, constants, rules);
+                std::size_t newReachIndex = getReachProbsIndex(hand, nextNodeIndex, constants, rules);
+                allVillainReachProbs[newReachIndex] = allVillainReachProbs[oldReachIndex] * strategies[action][hand];
+            }
+
+            traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
+
             for (int hand = 0; hand < heroRangeSize; ++hand) {
-                expectedValues[hand] += actionExpectedValues[hand];
+                std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, rules);
+                std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, rules);
+                allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex];
             }
         }
-
-        return expectedValues;
     };
 
     if (constants.hero == decisionNode.player) {
@@ -344,53 +417,57 @@ std::vector<float> traverseDecision(
             case TraversalMode::VanillaCfr:
             case TraversalMode::CfrPlus:
             case TraversalMode::DiscountedCfr:
-                return heroToActTraining();
+                heroToActTraining();
+                break;
             case TraversalMode::ExpectedValue:
-                return heroToActExpectedValue();
+                heroToActExpectedValue();
+                break;
             case TraversalMode::BestResponse:
-                return heroToActBestResponse();
+                heroToActBestResponse();
+                break;
             default:
                 assert(false);
                 break;
         }
     }
     else {
-        return villainToAct();
+        villainToAct();
     }
 }
 
-std::vector<float> traverseFold(
+void traverseFold(
     const FoldNode& foldNode,
+    std::size_t nodeIndex,
     const TraversalConstants& constants,
     const IGameRules& rules,
-    const std::vector<float>& villainReachProbs
+    std::vector<float>& allVillainReachProbs,
+    std::vector<float>& allExpectedValues
 ) {
     Player villain = getOpposingPlayer(constants.hero);
 
     int heroRangeSize = getRangeSize(constants.hero, rules);
-    int villainRangeSize = villainReachProbs.size();
-    assert(villainRangeSize == getRangeSize(villain, rules));
+    int villainRangeSize = getRangeSize(villain, rules);
 
     int heroReward = (foldNode.remainingPlayer == constants.hero) ? foldNode.remainingPlayerReward : -foldNode.remainingPlayerReward;
-
-    std::vector<float> expectedValues(heroRangeSize, 0.0f);
 
     for (int i = 0; i < heroRangeSize; ++i) {
         for (int j = 0; j < villainRangeSize; ++j) {
             if (areHandsAndBoardDisjoint(i, j, foldNode.board, constants.hero, rules)) {
-                expectedValues[i] += static_cast<float>(heroReward) * villainReachProbs[j];
+                std::size_t expectedValueIndex = getExpectedValueIndex(i, nodeIndex, constants, rules);
+                std::size_t reachProbsIndex = getReachProbsIndex(j, nodeIndex, constants, rules);
+                allExpectedValues[expectedValueIndex] += static_cast<float>(heroReward) * allVillainReachProbs[reachProbsIndex];
             }
         }
     }
-
-    return expectedValues;
 }
 
-std::vector<float> traverseShowdown(
+void traverseShowdown(
     const ShowdownNode& showdownNode,
+    std::size_t nodeIndex,
     const TraversalConstants& constants,
     const IGameRules& rules,
-    const std::vector<float>& villainReachProbs
+    std::vector<float>& allVillainReachProbs,
+    std::vector<float>& allExpectedValues
 ) {
     auto getMultiplier = [&showdownNode, &constants, &rules](int heroIndex, int villainIndex) -> int {
         PlayerArray<int> playerIndices = (constants.hero == Player::P0) ?
@@ -409,58 +486,81 @@ std::vector<float> traverseShowdown(
                 return 0;
         }
     };
+
     Player villain = getOpposingPlayer(constants.hero);
 
     int heroRangeSize = getRangeSize(constants.hero, rules);
-    int villainRangeSize = villainReachProbs.size();
-    assert(villainRangeSize == getRangeSize(villain, rules));
-
-    std::vector<float> expectedValues(heroRangeSize, 0.0f);
+    int villainRangeSize = getRangeSize(villain, rules);
 
     for (int i = 0; i < heroRangeSize; ++i) {
         for (int j = 0; j < villainRangeSize; ++j) {
             if (areHandsAndBoardDisjoint(i, j, showdownNode.board, constants.hero, rules)) {
                 float heroReward = static_cast<float>(getMultiplier(i, j)) * static_cast<float>(showdownNode.reward);
-                expectedValues[i] += heroReward * villainReachProbs[j];
+                std::size_t expectedValueIndex = getExpectedValueIndex(i, nodeIndex, constants, rules);
+                std::size_t reachProbsIndex = getReachProbsIndex(j, nodeIndex, constants, rules);
+                allExpectedValues[expectedValueIndex] += heroReward * allVillainReachProbs[reachProbsIndex];
             }
         }
     }
-
-    return expectedValues;
 }
 
-std::vector<float> traverseTree(
+void traverseTree(
     const Node& node,
+    std::size_t nodeIndex,
     const TraversalConstants& constants,
     const IGameRules& rules,
-    const std::vector<float>& villainReachProbs,
+    std::vector<float>& allVillainReachProbs,
+    std::vector<float>& allExpectedValues,
     Tree& tree
 ) {
     assert(tree.isTreeSkeletonBuilt() && tree.isFullTreeBuilt());
 
     switch (node.getNodeType()) {
         case NodeType::Chance:
-            return traverseChance(node.chanceNode, constants, rules, villainReachProbs, tree);
+            traverseChance(node.chanceNode, nodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
+            break;
         case NodeType::Decision:
-            return traverseDecision(node.decisionNode, constants, rules, villainReachProbs, tree);
+            traverseDecision(node.decisionNode, nodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
+            break;
         case NodeType::Fold:
-            return traverseFold(node.foldNode, constants, rules, villainReachProbs);
+            traverseFold(node.foldNode, nodeIndex, constants, rules, allVillainReachProbs, allExpectedValues);
+            break;
         case NodeType::Showdown:
-            return traverseShowdown(node.showdownNode, constants, rules, villainReachProbs);
+            traverseShowdown(node.showdownNode, nodeIndex, constants, rules, allVillainReachProbs, allExpectedValues);
+            break;
         default:
             assert(false);
-            return {};
+            break;
     }
 }
 
-std::vector<float> traverseFromRoot(const TraversalConstants& constants, const IGameRules& rules, Tree& tree) {
+void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rules, Tree& tree) {
     std::size_t rootNodeIndex = tree.getRootNodeIndex();
-    std::vector<float> villainReachProbs = rules.getInitialRangeWeights(getOpposingPlayer(constants.hero));
+
+    Player villain = getOpposingPlayer(constants.hero);
+
+    std::vector<float>& allVillainReachProbs = tree.allCfrTemporaryData[villain];
+    std::vector<float>& allExpectedValues = tree.allCfrTemporaryData[constants.hero];
+
+    // Reset temporary vectors
+    std::fill(allVillainReachProbs.begin(), allVillainReachProbs.end(), 0.0f);
+    std::fill(allExpectedValues.begin(), allExpectedValues.end(), 0.0f);
+
+    const auto& initialRangeWeights = rules.getInitialRangeWeights(villain);
+
+    int villainRangeSize = getRangeSize(villain, rules);
+    for (int hand = 0; hand < villainRangeSize; ++hand) {
+        std::size_t reachIndex = getReachProbsIndex(hand, rootNodeIndex, constants, rules);
+        allVillainReachProbs[reachIndex] = initialRangeWeights[hand];
+    }
+
     return traverseTree(
         tree.allNodes[rootNodeIndex],
+        rootNodeIndex,
         constants,
         rules,
-        villainReachProbs,
+        allVillainReachProbs,
+        allExpectedValues,
         tree
     );
 }
@@ -503,13 +603,17 @@ float rootExpectedValue(
        .params = {} // No params needed for expected value
     };
 
-    std::vector<float> expectedValueRange = traverseFromRoot(constants, rules, tree);
-    const auto& heroRangeWeights = rules.getInitialRangeWeights(hero);
-    assert(expectedValueRange.size() == heroRangeWeights.size());
+    traverseFromRoot(constants, rules, tree);
 
+    const auto& heroRangeWeights = rules.getInitialRangeWeights(hero);
+
+    std::size_t rootNodeIndex = tree.getRootNodeIndex();
+    const std::vector<float>& allExpectedValues = tree.allCfrTemporaryData[constants.hero];
+
+    int heroRangeSize = getRangeSize(hero, rules);
     float expectedValue = 0.0f;
-    for (int i = 0; i < expectedValueRange.size(); ++i) {
-        expectedValue += expectedValueRange[i] * heroRangeWeights[i];
+    for (int hand = 0; hand < heroRangeSize; ++hand) {
+        expectedValue += allExpectedValues[getExpectedValueIndex(hand, rootNodeIndex, constants, rules)] * heroRangeWeights[hand];
     }
 
     // TODO: Check if totalRangeWeight is 0 before we even build the tree
@@ -544,7 +648,7 @@ void vanillaCfr(
         .params = {} // No params needed for vanilla CFR
     };
 
-    static_cast<void>(traverseFromRoot(constants, rules, tree));
+    traverseFromRoot(constants, rules, tree);
 }
 
 void cfrPlus(
@@ -558,7 +662,7 @@ void cfrPlus(
         .params = {} // No params needed for CFR+
     };
 
-    static_cast<void>(traverseFromRoot(constants, rules, tree));
+    traverseFromRoot(constants, rules, tree);
 }
 
 void discountedCfr(
@@ -573,7 +677,7 @@ void discountedCfr(
         .params = params
     };
 
-    static_cast<void>(traverseFromRoot(constants, rules, tree));
+    traverseFromRoot(constants, rules, tree);
 }
 
 float expectedValue(
@@ -581,7 +685,7 @@ float expectedValue(
     const IGameRules& rules,
     Tree& tree
 ) {
-   return rootExpectedValue(hero, rules, tree, TraversalMode::ExpectedValue);
+    return rootExpectedValue(hero, rules, tree, TraversalMode::ExpectedValue);
 }
 
 float bestResponseEV(
