@@ -25,6 +25,7 @@ enum class TraversalMode : std::uint8_t {
     BestResponse
 };
 
+// TODO: Add range sizes to TraversalConstants
 struct TraversalConstants {
     Player hero;
     TraversalMode mode;
@@ -47,17 +48,6 @@ std::size_t getReachProbsIndex(int hand, std::size_t nodeIndex, const TraversalC
     assert(hand < villainRangeSize);
     return nodeIndex * villainRangeSize + hand;
 }
-
-bool areHandsAndBoardDisjoint(int heroIndex, int villainIndex, CardSet board, Player hero, const IGameRules& rules) {
-    CardSet heroHand = rules.getRangeHands(hero)[heroIndex];
-    CardSet villainHand = rules.getRangeHands(getOpposingPlayer(hero))[villainIndex];
-
-    int individualSize = getSetSize(heroHand) + getSetSize(villainHand) + getSetSize(board);
-    int combinedSize = getSetSize(heroHand | villainHand | board);
-    assert(individualSize >= combinedSize);
-
-    return individualSize == combinedSize;
-};
 
 void writeCurrentStrategyToBuffer(const IGameRules& rules, const DecisionNode& decisionNode, Tree& tree) {
     int playerToActRangeSize = getRangeSize(decisionNode.player, rules);
@@ -434,15 +424,20 @@ void traverseFold(
     int heroRangeSize = getRangeSize(constants.hero, rules);
     int villainRangeSize = getRangeSize(villain, rules);
 
+    const auto& heroHands = rules.getRangeHands(constants.hero);
+    const auto& villainHands = rules.getRangeHands(villain);
+
     int heroReward = (foldNode.remainingPlayer == constants.hero) ? foldNode.remainingPlayerReward : -foldNode.remainingPlayerReward;
 
     for (int i = 0; i < heroRangeSize; ++i) {
+        if (!areSetsDisjoint(heroHands[i], foldNode.board)) continue;
+
         for (int j = 0; j < villainRangeSize; ++j) {
-            if (areHandsAndBoardDisjoint(i, j, foldNode.board, constants.hero, rules)) {
-                std::size_t expectedValueIndex = getExpectedValueIndex(i, nodeIndex, constants, rules);
-                std::size_t reachProbsIndex = getReachProbsIndex(j, nodeIndex, constants, rules);
-                allExpectedValues[expectedValueIndex] += static_cast<float>(heroReward) * allVillainReachProbs[reachProbsIndex];
-            }
+            if (!areSetsDisjoint(heroHands[i] | foldNode.board, villainHands[j])) continue;
+
+            std::size_t expectedValueIndex = getExpectedValueIndex(i, nodeIndex, constants, rules);
+            std::size_t reachProbsIndex = getReachProbsIndex(j, nodeIndex, constants, rules);
+            allExpectedValues[expectedValueIndex] += static_cast<float>(heroReward) * allVillainReachProbs[reachProbsIndex];
         }
     }
 }
@@ -478,14 +473,19 @@ void traverseShowdown(
     int heroRangeSize = getRangeSize(constants.hero, rules);
     int villainRangeSize = getRangeSize(villain, rules);
 
+    const auto& heroHands = rules.getRangeHands(constants.hero);
+    const auto& villainHands = rules.getRangeHands(villain);
+
     for (int i = 0; i < heroRangeSize; ++i) {
+        if (!areSetsDisjoint(heroHands[i], showdownNode.board)) continue;
+
         for (int j = 0; j < villainRangeSize; ++j) {
-            if (areHandsAndBoardDisjoint(i, j, showdownNode.board, constants.hero, rules)) {
-                float heroReward = static_cast<float>(getMultiplier(i, j)) * static_cast<float>(showdownNode.reward);
-                std::size_t expectedValueIndex = getExpectedValueIndex(i, nodeIndex, constants, rules);
-                std::size_t reachProbsIndex = getReachProbsIndex(j, nodeIndex, constants, rules);
-                allExpectedValues[expectedValueIndex] += heroReward * allVillainReachProbs[reachProbsIndex];
-            }
+            if (!areSetsDisjoint(heroHands[i] | showdownNode.board, villainHands[j])) continue;
+
+            float heroReward = static_cast<float>(getMultiplier(i, j)) * static_cast<float>(showdownNode.reward);
+            std::size_t expectedValueIndex = getExpectedValueIndex(i, nodeIndex, constants, rules);
+            std::size_t reachProbsIndex = getReachProbsIndex(j, nodeIndex, constants, rules);
+            allExpectedValues[expectedValueIndex] += heroReward * allVillainReachProbs[reachProbsIndex];
         }
     }
 }
@@ -567,15 +567,20 @@ float rootExpectedValue(
         int heroRangeSize = heroRangeWeights.size();
         int villainRangeSize = villainRangeWeights.size();
 
+        const auto& heroHands = rules.getRangeHands(hero);
+        const auto& villainHands = rules.getRangeHands(villain);
+
         CardSet startingBoard = rules.getInitialGameState().currentBoard;
 
         float totalRangeWeight = 0.0f;
 
         for (int i = 0; i < heroRangeSize; ++i) {
+            if (!areSetsDisjoint(heroHands[i], startingBoard)) continue;
+
             for (int j = 0; j < villainRangeSize; ++j) {
-                if (areHandsAndBoardDisjoint(i, j, startingBoard, hero, rules)) {
-                    totalRangeWeight += heroRangeWeights[i] * villainRangeWeights[j];
-                }
+                if (!areSetsDisjoint(heroHands[i] | startingBoard, villainHands[j])) continue;
+
+                totalRangeWeight += heroRangeWeights[i] * villainRangeWeights[j];
             }
         }
 

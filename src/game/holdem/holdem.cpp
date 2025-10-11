@@ -402,6 +402,8 @@ ShowdownResult Holdem::getShowdownResult(PlayerArray<int> handIndices, CardSet b
             break;
         default:
             assert(false);
+            runoutIndex = 0;
+            break;
     }
 
     int player0Index = (runoutIndex * m_settings.ranges[Player::P0].hands.size()) + handIndices[Player::P0];
