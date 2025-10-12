@@ -53,7 +53,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     }
 
     auto& strategy = j["Strategy"];
-    writeAverageStrategyToBuffer(rules, decisionNode, tree);
+    writeAverageStrategyToBuffer(decisionNode, tree);
 
     const auto& playerHands = rules.getRangeHands(decisionNode.player);
     for (int i = 0; i < playerHands.size(); ++i) {
@@ -70,7 +70,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
         }
 
         for (int action = 0; action < decisionNode.decisionDataSize; ++action) {
-            strategy[handName].push_back(tree.allStrategies[getTrainingDataIndex(action, i, rules, decisionNode, tree)]);
+            strategy[handName].push_back(tree.allStrategies[getTrainingDataIndex(action, i, decisionNode, tree)]);
         }
     }
 

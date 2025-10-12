@@ -48,8 +48,8 @@ float bestResponseEV(
     Tree& tree
 );
 
-void writeAverageStrategyToBuffer(const IGameRules& rules, const DecisionNode& decisionNode, Tree& tree);
+void writeAverageStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree);
 
-std::size_t getTrainingDataIndex(int action, int hand, const IGameRules& rules, const DecisionNode& decisionNode, const Tree& tree);
+std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree);
 
 #endif // CFR_HPP

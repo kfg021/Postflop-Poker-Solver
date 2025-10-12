@@ -66,11 +66,10 @@ TEST(EndToEndTest, KuhnPoker) {
         return nextNode.decisionNode;
     };
 
-    auto getStrategyValue = [&kuhnPokerRules, &tree](std::uint8_t action, std::uint8_t hand, const DecisionNode& decisionNode) -> float {
+    auto getStrategyValue = [&tree](std::uint8_t action, std::uint8_t hand, const DecisionNode& decisionNode) -> float {
         std::size_t trainingIndex = getTrainingDataIndex(
             static_cast<int>(action),
             static_cast<int>(hand),
-            kuhnPokerRules,
             decisionNode,
             tree
         );
@@ -81,7 +80,7 @@ TEST(EndToEndTest, KuhnPoker) {
     // The first player is free to choose a probability 0 <= alpha <= 1/3 that they will bet with a Jack
     const Node& root = tree.allNodes[tree.getRootNodeIndex()];
     ASSERT_EQ(root.getNodeType(), NodeType::Decision);
-    writeAverageStrategyToBuffer(kuhnPokerRules, root.decisionNode, tree);
+    writeAverageStrategyToBuffer(root.decisionNode, tree);
     float alpha = getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Jack, root.decisionNode);
     ASSERT_GE(alpha, 0.0f);
     ASSERT_LE(alpha, 1.0f / 3.0f);
@@ -90,21 +89,21 @@ TEST(EndToEndTest, KuhnPoker) {
 
     // Check, player 1 to act
     DecisionNode check = getNextDecisionNode(root.decisionNode, KuhnActionID::CheckOrFold);
-    writeAverageStrategyToBuffer(kuhnPokerRules, check, tree);
+    writeAverageStrategyToBuffer(check, tree);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Jack, check), 1.0f / 3.0f, StrategyEpsilon);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Queen, check), 0.0f, StrategyEpsilon);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::King, check), 1.0f, StrategyEpsilon);
 
     // Check Bet, player 0 to act
     DecisionNode checkBet = getNextDecisionNode(check, KuhnActionID::BetOrCall);
-    writeAverageStrategyToBuffer(kuhnPokerRules, checkBet, tree);
+    writeAverageStrategyToBuffer(checkBet, tree);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Jack, checkBet), 0.0f, StrategyEpsilon);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Queen, checkBet), alpha + (1.0f / 3.0f), StrategyEpsilon);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::King, checkBet), 1.0f, StrategyEpsilon);
 
     // Bet, player 1 to act
     DecisionNode bet = getNextDecisionNode(root.decisionNode, KuhnActionID::BetOrCall);
-    writeAverageStrategyToBuffer(kuhnPokerRules, bet, tree);
+    writeAverageStrategyToBuffer(bet, tree);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Jack, bet), 0.0f, StrategyEpsilon);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::Queen, bet), 1.0f / 3.0f, StrategyEpsilon);
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::King, bet), 1.0f, StrategyEpsilon);

@@ -22,9 +22,14 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
+    rangeHands = {
+        rules.getRangeHands(Player::P0),
+        rules.getRangeHands(Player::P1)
+    };
+
     rangeSize = {
-        static_cast<int>(rules.getRangeHands(Player::P0).size()),
-        static_cast<int>(rules.getRangeHands(Player::P1).size()),
+        static_cast<int>(rangeHands[Player::P0].size()),
+        static_cast<int>(rangeHands[Player::P1].size()),
     };
 
     m_inputOutputSize = {

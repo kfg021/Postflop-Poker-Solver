@@ -23,6 +23,8 @@ public:
     void buildFullTree();
     std::size_t getRootNodeIndex() const;
 
+    // Game data
+    PlayerArray<std::vector<CardSet>> rangeHands;
     PlayerArray<int> rangeSize;
 
     // Vector containing all nodes
