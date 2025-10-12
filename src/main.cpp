@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+namespace {
 void trainKuhnPoker(int iterations, const std::string& strategyOutputFile) {
     const KuhnPoker kuhnPokerRules;
     const int PrintFrequency = 0;
@@ -47,6 +48,7 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
 
     train(holdemRules, iterations, PrintFrequency, strategyOutputFile);
 }
+} // namespace
 
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
