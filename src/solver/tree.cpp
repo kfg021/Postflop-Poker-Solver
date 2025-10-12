@@ -22,9 +22,14 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
+    rangeSize = {
+        static_cast<int>(rules.getRangeHands(Player::P0).size()),
+        static_cast<int>(rules.getRangeHands(Player::P1).size()),
+    };
+
     m_inputOutputSize = {
-        allNodes.size() * rules.getRangeHands(Player::P0).size(),
-        allNodes.size() * rules.getRangeHands(Player::P1).size()
+        allNodes.size() * rangeSize[Player::P0],
+        allNodes.size() * rangeSize[Player::P1]
     };
 
     // Free unnecessary memory - vectors are done growing

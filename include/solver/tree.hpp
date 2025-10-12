@@ -12,7 +12,7 @@
 
 class Tree {
 public:
-    Tree() : m_trainingDataLength{ 0 }, m_numDecisionNodes{ 0 }, m_inputOutputSize{ 0, 0 } {}
+    Tree() : rangeSize{ 0, 0 }, m_trainingDataLength{ 0 }, m_numDecisionNodes{ 0 }, m_inputOutputSize{ 0, 0 } {}
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
@@ -23,7 +23,7 @@ public:
     void buildFullTree();
     std::size_t getRootNodeIndex() const;
 
-    // Using SoA instead of AoS for performance
+    PlayerArray<int> rangeSize;
 
     // Vector containing all nodes
     std::vector<Node> allNodes;
