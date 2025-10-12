@@ -57,7 +57,8 @@ std::size_t Tree::getTreeSkeletonSize() const {
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
     std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID)) + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
     std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID)) + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t));
-    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize;
+    std::size_t rangeHandsHeapSize = (rangeHands[Player::P0].capacity() + rangeHands[Player::P1].capacity()) * sizeof(CardSet);
+    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandsHeapSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
