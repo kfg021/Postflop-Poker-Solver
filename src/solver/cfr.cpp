@@ -101,8 +101,7 @@ void traverseChance(
     Tree& tree
 ) {
     auto areHandAndCardDisjoint = [&tree](Player player, int hand, CardID card) -> bool {
-        int playerRangeSize = tree.rangeSize[player];
-        assert(hand < playerRangeSize);
+        assert(hand < tree.rangeSize[player]);
         return !setContainsCard(tree.rangeHands[player][hand], card);
     };
 
