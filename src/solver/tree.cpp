@@ -10,6 +10,35 @@
 #include <cstdint>
 #include <vector>
 
+namespace {
+// sameHandIndexTable[p][i] = j iff the ith entry in player p's range is equal to the jth entry in the other player's range
+// (or -1 if no such index exists)
+// Used to calculate showdown and fold equity
+PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
+    const auto& player0Hands = rules.getRangeHands(Player::P0);
+    const auto& player1Hands = rules.getRangeHands(Player::P1);
+
+    int player0RangeSize = player0Hands.size();
+    int player1RangeSize = player0Hands.size();
+
+    PlayerArray<std::vector<int>> sameHandIndexTable = {
+        std::vector<int>(player0RangeSize, -1),
+        std::vector<int>(player1RangeSize, -1)
+    };
+
+    for (int i = 0; i < player0RangeSize; ++i) {
+        for (int j = i; j < player1RangeSize; ++j) {
+            if(player0Hands[i] == player1Hands[j]) {
+                sameHandIndexTable[Player::P0][i] = j;
+                sameHandIndexTable[Player::P1][j] = i;
+            }
+        }
+    }
+
+    return sameHandIndexTable;
+}
+} // namespace
+
 bool Tree::isTreeSkeletonBuilt() const {
     return !allNodes.empty();
 }
@@ -31,6 +60,14 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
         static_cast<int>(rangeHands[Player::P0].size()),
         static_cast<int>(rangeHands[Player::P1].size()),
     };
+
+    sameHandIndexTable = buildSameHandIndexTable(rules);
+
+    // For now only games with 1 or 2 card hands are supported
+    assert(!rangeHands[Player::P0].empty());
+    assert(!rangeHands[Player::P1].empty());
+    gameHandSize = getSetSize(rangeHands[Player::P0][0]);
+    assert(gameHandSize == 1 || gameHandSize == 2);
 
     m_inputOutputSize = {
         allNodes.size() * rangeSize[Player::P0],

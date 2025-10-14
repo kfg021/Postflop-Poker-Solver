@@ -13,6 +13,7 @@ constexpr int MaxNumActions = holdem::MaxNumActions;
 using ActionID = std::uint8_t;
 using CardID = std::uint8_t;
 using CardSet = std::uint64_t;
+using HandRank = std::uint32_t;
 
 enum class Player : std::uint8_t {
     P0,
@@ -30,12 +31,6 @@ enum class NodeType : std::uint8_t {
     Decision,
     Fold,
     Showdown
-};
-
-enum class ShowdownResult : std::uint8_t {
-    P0Win,
-    P1Win,
-    Tie
 };
 
 enum class Value : std::uint8_t {

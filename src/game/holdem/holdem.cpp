@@ -382,7 +382,7 @@ const std::vector<float>& Holdem::getInitialRangeWeights(Player player) const {
     return m_settings.ranges[player].weights;
 }
 
-ShowdownResult Holdem::getShowdownResult(PlayerArray<int> handIndices, CardSet board) const {
+HandRank Holdem::getHandRank(Player player, int handIndex, CardSet board) const {
     assert(getSetSize(board) == 5);
 
     CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
@@ -406,24 +406,8 @@ ShowdownResult Holdem::getShowdownResult(PlayerArray<int> handIndices, CardSet b
             break;
     }
 
-    int player0Index = (runoutIndex * m_settings.ranges[Player::P0].hands.size()) + handIndices[Player::P0];
-    int player1Index = (runoutIndex * m_settings.ranges[Player::P1].hands.size()) + handIndices[Player::P1];
-
-    std::uint32_t player0HandRank = m_handRanks[Player::P0][player0Index];
-    std::uint32_t player1HandRank = m_handRanks[Player::P1][player1Index];
-
-    // 0 is designed to be an invalid ranking
-    assert((player0HandRank != 0) && (player1HandRank != 0));
-
-    if (player0HandRank > player1HandRank) {
-        return ShowdownResult::P0Win;
-    }
-    else if (player1HandRank > player0HandRank) {
-        return ShowdownResult::P1Win;
-    }
-    else {
-        return ShowdownResult::Tie;
-    }
+    int handRankIndex = (runoutIndex * m_settings.ranges[Player::P0].hands.size()) + handIndex;
+    return m_handRanks[Player::P0][handRankIndex];
 }
 
 std::string Holdem::getActionName(ActionID actionID) const {
@@ -467,7 +451,7 @@ std::string Holdem::getActionName(ActionID actionID) const {
 }
 
 void Holdem::buildHandRankTables() {
-    std::unordered_map<CardSet, std::uint32_t> seenFiveCardHandRanks;
+    std::unordered_map<CardSet, HandRank> seenFiveCardHandRanks;
 
     auto insertSevenCardHandRank = [this, &seenFiveCardHandRanks](Player player, CardSet board, int index) -> void {
         assert(getSetSize(board) == 7);
@@ -479,13 +463,13 @@ void Holdem::buildHandRankTables() {
         }
         assert(temp == 0);
 
-        std::uint32_t handRanking = 0;
+        HandRank handRanking = 0;
         for (int i = 0; i < 7; ++i) {
             for (int j = i + 1; j < 7; ++j) {
                 CardSet cardsToIgnore = cardIDToSet(sevenCardArray[i]) | cardIDToSet(sevenCardArray[j]);
                 CardSet fiveCardHand = board & ~cardsToIgnore;
 
-                std::uint32_t fiveCardHandRanking;
+                HandRank fiveCardHandRanking;
                 auto it = seenFiveCardHandRanks.find(fiveCardHand);
                 if (it != seenFiveCardHandRanks.end()) {
                     fiveCardHandRanking = it->second;

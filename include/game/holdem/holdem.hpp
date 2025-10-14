@@ -47,7 +47,7 @@ public:
     FixedVector<GameState, MaxNumDealCards> getNewStatesAfterChance(const GameState& state) const override;
     const std::vector<CardSet>& getRangeHands(Player player) const override;
     const std::vector<float>& getInitialRangeWeights(Player player) const override;
-    ShowdownResult getShowdownResult(PlayerArray<int> handIndices, CardSet board) const override;
+    HandRank getHandRank(Player player, int handIndex, CardSet board) const override;
     std::string getActionName(ActionID actionID) const override;
 
 private:
@@ -57,7 +57,7 @@ private:
     Street getStartingStreet() const;
 
     Settings m_settings;
-    PlayerArray<std::vector<std::uint32_t>> m_handRanks;
+    PlayerArray<std::vector<HandRank>> m_handRanks;
 };
 
 #endif // HOLDEM_HPP

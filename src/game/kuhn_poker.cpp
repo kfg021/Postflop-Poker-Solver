@@ -129,18 +129,12 @@ const std::vector<float>& KuhnPoker::getInitialRangeWeights(Player /*player*/) c
     return Weights;
 }
 
-ShowdownResult KuhnPoker::getShowdownResult(PlayerArray<int> handIndices, CardSet /*board*/) const {
-    CardSet player0Hand = PossibleHands[handIndices[Player::P0]];
-    CardSet player1Hand = PossibleHands[handIndices[Player::P1]];
+HandRank KuhnPoker::getHandRank(Player /*player*/, int handIndex, CardSet /*board*/) const {
+    CardSet hand = PossibleHands[handIndex];
+    assert(getSetSize(hand) == 1);
 
-    assert(getSetSize(player0Hand) == 1);
-    assert(getSetSize(player1Hand) == 1);
-
-    Value player0CardValue = getCardValue(getLowestCardInSet(player0Hand));
-    Value player1CardValue = getCardValue(getLowestCardInSet(player1Hand));
-    assert(player0CardValue != player1CardValue);
-
-    return (player0CardValue > player1CardValue) ? ShowdownResult::P0Win : ShowdownResult::P1Win;
+    Value cardValue = getCardValue(getLowestCardInSet(hand));
+    return static_cast<HandRank>(cardValue);
 }
 
 std::string KuhnPoker::getActionName(ActionID actionID) const {

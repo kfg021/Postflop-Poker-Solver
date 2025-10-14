@@ -179,36 +179,21 @@ const std::vector<float>& LeducPoker::getInitialRangeWeights(Player /*player*/) 
     return Weights;
 }
 
-ShowdownResult LeducPoker::getShowdownResult(PlayerArray<int> handIndices, CardSet board) const {
-    CardSet player0Hand = PossibleHands[handIndices[Player::P0]];
-    CardSet player1Hand = PossibleHands[handIndices[Player::P1]];
-
-    assert(getSetSize(player0Hand) == 1);
-    assert(getSetSize(player1Hand) == 1);
+HandRank LeducPoker::getHandRank(Player /*player*/, int handIndex, CardSet board) const {
+    CardSet hand = PossibleHands[handIndex];
+    assert(getSetSize(hand) == 1);
     assert(getSetSize(board) == 1);
 
-    Value player0CardValue = getCardValue(getLowestCardInSet(player0Hand));
-    Value player1CardValue = getCardValue(getLowestCardInSet(player1Hand));
+    Value handCardValue = getCardValue(getLowestCardInSet(hand));
     Value boardCardValue = getCardValue(getLowestCardInSet(board));
 
-    if (player0CardValue == boardCardValue) {
-        // Pair - P0 wins
-        return ShowdownResult::P0Win;
-    }
-    else if (player1CardValue == boardCardValue) {
-        // Pair - P1 wins
-        return ShowdownResult::P1Win;
-    }
-    else if (player0CardValue > player1CardValue) {
-        // High card - P0 wins
-        return ShowdownResult::P0Win;
-    }
-    else if (player1CardValue > player0CardValue) {
-        // High card - P1 wins
-        return ShowdownResult::P1Win;
+    if (handCardValue == boardCardValue) {
+        // Pair
+        return static_cast<HandRank>(handCardValue) << 4;
     }
     else {
-        return ShowdownResult::Tie;
+        // High card
+        return static_cast<HandRank>(handCardValue);
     }
 }
 

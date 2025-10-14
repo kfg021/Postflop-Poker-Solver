@@ -26,6 +26,8 @@ public:
     // Game data
     PlayerArray<std::vector<CardSet>> rangeHands;
     PlayerArray<int> rangeSize;
+    PlayerArray<std::vector<int>> sameHandIndexTable;
+    int gameHandSize;
 
     // Vector containing all nodes
     std::vector<Node> allNodes;

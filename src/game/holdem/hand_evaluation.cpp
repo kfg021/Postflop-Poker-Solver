@@ -24,12 +24,12 @@ enum class HandType : std::uint8_t {
     RoyalFlush,
 };
 
-struct HandRank {
+struct HandStrength {
     HandType handType;
     FixedVector<Value, 5> kickers;
 };
 
-std::uint32_t convertHandRankToInt(const HandRank& handRank) {
+HandRank convertHandStrengthToInt(const HandStrength& handStrength) {
     // Integer representation:
     // Bits [23, 20]: Hand type (1 is high card, 10 is royal flush)
     // Bits [19, 16]: Kicker 0
@@ -39,24 +39,24 @@ std::uint32_t convertHandRankToInt(const HandRank& handRank) {
     // Bits [3, 0]:   Kicker 4
     // Any bits with non existient kickers are set to 0
 
-    std::uint32_t handRankID = 0;
+    HandRank handRank = 0;
 
     // Adding 1 to the hand type to ensure that 0 is an invalid hand ranking
-    std::uint8_t handTypeID = static_cast<std::uint8_t>(handRank.handType) + 1;
-    handRankID |= (handTypeID << 20);
+    std::uint8_t handTypeID = static_cast<std::uint8_t>(handStrength.handType) + 1;
+    handRank |= (handTypeID << 20);
 
-    for (int i = 0; i < handRank.kickers.size(); ++i) {
-        std::uint8_t valueID = static_cast<std::uint8_t>(handRank.kickers[i]);
+    for (int i = 0; i < handStrength.kickers.size(); ++i) {
+        std::uint8_t valueID = static_cast<std::uint8_t>(handStrength.kickers[i]);
         int offset = 16 - (4 * i);
         assert(offset >= 0);
-        handRankID |= (valueID << offset);
+        handRank |= (valueID << offset);
     }
 
-    return handRankID;
+    return handRank;
 }
 } // namespace
 
-std::uint32_t getFiveCardHandRank(CardSet hand) {
+HandRank getFiveCardHandRank(CardSet hand) {
     assert(getSetSize(hand) == 5);
 
     std::array<std::pair<int, Value>, 13> valueFrequencies;
@@ -72,33 +72,33 @@ std::uint32_t getFiveCardHandRank(CardSet hand) {
     assert(temp == 0);
     std::sort(valueFrequencies.begin(), valueFrequencies.end(), std::greater<std::pair<int, Value>>());
 
-    HandRank handRank;
+    HandStrength handStrength;
     if (valueFrequencies[0].first == 4) {
-        handRank = {
+        handStrength = {
             .handType = HandType::FourOfAKind,
             .kickers = { valueFrequencies[0].second, valueFrequencies[1].second }
         };
     }
     else if (valueFrequencies[0].first == 3 && valueFrequencies[1].first == 2) {
-        handRank = {
+        handStrength = {
             .handType = HandType::FullHouse,
             .kickers = { valueFrequencies[0].second, valueFrequencies[1].second }
         };
     }
     else if (valueFrequencies[0].first == 3) {
-        handRank = {
+        handStrength = {
             .handType = HandType::ThreeOfAKind,
             .kickers = { valueFrequencies[0].second, valueFrequencies[1].second, valueFrequencies[2].second }
         };
     }
     else if (valueFrequencies[0].first == 2 && valueFrequencies[1].first == 2) {
-        handRank = {
+        handStrength = {
             .handType = HandType::TwoPair,
             .kickers = { valueFrequencies[0].second, valueFrequencies[1].second, valueFrequencies[2].second }
         };
     }
     else if (valueFrequencies[0].first == 2) {
-        handRank = {
+        handStrength = {
             .handType = HandType::Pair,
             .kickers = { valueFrequencies[0].second, valueFrequencies[1].second, valueFrequencies[2].second, valueFrequencies[3].second }
         };
@@ -130,48 +130,48 @@ std::uint32_t getFiveCardHandRank(CardSet hand) {
         bool isRoyalFlush = isRegularStraightFlush && (sortedCardValues[0] == Value::Ace);
 
         if (isRoyalFlush) {
-            handRank = {
+            handStrength = {
                 .handType = HandType::RoyalFlush,
                 .kickers = {}
             };
         }
         else if (isRegularStraightFlush) {
-            handRank = {
+            handStrength = {
                 .handType = HandType::StraightFlush,
                 .kickers = { sortedCardValues[0] }
             };
         }
         else if (isWheelStraightFlush) {
-            handRank = {
+            handStrength = {
                 .handType = HandType::StraightFlush,
                 .kickers = { sortedCardValues[1] }
             };
         }
         else if (isFlush) {
-            handRank = {
+            handStrength = {
                 .handType = HandType::Flush,
                 .kickers = sortedCardValues
             };
         }
         else if (isRegularStraight) {
-            handRank = {
+            handStrength = {
                 .handType = HandType::Straight,
                 .kickers = { sortedCardValues[0] }
             };
         }
         else if (isWheelStraight) {
-            handRank = {
+            handStrength = {
                 .handType = HandType::Straight,
                 .kickers = { sortedCardValues[1] }
             };
         }
         else {
-            handRank = {
+            handStrength = {
                 .handType = HandType::HighCard,
                 .kickers = sortedCardValues
             };
         }
     }
 
-    return convertHandRankToInt(handRank);
+    return convertHandStrengthToInt(handStrength);
 }

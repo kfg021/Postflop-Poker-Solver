@@ -11,7 +11,7 @@
 namespace {
 class HandEvaluationTest : public ::testing::Test {
 protected:
-    static inline std::vector<std::uint32_t> handRanks;
+    static inline std::vector<HandRank> handRanks;
 
     static void SetUpTestSuite() {
         handRanks.reserve(2598960); // 52 choose 5
@@ -38,14 +38,14 @@ protected:
 } // namespace
 
 TEST_F(HandEvaluationTest, AllRankingsAreNonZero) {
-    for (std::uint32_t handRank : handRanks) {
+    for (HandRank handRank : handRanks) {
         EXPECT_NE(handRank, 0);
     }
 }
 
 TEST_F(HandEvaluationTest, CorrectNumberOfEachHandType) {
     static constexpr int NumHandRankings = 10;
-    std::array<std::uint32_t, NumHandRankings> ExpectedTotalHandsPerRank = {
+    std::array<HandRank, NumHandRankings> ExpectedTotalHandsPerRank = {
         1302540,    // High Card
         1098240,    // One Pair
         123552,     // Two Pair
@@ -58,8 +58,8 @@ TEST_F(HandEvaluationTest, CorrectNumberOfEachHandType) {
         4,          // Royal Flush
     };
 
-    std::array<std::uint32_t, NumHandRankings> totalHandsPerRank = {};
-    for (std::uint32_t handRank : handRanks) {
+    std::array<HandRank, NumHandRankings> totalHandsPerRank = {};
+    for (HandRank handRank : handRanks) {
         std::uint8_t handType = ((handRank >> 20) & 0xF) - 1;
         EXPECT_LT(handType, NumHandRankings);
         ++totalHandsPerRank[handType];
@@ -70,7 +70,7 @@ TEST_F(HandEvaluationTest, CorrectNumberOfEachHandType) {
 
 TEST_F(HandEvaluationTest, CorrectNumberOfIsomorphicHands) {
     static constexpr int ExpectedNumIsomorphicHands = 7462;
-    std::unordered_set<std::uint32_t> handIsomorphisms(handRanks.begin(), handRanks.end());
+    std::unordered_set<HandRank> handIsomorphisms(handRanks.begin(), handRanks.end());
     int numIsomorphicHands = handIsomorphisms.size();
     EXPECT_EQ(numIsomorphicHands, ExpectedNumIsomorphicHands);
 }
