@@ -687,38 +687,6 @@ float rootExpectedValue(
     Tree& tree,
     TraversalMode mode
 ) {
-    auto getTotalRangeWeight = [&hero, &rules, &tree]() -> float {
-        Player villain = getOpposingPlayer(hero);
-
-        const auto& heroRangeWeights = rules.getInitialRangeWeights(hero);
-        const auto& villainRangeWeights = rules.getInitialRangeWeights(villain);
-
-        int heroRangeSize = tree.rangeSize[hero];
-        assert(heroRangeSize == heroRangeWeights.size());
-
-        int villainRangeSize = tree.rangeSize[villain];
-        assert(villainRangeSize == villainRangeWeights.size());
-
-        const auto& heroHands = tree.rangeHands[hero];
-        const auto& villainHands = tree.rangeHands[villain];
-
-        CardSet startingBoard = rules.getInitialGameState().currentBoard;
-
-        float totalRangeWeight = 0.0f;
-
-        for (int i = 0; i < heroRangeSize; ++i) {
-            if (!areSetsDisjoint(heroHands[i], startingBoard)) continue;
-
-            for (int j = 0; j < villainRangeSize; ++j) {
-                if (!areSetsDisjoint(heroHands[i] | startingBoard, villainHands[j])) continue;
-
-                totalRangeWeight += heroRangeWeights[i] * villainRangeWeights[j];
-            }
-        }
-
-        return totalRangeWeight;
-    };
-
     assert((mode == TraversalMode::ExpectedValue) || (mode == TraversalMode::BestResponse));
 
     TraversalConstants constants = {
@@ -740,10 +708,7 @@ float rootExpectedValue(
         expectedValue += allExpectedValues[getExpectedValueIndex(hand, rootNodeIndex, constants, tree)] * heroRangeWeights[hand];
     }
 
-    // TODO: Check if totalRangeWeight is 0 before we even build the tree
-    float totalRangeWeight = getTotalRangeWeight();
-    assert(totalRangeWeight > 0.0f);
-    expectedValue /= totalRangeWeight;
+    expectedValue /= tree.totalRangeWeight;
 
     return expectedValue;
 }

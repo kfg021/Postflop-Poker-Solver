@@ -12,7 +12,14 @@
 
 class Tree {
 public:
-    Tree() : rangeSize{ 0, 0 }, m_trainingDataLength{ 0 }, m_numDecisionNodes{ 0 }, m_inputOutputSize{ 0, 0 } {}
+    Tree() :
+        rangeSize{ 0, 0 },
+        gameHandSize{ 0 },
+        totalRangeWeight{ 0.0f },
+        m_trainingDataLength{ 0 },
+        m_numDecisionNodes{ 0 },
+        m_inputOutputSize{ 0, 0 } {
+    }
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
@@ -28,6 +35,7 @@ public:
     PlayerArray<int> rangeSize;
     PlayerArray<std::vector<int>> sameHandIndexTable;
     int gameHandSize;
+    float totalRangeWeight;
 
     // Vector containing all nodes
     std::vector<Node> allNodes;

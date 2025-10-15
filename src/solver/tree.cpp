@@ -28,7 +28,7 @@ PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
 
     for (int i = 0; i < player0RangeSize; ++i) {
         for (int j = i; j < player1RangeSize; ++j) {
-            if(player0Hands[i] == player1Hands[j]) {
+            if (player0Hands[i] == player1Hands[j]) {
                 sameHandIndexTable[Player::P0][i] = j;
                 sameHandIndexTable[Player::P1][j] = i;
             }
@@ -36,6 +36,33 @@ PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
     }
 
     return sameHandIndexTable;
+}
+
+float getTotalRangeWeight(const IGameRules& rules) {
+    const auto& player0RangeWeights = rules.getInitialRangeWeights(Player::P0);
+    const auto& player1RangeWeights = rules.getInitialRangeWeights(Player::P1);
+
+    const auto& player0Hands = rules.getRangeHands(Player::P0);
+    const auto& player1Hands = rules.getRangeHands(Player::P1);
+
+    int player0RangeSize = player0Hands.size();
+    int player1RangeSize = player1Hands.size();
+
+    CardSet startingBoard = rules.getInitialGameState().currentBoard;
+
+    float totalRangeWeight = 0.0f;
+
+    for (int i = 0; i < player0RangeSize; ++i) {
+        if (!areSetsDisjoint(player0Hands[i], startingBoard)) continue;
+
+        for (int j = 0; j < player1RangeSize; ++j) {
+            if (!areSetsDisjoint(player0Hands[i] | startingBoard, player1Hands[j])) continue;
+
+            totalRangeWeight += player0RangeWeights[i] * player1RangeWeights[j];
+        }
+    }
+
+    return totalRangeWeight;
 }
 } // namespace
 
@@ -74,6 +101,10 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
         allNodes.size() * rangeSize[Player::P1]
     };
 
+    // Range weight of 0 means that there are no valid combos of hands
+    totalRangeWeight = getTotalRangeWeight(rules);
+    assert(totalRangeWeight > 0.0f);
+
     // Free unnecessary memory - vectors are done growing
     allNodes.shrink_to_fit();
     allChanceCards.shrink_to_fit();
@@ -90,13 +121,13 @@ std::size_t Tree::getNumberOfDecisionNodes() const {
 std::size_t Tree::getTreeSkeletonSize() const {
     assert(isTreeSkeletonBuilt());
 
-    // TODO: Add new tree members
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
     std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID)) + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
     std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID)) + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t));
     std::size_t rangeHandsHeapSize = (rangeHands[Player::P0].capacity() + rangeHands[Player::P1].capacity()) * sizeof(CardSet);
-    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandsHeapSize;
+    std::size_t sameHandIndexTableSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(int);
+    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandsHeapSize + sameHandIndexTableSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
