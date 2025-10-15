@@ -406,8 +406,8 @@ HandRank Holdem::getHandRank(Player player, int handIndex, CardSet board) const 
             break;
     }
 
-    int handRankIndex = (runoutIndex * m_settings.ranges[Player::P0].hands.size()) + handIndex;
-    return m_handRanks[Player::P0][handRankIndex];
+    int handRankIndex = (runoutIndex * m_settings.ranges[player].hands.size()) + handIndex;
+    return m_handRanks[player][handRankIndex];
 }
 
 std::string Holdem::getActionName(ActionID actionID) const {
