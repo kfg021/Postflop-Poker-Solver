@@ -40,7 +40,7 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
         .deadMoney = 0,
     };
 
-    const int PrintFrequency = 100;
+    const int PrintFrequency = 10;
 
     std::cout << "Building Holdem lookup tables...\n" << std::flush;
     const Holdem holdemRules{ holdemSettings };

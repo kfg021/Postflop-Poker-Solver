@@ -19,7 +19,7 @@ PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
     const auto& player1Hands = rules.getRangeHands(Player::P1);
 
     int player0RangeSize = player0Hands.size();
-    int player1RangeSize = player0Hands.size();
+    int player1RangeSize = player1Hands.size();
 
     PlayerArray<std::vector<int>> sameHandIndexTable = {
         std::vector<int>(player0RangeSize, -1),
@@ -90,6 +90,7 @@ std::size_t Tree::getNumberOfDecisionNodes() const {
 std::size_t Tree::getTreeSkeletonSize() const {
     assert(isTreeSkeletonBuilt());
 
+    // TODO: Add new tree members
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
     std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID)) + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));

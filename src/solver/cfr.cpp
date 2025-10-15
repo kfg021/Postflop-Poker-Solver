@@ -12,7 +12,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <utility>
+#include <ranges>
 #include <vector>
 
 // TODO: Do arithmetic with doubles, then store result in floats
@@ -79,6 +79,43 @@ void writeCurrentStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree) 
             }
         }
     }
+}
+
+float getValidVillainReachProb(
+    int heroHandIndex,
+    float villainTotalReachProb,
+    std::size_t nodeIndex,
+    const std::array<float, StandardDeckSize>& villainReachProbWithCard,
+    const TraversalConstants& constants,
+    const std::vector<float>& allVillainReachProbs,
+    const Tree& tree
+) {
+    CardSet heroHand = tree.rangeHands[constants.hero][heroHandIndex];
+    float villainValidReachProb = villainTotalReachProb;
+
+    switch (tree.gameHandSize) {
+        case 1:
+            villainValidReachProb -= villainReachProbWithCard[getLowestCardInSet(heroHand)];
+            break;
+        case 2: {
+            villainValidReachProb -= villainReachProbWithCard[popLowestCardFromSet(heroHand)];
+            villainValidReachProb -= villainReachProbWithCard[popLowestCardFromSet(heroHand)];
+            assert(heroHand == 0);
+
+            // Inclusion-Exclusion: Add back the portion of the villain's range that was double subtracted by the above
+            int sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
+            if (sameHandIndex != -1) {
+                villainValidReachProb += allVillainReachProbs[getReachProbsIndex(sameHandIndex, nodeIndex, constants, tree)];
+            }
+            break;
+        }
+        default:
+            // For hand size > 2, logic is more complicated
+            assert(false);
+            break;
+    }
+
+    return villainValidReachProb;
 }
 
 void traverseTree(
@@ -416,6 +453,7 @@ void traverseFold(
 
     float villainTotalReachProb = 0.0f;
     std::array<float, StandardDeckSize> villainReachProbWithCard = {};
+
     for (int hand = 0; hand < villainRangeSize; ++hand) {
         CardSet villainHand = tree.rangeHands[villain][hand];
         if (!areSetsDisjoint(villainHand, foldNode.board)) continue;
@@ -424,19 +462,10 @@ void traverseFold(
 
         villainTotalReachProb += villainReachProb;
 
-        switch (tree.gameHandSize) {
-            case 1:
-                villainReachProbWithCard[getLowestCardInSet(villainHand)] += villainReachProb;
-                break;
-            case 2:
-                villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
-                villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
-                assert(villainHand == 0);
-                break;
-            default:
-                assert(false);
-                break;
+        for (int i = 0; i < tree.gameHandSize; ++i) {
+            villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
         }
+        assert(villainHand == 0);
     }
 
     int heroReward = (foldNode.remainingPlayer == constants.hero) ? foldNode.remainingPlayerReward : -foldNode.remainingPlayerReward;
@@ -445,30 +474,15 @@ void traverseFold(
         CardSet heroHand = tree.rangeHands[constants.hero][hand];
         if (!areSetsDisjoint(heroHand, foldNode.board)) continue;
 
-        float villainValidReachProb = villainTotalReachProb;
-
-        switch (tree.gameHandSize) {
-            case 1:
-                villainValidReachProb -= villainReachProbWithCard[getLowestCardInSet(heroHand)];
-                break;
-            case 2: {
-                villainValidReachProb -= villainReachProbWithCard[popLowestCardFromSet(heroHand)];
-                villainValidReachProb -= villainReachProbWithCard[popLowestCardFromSet(heroHand)];
-                assert(heroHand == 0);
-
-                // Inclusion-Exclusion: Add back the portion of the villain's range that was double subtracted by the above
-                int sameHandIndex = tree.sameHandIndexTable[constants.hero][hand];
-                if (sameHandIndex != -1) {
-                    villainValidReachProb += allVillainReachProbs[getReachProbsIndex(sameHandIndex, nodeIndex, constants, tree)];
-                }
-
-                break;
-            }
-            default:
-                // For hand size > 2, logic is more complicated
-                assert(false);
-                break;
-        }
+        float villainValidReachProb = getValidVillainReachProb(
+            hand,
+            villainTotalReachProb,
+            nodeIndex,
+            villainReachProbWithCard,
+            constants,
+            allVillainReachProbs,
+            tree
+        );
 
         allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, tree)] += static_cast<float>(heroReward) * villainValidReachProb;
     }
@@ -483,7 +497,126 @@ void traverseShowdown(
     std::vector<float>& allExpectedValues,
     Tree& tree
 ) {
-    // TODO: Reimplement
+    struct HandData {
+        HandRank rank;
+        int index;
+
+        auto operator<=>(const HandData&) const = default;
+    };
+
+    Player hero = constants.hero;
+    Player villain = getOpposingPlayer(hero);
+
+    PlayerArray<std::vector<HandData>> sortedHandRanks;
+
+    for (Player player : { hero, villain }) {
+        int playerRangeSize = tree.rangeSize[player];
+        sortedHandRanks[player].resize(playerRangeSize);
+        for (int hand = 0; hand < playerRangeSize; ++hand) {
+            sortedHandRanks[player][hand] = {
+                .rank = rules.getHandRank(player, hand, showdownNode.board),
+                .index = hand
+            };
+        }
+
+        std::sort(sortedHandRanks[player].begin(), sortedHandRanks[player].end());
+    }
+
+    const auto& heroHands = tree.rangeHands[hero];
+    const auto& villainHands = tree.rangeHands[villain];
+
+    int heroRangeSize = tree.rangeSize[hero];
+    int villainRangeSize = tree.rangeSize[villain];
+
+    // First pass: Calculate hero winning hands
+    {
+        float villainTotalReachProb = 0.0f;
+        std::array<float, StandardDeckSize> villainReachProbWithCard = {};
+
+        int villainIndexSorted = 0;
+
+        for (HandData heroHandData : sortedHandRanks[hero]) {
+            CardSet heroHand = heroHands[heroHandData.index];
+            if (!areSetsDisjoint(heroHand, showdownNode.board)) continue;
+
+            while (villainIndexSorted < villainRangeSize && sortedHandRanks[villain][villainIndexSorted].rank < heroHandData.rank) {
+                int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
+                CardSet villainHand = villainHands[villainHandIndex];
+
+                if (areSetsDisjoint(villainHand, showdownNode.board)) {
+                    float villainReachProb = allVillainReachProbs[getReachProbsIndex(villainHandIndex, nodeIndex, constants, tree)];
+
+                    villainTotalReachProb += villainReachProb;
+
+                    for (int i = 0; i < tree.gameHandSize; ++i) {
+                        villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
+                    }
+                    assert(villainHand == 0);
+                }
+
+                ++villainIndexSorted;
+            }
+
+            float villainValidReachProb = getValidVillainReachProb(
+                heroHandData.index,
+                villainTotalReachProb,
+                nodeIndex,
+                villainReachProbWithCard,
+                constants,
+                allVillainReachProbs,
+                tree
+            );
+
+            // Winning hands - positive reward
+            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] += static_cast<float>(showdownNode.reward) * villainValidReachProb;
+        }
+    }
+
+    // Second pass: Calculate hero losing hands
+    {
+        float villainTotalReachProb = 0.0f;
+        std::array<float, StandardDeckSize> villainReachProbWithCard = {};
+
+        int villainIndexSorted = villainRangeSize - 1;
+
+        for (HandData heroHandData : std::views::reverse(sortedHandRanks[hero])) {
+            CardSet heroHand = heroHands[heroHandData.index];
+            if (!areSetsDisjoint(heroHand, showdownNode.board)) continue;
+
+            while (villainIndexSorted >= 0 && sortedHandRanks[villain][villainIndexSorted].rank > heroHandData.rank) {
+                int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
+                CardSet villainHand = villainHands[villainHandIndex];
+
+                if (areSetsDisjoint(villainHand, showdownNode.board)) {
+                    float villainReachProb = allVillainReachProbs[getReachProbsIndex(villainHandIndex, nodeIndex, constants, tree)];
+
+                    villainTotalReachProb += villainReachProb;
+
+                    for (int i = 0; i < tree.gameHandSize; ++i) {
+                        villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
+                    }
+                    assert(villainHand == 0);
+                }
+
+                --villainIndexSorted;
+            }
+
+            float villainValidReachProb = getValidVillainReachProb(
+                heroHandData.index,
+                villainTotalReachProb,
+                nodeIndex,
+                villainReachProbWithCard,
+                constants,
+                allVillainReachProbs,
+                tree
+            );
+
+            // Losing hands - negative reward
+            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] -= static_cast<float>(showdownNode.reward) * villainValidReachProb;
+        }
+    }
+
+    // Can ignore ties in rakeless game, 0 EV for both players
 }
 
 void traverseTree(
