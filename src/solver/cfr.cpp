@@ -7,6 +7,7 @@
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -32,6 +33,11 @@ struct TraversalConstants {
     TraversalMode mode;
     DiscountParams params;
 };
+
+// std::span doesn't have == for some reason...
+bool operator==(const std::span<const HandData>& lhs, const std::span<const HandData>& rhs) {
+    return std::ranges::equal(lhs, rhs);
+}
 
 std::size_t getExpectedValueIndex(int hand, std::size_t nodeIndex, const TraversalConstants& constants, const Tree& tree) {
     int heroRangeSize = tree.rangeSize[constants.hero];
