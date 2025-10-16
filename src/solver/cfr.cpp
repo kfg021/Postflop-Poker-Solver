@@ -33,11 +33,6 @@ struct TraversalConstants {
     DiscountParams params;
 };
 
-// std::span doesn't have == for some reason...
-bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
-    return std::ranges::equal(lhs, rhs);
-}
-
 std::size_t getExpectedValueIndex(int hand, std::size_t nodeIndex, const TraversalConstants& constants, const Tree& tree) {
     int heroRangeSize = tree.rangeSize[constants.hero];
     assert(hand < heroRangeSize);

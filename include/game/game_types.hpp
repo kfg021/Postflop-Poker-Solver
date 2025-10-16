@@ -3,8 +3,10 @@
 
 #include "game/holdem/config.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <span>
 
 constexpr int StandardDeckSize = holdem::DeckSize;
 constexpr int MaxNumDealCards = holdem::MaxNumDealCards;
@@ -95,5 +97,10 @@ struct HandData {
 
     auto operator<=>(const HandData&) const = default;
 };
+
+// std::span doesn't have == for some reason...
+bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
+    return std::ranges::equal(lhs, rhs);
+}
 
 #endif // GAME_TYPES_HPP
