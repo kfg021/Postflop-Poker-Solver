@@ -8,6 +8,7 @@
 #include "util/fixed_vector.hpp"
 #include "util/result.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>

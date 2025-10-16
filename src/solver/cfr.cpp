@@ -7,7 +7,6 @@
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -35,7 +34,7 @@ struct TraversalConstants {
 };
 
 // std::span doesn't have == for some reason...
-bool operator==(const std::span<const HandData>& lhs, const std::span<const HandData>& rhs) {
+bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
     return std::ranges::equal(lhs, rhs);
 }
 
