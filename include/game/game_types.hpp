@@ -99,7 +99,7 @@ struct HandData {
 };
 
 // std::span doesn't have == for some reason...
-bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
+inline bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
     return std::ranges::equal(lhs, rhs);
 }
 
