@@ -4,6 +4,7 @@
 #include "game/game_types.hpp"
 #include "util/fixed_vector.hpp"
 
+#include <span>
 #include <string>
 #include <vector>
 
@@ -21,7 +22,7 @@ public:
 
     // Functions for the CFR algorithm
     virtual const std::vector<float>& getInitialRangeWeights(Player player) const = 0;
-    virtual HandRank getHandRank(Player player, int handIndex, CardSet board) const = 0;
+    virtual std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const = 0;
 
     // Functions for output
     virtual std::string getActionName(ActionID actionID) const = 0;

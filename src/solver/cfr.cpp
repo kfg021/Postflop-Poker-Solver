@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <limits>
 #include <ranges>
+#include <span>
 #include <vector>
 
 // TODO: Do arithmetic with doubles, then store result in floats
@@ -497,29 +498,12 @@ void traverseShowdown(
     std::vector<float>& allExpectedValues,
     Tree& tree
 ) {
-    struct HandData {
-        HandRank rank;
-        int index;
-
-        auto operator<=>(const HandData&) const = default;
-    };
-
     Player hero = constants.hero;
     Player villain = getOpposingPlayer(hero);
 
-    PlayerArray<std::vector<HandData>> sortedHandRanks;
-
+    PlayerArray<std::span<const HandData>> sortedHandRanks;
     for (Player player : { hero, villain }) {
-        int playerRangeSize = tree.rangeSize[player];
-        sortedHandRanks[player].resize(playerRangeSize);
-        for (int hand = 0; hand < playerRangeSize; ++hand) {
-            sortedHandRanks[player][hand] = {
-                .rank = rules.getHandRank(player, hand, showdownNode.board),
-                .index = hand
-            };
-        }
-
-        std::sort(sortedHandRanks[player].begin(), sortedHandRanks[player].end());
+        sortedHandRanks[player] = rules.getSortedHandRanks(player, showdownNode.board);
     }
 
     const auto& heroHands = tree.rangeHands[hero];

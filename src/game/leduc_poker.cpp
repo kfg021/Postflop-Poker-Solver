@@ -179,21 +179,65 @@ const std::vector<float>& LeducPoker::getInitialRangeWeights(Player /*player*/) 
     return Weights;
 }
 
-HandRank LeducPoker::getHandRank(Player /*player*/, int handIndex, CardSet board) const {
-    CardSet hand = PossibleHands[handIndex];
-    assert(getSetSize(hand) == 1);
-    assert(getSetSize(board) == 1);
+std::span<const HandData> LeducPoker::getSortedHandRanks(Player /*player*/, CardSet board) const {
+    enum LeducHandRankID : std::uint8_t {
+        JackHigh,
+        QueenHigh,
+        KingHigh,
+        PairOfJacks,
+        PairOfQueens,
+        PairOfKings
+    };
 
-    Value handCardValue = getCardValue(getLowestCardInSet(hand));
+    enum LeducHandIndexID : std::uint8_t {
+        Jack0,
+        Jack1,
+        Queen0,
+        Queen1,
+        King0,
+        King1
+    };
+
+    static constexpr std::array<HandData, 6> SortedHandRanksJackBoard = {
+        HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::Queen0},
+        HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::Queen1},
+        HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::King0},
+        HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::King1},
+        HandData{.rank = LeducHandRankID::PairOfJacks, .index = LeducHandIndexID::Jack0},
+        HandData{.rank = LeducHandRankID::PairOfJacks, .index = LeducHandIndexID::Jack1},
+    };
+
+    static constexpr std::array<HandData, 6> SortedHandRanksQueenBoard = {
+        HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::Jack0},
+        HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::Jack1},
+        HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::King0},
+        HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::King1},
+        HandData{.rank = LeducHandRankID::PairOfQueens, .index = LeducHandIndexID::Queen0},
+        HandData{.rank = LeducHandRankID::PairOfQueens, .index = LeducHandIndexID::Queen1},
+    };
+
+    static constexpr std::array<HandData, 6> SortedHandRanksKingBoard = {
+        HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::Jack0},
+        HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::Jack1},
+        HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::Queen0},
+        HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::Queen1},
+        HandData{.rank = LeducHandRankID::PairOfKings, .index = LeducHandIndexID::King0},
+        HandData{.rank = LeducHandRankID::PairOfKings, .index = LeducHandIndexID::King1},
+    };
+
+    assert(getSetSize(board) == 1);
     Value boardCardValue = getCardValue(getLowestCardInSet(board));
 
-    if (handCardValue == boardCardValue) {
-        // Pair
-        return static_cast<HandRank>(handCardValue) << 4;
-    }
-    else {
-        // High card
-        return static_cast<HandRank>(handCardValue);
+    switch (boardCardValue) {
+        case Value::Jack:
+            return SortedHandRanksJackBoard;
+        case Value::Queen:
+            return SortedHandRanksQueenBoard;
+        case Value::King:
+            return SortedHandRanksKingBoard;
+        default:
+            assert(false);
+            return {};
     }
 }
 

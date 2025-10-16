@@ -89,4 +89,11 @@ struct GameState {
     Street currentStreet;
 };
 
+struct HandData {
+    HandRank rank;
+    int index;
+
+    auto operator<=>(const HandData&) const = default;
+};
+
 #endif // GAME_TYPES_HPP

@@ -5,6 +5,7 @@
 #include "game/game_types.hpp"
 #include "util/fixed_vector.hpp"
 
+#include <span>
 #include <string>
 #include <vector>
 
@@ -17,7 +18,7 @@ public:
     FixedVector<GameState, MaxNumDealCards> getNewStatesAfterChance(const GameState& state) const override;
     const std::vector<CardSet>& getRangeHands(Player player) const override;
     const std::vector<float>& getInitialRangeWeights(Player player) const override;
-    HandRank getHandRank(Player player, int handIndex, CardSet board) const override;
+    std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const override;
     std::string getActionName(ActionID actionID) const override;
 };
 
