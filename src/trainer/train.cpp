@@ -52,7 +52,7 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
     std::optional<CfrResult> resultOption;
 
     std::cout << "Starting training. Target exploitability: "
-        << std::fixed << std::setprecision(2) << targetPercentExploitability
+        << std::fixed << std::setprecision(5) << targetPercentExploitability
         << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
 
     for (int i = 0; i < maxIterations; ++i) {
