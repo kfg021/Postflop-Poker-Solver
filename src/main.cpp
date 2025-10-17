@@ -60,7 +60,7 @@ void trainHoldem(int maxIterations, const std::optional<std::string>& strategyOu
 
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
-    // trainLeducPoker(10000, "leduc_sstrategy.json");
+    // trainLeducPoker(10000, "leduc_strategy.json");
     trainHoldem(100, std::nullopt);
     return 0;
 }
