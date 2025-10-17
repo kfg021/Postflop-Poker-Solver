@@ -21,6 +21,7 @@ public:
         bool operator==(const Range&) const = default;
     };
 
+    // Dead money implementation is incorrect, do not use
     struct Settings {
         PlayerArray<Range> ranges;
         CardSet startingCommunityCards;
@@ -37,6 +38,7 @@ public:
         // Merging threshold
         // Raise limit?
         // Rake?
+        // Fix dead money
     };
 
     Holdem(const Settings& settings);

@@ -600,7 +600,8 @@ void traverseShowdown(
         }
     }
 
-    // Can ignore ties in rakeless game, 0 EV for both players
+    // Can ignore ties in zero-sum game, 0 EV for both players
+    // TODO: Address rake + dead money
 }
 
 void traverseTree(
