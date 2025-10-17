@@ -3,8 +3,9 @@
 
 #include "game/game_rules.hpp"
 
+#include <optional>
 #include <string>
 
-void train(const IGameRules& rules, int iterations, int printFrequency, const std::string& strategyOutputFile);
+void train(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, const std::optional<std::string>& strategyOutputFile);
 
 #endif // TRAIN_HPP

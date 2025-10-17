@@ -123,7 +123,7 @@ TEST(EndToEndTest, LeducPoker) {
     static constexpr float Iterations = 10000;
     for (int i = 0; i < Iterations; ++i) {
         for (Player hero : { Player::P0, Player::P1 }) {
-            discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i), tree);
+            discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree);
         }
     }
 

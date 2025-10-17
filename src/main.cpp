@@ -6,23 +6,30 @@
 #include "trainer/train.hpp"
 
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace {
-void trainKuhnPoker(int iterations, const std::string& strategyOutputFile) {
+void trainKuhnPoker(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
     const KuhnPoker kuhnPokerRules;
-    const int PrintFrequency = 0;
-    train(kuhnPokerRules, iterations, PrintFrequency, strategyOutputFile);
+
+    static constexpr float TargetExploitabilityPercent = 0.3f;
+    static constexpr int ExploitabilityCheckFrequency = 10000;
+
+    train(kuhnPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, strategyOutputFileOption);
 }
 
-void trainLeducPoker(int iterations, const std::string& strategyOutputFile) {
+void trainLeducPoker(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
     const LeducPoker leducPokerRules;
-    const int PrintFrequency = 1000;
-    train(leducPokerRules, iterations, PrintFrequency, strategyOutputFile);
+
+    static constexpr float TargetExploitabilityPercent = 0.3f;
+    static constexpr int ExploitabilityCheckFrequency = 1000;
+
+    train(leducPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, strategyOutputFileOption);
 }
 
-void trainHoldem(int iterations, const std::string& strategyOutputFile) {
+void trainHoldem(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
     CardSet communityCards = buildCommunityCardsFromStrings({ "9s", "8h", "3s" }).getValue();
 
     PlayerArray<Holdem::Range> ranges = {
@@ -40,19 +47,20 @@ void trainHoldem(int iterations, const std::string& strategyOutputFile) {
         .deadMoney = 0,
     };
 
-    const int PrintFrequency = 10;
+    static constexpr float TargetExploitabilityPercent = 0.3f;
+    static constexpr int ExploitabilityCheckFrequency = 10;
 
     std::cout << "Building Holdem lookup tables...\n" << std::flush;
     const Holdem holdemRules{ holdemSettings };
     std::cout << "Finished building lookup tables.\n\n";
 
-    train(holdemRules, iterations, PrintFrequency, strategyOutputFile);
+    train(holdemRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, strategyOutputFileOption);
 }
 } // namespace
 
 int main() {
     // trainKuhnPoker(100000, "kuhn_strategy.json");
-    // trainLeducPoker(10000, "leduc_strategy.json");
-    trainHoldem(100, "holdem_strategy.json");
+    // trainLeducPoker(10000, "leduc_sstrategy.json");
+    trainHoldem(100, std::nullopt);
     return 0;
 }

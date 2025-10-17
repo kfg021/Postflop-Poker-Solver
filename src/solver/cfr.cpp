@@ -699,7 +699,7 @@ float rootExpectedValue(
 } // namespace
 
 DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration) {
-    float t = static_cast<float>(iteration + 1);
+    float t = static_cast<float>(iteration);
     float a = std::pow(t, alpha);
     float b = std::pow(t, beta);
 
