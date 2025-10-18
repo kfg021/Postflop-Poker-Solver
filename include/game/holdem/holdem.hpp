@@ -21,7 +21,6 @@ public:
         bool operator==(const Range&) const = default;
     };
 
-    // Dead money implementation is incorrect, do not use
     struct Settings {
         PlayerArray<Range> ranges;
         CardSet startingCommunityCards;
@@ -38,12 +37,12 @@ public:
         // Merging threshold
         // Raise limit?
         // Rake?
-        // Fix dead money
     };
 
     Holdem(const Settings& settings);
 
     GameState getInitialGameState() const override;
+    int getDeadMoney() const override;
     NodeType getNodeType(const GameState& state) const override;
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;

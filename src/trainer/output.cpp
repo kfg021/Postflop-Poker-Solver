@@ -84,18 +84,18 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     return j;
 }
 
-json buildJSONFold(const FoldNode& foldNode) {
+json buildJSONFold(const FoldNode& foldNode, const Tree& tree) {
     json j;
     j["NodeType"] = "Fold";
-    j["WinningPlayer"] = (foldNode.remainingPlayer == Player::P0) ? 0 : 1;
-    j["Reward"] = foldNode.remainingPlayerReward;
+    j["WinningPlayer"] = (foldNode.foldingPlayer == Player::P0) ? 1 : 0;
+    j["WinnerReward"] = foldNode.foldingPlayerWager + tree.deadMoney;
     return j;
 }
 
-json buildJSONShowdown(const ShowdownNode& showdownNode) {
+json buildJSONShowdown(const ShowdownNode& showdownNode, const Tree& tree) {
     json j;
     j["NodeType"] = "Showdown";
-    j["Reward"] = showdownNode.reward;
+    j["WinnerReward"] = showdownNode.playerWagers + tree.deadMoney;
     return j;
 }
 
@@ -106,9 +106,9 @@ json buildJSON(const IGameRules& rules, const Node& node, Tree& tree, CardSet bo
         case NodeType::Decision:
             return buildJSONDecision(rules, node.decisionNode, tree, board);
         case NodeType::Fold:
-            return buildJSONFold(node.foldNode);
+            return buildJSONFold(node.foldNode, tree);
         case NodeType::Showdown:
-            return buildJSONShowdown(node.showdownNode);
+            return buildJSONShowdown(node.showdownNode, tree);
         default:
             assert(false);
             return json{};

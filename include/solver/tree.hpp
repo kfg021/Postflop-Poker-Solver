@@ -15,6 +15,7 @@ public:
     Tree() :
         rangeSize{ 0, 0 },
         gameHandSize{ 0 },
+        deadMoney{ 0 },
         totalRangeWeight{ 0.0f },
         m_trainingDataLength{ 0 },
         m_numDecisionNodes{ 0 },
@@ -35,6 +36,7 @@ public:
     PlayerArray<int> rangeSize;
     PlayerArray<std::vector<int>> sameHandIndexTable;
     int gameHandSize;
+    int deadMoney;
     float totalRangeWeight;
 
     // Vector containing all nodes

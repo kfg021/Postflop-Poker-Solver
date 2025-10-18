@@ -44,7 +44,7 @@ void trainHoldem(int maxIterations, const std::optional<std::string>& strategyOu
         .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{},
         .startingPlayerWagers = 50,
         .effectiveStackRemaining = 100,
-        .deadMoney = 0,
+        .deadMoney = 0
     };
 
     static constexpr float TargetExploitabilityPercent = 0.3f;

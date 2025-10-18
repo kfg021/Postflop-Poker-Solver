@@ -37,12 +37,16 @@ GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
         .totalWagers = { 1, 1 }, // Each player antes 1
-        .deadMoney = 0,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = Street::Turn, // Since Leduc poker has one street, we begin action on the turn 
     };
     return InitialState;
+}
+
+int LeducPoker::getDeadMoney() const {
+    // Leduc poker has no dead money
+    return 0;
 }
 
 NodeType LeducPoker::getNodeType(const GameState& state) const {
@@ -118,7 +122,6 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
-        .deadMoney = state.deadMoney,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
@@ -158,7 +161,6 @@ FixedVector<GameState, MaxNumDealCards> LeducPoker::getNewStatesAfterChance(cons
         GameState newState = {
             .currentBoard = hand,
             .totalWagers = state.totalWagers,
-            .deadMoney = 0,
             .playerToAct = Player::P0, // Player 0 always starts a new betting round
             .lastAction = static_cast<ActionID>(Action::StreetStart),
             .currentStreet = Street::River,

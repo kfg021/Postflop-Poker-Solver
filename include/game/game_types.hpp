@@ -85,7 +85,6 @@ private:
 struct GameState {
     CardSet currentBoard;
     PlayerArray<int> totalWagers;
-    int deadMoney;
     Player playerToAct;
     ActionID lastAction;
     Street currentStreet;

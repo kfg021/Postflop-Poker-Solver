@@ -121,12 +121,15 @@ GameState Holdem::getInitialGameState() const {
     const GameState initialState = {
         .currentBoard = m_settings.startingCommunityCards,
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
-        .deadMoney = m_settings.deadMoney,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = getStartingStreet()
     };
     return initialState;
+}
+
+int Holdem::getDeadMoney() const {
+    return m_settings.deadMoney;
 }
 
 NodeType Holdem::getNodeType(const GameState& state) const {
@@ -189,7 +192,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
         for (int i = 0; i < m_settings.betSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterBet(
                 state.totalWagers,
-                state.deadMoney,
+                m_settings.deadMoney,
                 state.playerToAct,
                 m_settings.betSizes[i],
                 getTotalEffectiveStack()
@@ -205,7 +208,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
         for (int i = 0; i < m_settings.raiseSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterRaise(
                 state.totalWagers,
-                state.deadMoney,
+                m_settings.deadMoney,
                 state.playerToAct,
                 m_settings.raiseSizes[i],
                 getTotalEffectiveStack()
@@ -280,7 +283,6 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
-        .deadMoney = state.deadMoney,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
@@ -305,7 +307,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 
             auto newWagersOption = tryGetWagersAfterBet(
                 state.totalWagers,
-                state.deadMoney,
+                m_settings.deadMoney,
                 state.playerToAct,
                 m_settings.betSizes[betIndex],
                 getTotalEffectiveStack()
@@ -324,7 +326,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 
             auto newWagersOption = tryGetWagersAfterRaise(
                 state.totalWagers,
-                state.deadMoney,
+                m_settings.deadMoney,
                 state.playerToAct,
                 m_settings.raiseSizes[raiseIndex],
                 getTotalEffectiveStack()
@@ -363,7 +365,6 @@ FixedVector<GameState, MaxNumDealCards> Holdem::getNewStatesAfterChance(const Ga
         GameState newState = {
             .currentBoard = newBoard,
             .totalWagers = state.totalWagers,
-            .deadMoney = state.deadMoney,
             .playerToAct = Player::P0, // Player 0 always starts a new betting round
             .lastAction = static_cast<ActionID>(Action::StreetStart),
             .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street

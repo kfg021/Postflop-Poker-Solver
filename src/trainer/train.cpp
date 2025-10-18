@@ -17,7 +17,7 @@ namespace {
 float calculateExploitability(const IGameRules& rules, Tree& tree) {
     float player0BestResponseEV = bestResponseEV(Player::P0, rules, tree);
     float player1BestResponseEV = bestResponseEV(Player::P1, rules, tree);
-    float exploitability = (player0BestResponseEV + player1BestResponseEV) / 2.0f;
+    float exploitability = (player0BestResponseEV + player1BestResponseEV - tree.deadMoney) / 2.0f;
     return exploitability;
 }
 } // namespace
@@ -42,7 +42,7 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
     std::cout << "Finished initializing tree.\n\n";
 
     GameState initialState = rules.getInitialGameState();
-    float startingPot = initialState.totalWagers[Player::P0] + initialState.totalWagers[Player::P1] + initialState.deadMoney;
+    float startingPot = initialState.totalWagers[Player::P0] + initialState.totalWagers[Player::P1] + tree.deadMoney;
 
     struct CfrResult {
         float exploitability;

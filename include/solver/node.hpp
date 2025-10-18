@@ -37,17 +37,20 @@ struct FoldNode {
     // State of the board after fold
     CardSet board;
 
-    // The player who did not fold wins the reward, regardless of their hand or the board
-    int remainingPlayerReward;
-    Player remainingPlayer;
+    // How much the folding player had in their wagered when they folded
+    int foldingPlayerWager;
+
+    // The player who folded
+    Player foldingPlayer;
 };
 
 struct ShowdownNode {
     // State of the board after end of betting
     CardSet board;
 
-    // The winner of the showdown will profit this amount
-    int reward;
+    // The amount of money that each player has wagered
+    // (At showdown, this must be the same for both players)
+    int playerWagers;
 };
 
 class Node {

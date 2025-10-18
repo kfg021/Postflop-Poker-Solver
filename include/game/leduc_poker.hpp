@@ -12,6 +12,7 @@
 class LeducPoker final : public IGameRules {
 public:
     GameState getInitialGameState() const override;
+    int getDeadMoney() const override;
     NodeType getNodeType(const GameState& state) const override;
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;

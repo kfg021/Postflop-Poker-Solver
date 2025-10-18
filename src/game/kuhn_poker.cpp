@@ -33,12 +33,16 @@ GameState KuhnPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
         .totalWagers = { 1, 1 }, // Each player antes 1
-        .deadMoney = 0,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
         .currentStreet = Street::River, // Since Kuhn poker has one street and no community cards, we begin action on the river 
     };
     return InitialState;
+}
+
+int KuhnPoker::getDeadMoney() const {
+    // Kuhn poker has no dead money
+    return 0;
 }
 
 NodeType KuhnPoker::getNodeType(const GameState& state) const {
@@ -90,7 +94,6 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
-        .deadMoney = state.deadMoney,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,

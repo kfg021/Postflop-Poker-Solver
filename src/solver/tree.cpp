@@ -96,14 +96,16 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     gameHandSize = getSetSize(rangeHands[Player::P0][0]);
     assert(gameHandSize == 1 || gameHandSize == 2);
 
-    m_inputOutputSize = {
-        allNodes.size() * rangeSize[Player::P0],
-        allNodes.size() * rangeSize[Player::P1]
-    };
+    deadMoney = rules.getDeadMoney();
 
     // Range weight of 0 means that there are no valid combos of hands
     totalRangeWeight = getTotalRangeWeight(rules);
     assert(totalRangeWeight > 0.0f);
+
+    m_inputOutputSize = {
+        allNodes.size() * rangeSize[Player::P0],
+        allNodes.size() * rangeSize[Player::P1]
+    };
 
     // Free unnecessary memory - vectors are done growing
     allNodes.shrink_to_fit();
@@ -220,14 +222,13 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
 }
 
 std::size_t Tree::createFoldNode(const GameState& state) {
-    // The reward is the amount that the folding player wagered plus any dead money
     // The folding player acted last turn
-    int remaningPlayerReward = state.totalWagers[getOpposingPlayer(state.playerToAct)] + state.deadMoney;
+    Player foldingPlayer = getOpposingPlayer(state.playerToAct);
 
     FoldNode foldNode = {
         .board = state.currentBoard,
-        .remainingPlayerReward = remaningPlayerReward,
-        .remainingPlayer = state.playerToAct
+        .foldingPlayerWager = state.totalWagers[foldingPlayer],
+        .foldingPlayer = foldingPlayer
     };
 
     allNodes.emplace_back(foldNode);
@@ -238,15 +239,12 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
     // At showdown players should have wagered same amount
     assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
 
-    // The reward is the amount wagered plus any dead money
-    int reward = state.totalWagers[Player::P0] + state.deadMoney;
-
     // Showdowns can only happen on the river
     assert(state.currentStreet == Street::River);
 
     ShowdownNode showdownNode = {
         .board = state.currentBoard,
-        .reward = reward,
+        .playerWagers = state.totalWagers[Player::P0],
     };
 
     allNodes.emplace_back(showdownNode);

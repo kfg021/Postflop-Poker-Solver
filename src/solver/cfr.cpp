@@ -469,7 +469,12 @@ void traverseFold(
         assert(villainHand == 0);
     }
 
-    int heroReward = (foldNode.remainingPlayer == constants.hero) ? foldNode.remainingPlayerReward : -foldNode.remainingPlayerReward;
+    // Winner wins the folding player's wager and the dead money
+    // Loser loses their wager
+    float winPayoff = static_cast<float>(foldNode.foldingPlayerWager + tree.deadMoney);
+    float losePayoff = static_cast<float>(-foldNode.foldingPlayerWager);
+
+    float heroPayoff = (foldNode.foldingPlayer == villain) ? winPayoff : losePayoff;
 
     for (int hand = 0; hand < heroRangeSize; ++hand) {
         CardSet heroHand = tree.rangeHands[constants.hero][hand];
@@ -485,7 +490,7 @@ void traverseFold(
             tree
         );
 
-        allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, tree)] += static_cast<float>(heroReward) * villainValidReachProb;
+        allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, tree)] += heroPayoff * villainValidReachProb;
     }
 }
 
@@ -511,6 +516,13 @@ void traverseShowdown(
 
     int heroRangeSize = tree.rangeSize[hero];
     int villainRangeSize = tree.rangeSize[villain];
+
+    // Winner wins the other player's wager and the dead money
+    // Loser loses their wager
+    // If the players tie, they split the dead money
+    float winPayoff = static_cast<float>(showdownNode.playerWagers + tree.deadMoney);
+    float losePayoff = static_cast<float>(-showdownNode.playerWagers);
+    float tiePayoff = static_cast<float>(tree.deadMoney) / 2.0f;
 
     // First pass: Calculate hero winning hands
     {
@@ -551,8 +563,7 @@ void traverseShowdown(
                 tree
             );
 
-            // Winning hands - positive reward
-            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] += static_cast<float>(showdownNode.reward) * villainValidReachProb;
+            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] += winPayoff * villainValidReachProb;
         }
     }
 
@@ -595,13 +606,66 @@ void traverseShowdown(
                 tree
             );
 
-            // Losing hands - negative reward
-            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] -= static_cast<float>(showdownNode.reward) * villainValidReachProb;
+            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] += losePayoff * villainValidReachProb;
         }
     }
 
+    // Third pass: Calculate tie hands
     // Can ignore ties in zero-sum game, 0 EV for both players
-    // TODO: Address rake + dead money
+    if (tree.deadMoney > 0) {
+        float villainTotalReachProb = 0.0f;
+        std::array<float, StandardDeckSize> villainReachProbWithCard = {};
+
+        int villainIndexSorted = 0;
+
+        for (int heroIndexSorted = 0; heroIndexSorted < heroRangeSize; ++heroIndexSorted) {
+            HandData heroHandData = sortedHandRanks[hero][heroIndexSorted];
+            CardSet heroHand = heroHands[heroHandData.index];
+            if (!areSetsDisjoint(heroHand, showdownNode.board)) continue;
+
+            bool heroRankIncreased = (heroIndexSorted == 0) || (heroHandData.rank > sortedHandRanks[hero][heroIndexSorted - 1].rank);
+            if (heroRankIncreased) {
+                // We need to reset our reach probs because the hero's rank has increased
+                villainTotalReachProb = 0.0f;
+                villainReachProbWithCard.fill(0.0f);
+
+                // Skip until we find a hand that we tie with
+                while (villainIndexSorted < villainRangeSize && sortedHandRanks[villain][villainIndexSorted].rank < heroHandData.rank) {
+                    ++villainIndexSorted;
+                }
+
+                while (villainIndexSorted < villainRangeSize && sortedHandRanks[villain][villainIndexSorted].rank == heroHandData.rank) {
+                    int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
+                    CardSet villainHand = villainHands[villainHandIndex];
+
+                    if (areSetsDisjoint(villainHand, showdownNode.board)) {
+                        float villainReachProb = allVillainReachProbs[getReachProbsIndex(villainHandIndex, nodeIndex, constants, tree)];
+
+                        villainTotalReachProb += villainReachProb;
+
+                        for (int i = 0; i < tree.gameHandSize; ++i) {
+                            villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
+                        }
+                        assert(villainHand == 0);
+                    }
+
+                    ++villainIndexSorted;
+                }
+            }
+
+            float villainValidReachProb = getValidVillainReachProb(
+                heroHandData.index,
+                villainTotalReachProb,
+                nodeIndex,
+                villainReachProbWithCard,
+                constants,
+                allVillainReachProbs,
+                tree
+            );
+
+            allExpectedValues[getExpectedValueIndex(heroHandData.index, nodeIndex, constants, tree)] += tiePayoff * villainValidReachProb;
+        }
+    }
 }
 
 void traverseTree(
