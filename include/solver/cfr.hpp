@@ -10,9 +10,9 @@
 #include <cstdint>
 
 struct DiscountParams {
-    float alphaT;
-    float betaT;
-    float gammaT;
+    double alphaT;
+    double betaT;
+    double gammaT;
 };
 
 DiscountParams getDiscountParams(float alpha, float beta, float gamma, int iteration);

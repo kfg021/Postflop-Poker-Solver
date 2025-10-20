@@ -38,7 +38,7 @@ PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
     return sameHandIndexTable;
 }
 
-float getTotalRangeWeight(const IGameRules& rules) {
+double getTotalRangeWeight(const IGameRules& rules) {
     const auto& player0RangeWeights = rules.getInitialRangeWeights(Player::P0);
     const auto& player1RangeWeights = rules.getInitialRangeWeights(Player::P1);
 
@@ -50,7 +50,7 @@ float getTotalRangeWeight(const IGameRules& rules) {
 
     CardSet startingBoard = rules.getInitialGameState().currentBoard;
 
-    float totalRangeWeight = 0.0f;
+    double totalRangeWeight = 0.0;
 
     for (int i = 0; i < player0RangeSize; ++i) {
         if (!areSetsDisjoint(player0Hands[i], startingBoard)) continue;
@@ -58,7 +58,7 @@ float getTotalRangeWeight(const IGameRules& rules) {
         for (int j = 0; j < player1RangeSize; ++j) {
             if (!areSetsDisjoint(player0Hands[i] | startingBoard, player1Hands[j])) continue;
 
-            totalRangeWeight += player0RangeWeights[i] * player1RangeWeights[j];
+            totalRangeWeight += static_cast<double>(player0RangeWeights[i]) * static_cast<double>(player1RangeWeights[j]);
         }
     }
 

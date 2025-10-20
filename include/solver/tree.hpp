@@ -16,7 +16,7 @@ public:
         rangeSize{ 0, 0 },
         gameHandSize{ 0 },
         deadMoney{ 0 },
-        totalRangeWeight{ 0.0f },
+        totalRangeWeight{ 0.0 },
         m_trainingDataLength{ 0 },
         m_numDecisionNodes{ 0 },
         m_inputOutputSize{ 0, 0 } {
@@ -37,7 +37,7 @@ public:
     PlayerArray<std::vector<int>> sameHandIndexTable;
     int gameHandSize;
     int deadMoney;
-    float totalRangeWeight;
+    double totalRangeWeight;
 
     // Vector containing all nodes
     std::vector<Node> allNodes;
