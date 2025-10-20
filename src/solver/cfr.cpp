@@ -834,6 +834,33 @@ float bestResponseEV(
     return rootExpectedValue(hero, rules, tree, TraversalMode::BestResponse);
 }
 
+float calculateExploitability(const IGameRules& rules, Tree& tree) {
+    float player0BestResponseEV = bestResponseEV(Player::P0, rules, tree);
+    float player1BestResponseEV = bestResponseEV(Player::P1, rules, tree);
+
+    float player0ExpectedValue = expectedValue(Player::P0, rules, tree);
+    float player1ExpectedValue = expectedValue(Player::P1, rules, tree);
+
+    // Exploitative strategies should always be at least as strong as the Nash strategy
+    assert(player0BestResponseEV > player0ExpectedValue);
+    assert(player1BestResponseEV > player1ExpectedValue);
+
+    float player0Distance = player0BestResponseEV - player0ExpectedValue;
+    float player1Distance = player1BestResponseEV - player1ExpectedValue;
+
+    float exploitability = (player0Distance + player1Distance) / 2.0f;
+    return exploitability;
+}
+
+float calculateExploitabilityFast(const IGameRules& rules, Tree& tree) {
+    // Speeds up the exploitability calculation by assuming that EV(Player0) + EV(Player1) = dead money
+    // This is true in theory but not always true from the CFR calculated strategies
+    float player0BestResponseEV = bestResponseEV(Player::P0, rules, tree);
+    float player1BestResponseEV = bestResponseEV(Player::P1, rules, tree);
+    float exploitability = (player0BestResponseEV + player1BestResponseEV - tree.deadMoney) / 2.0f;
+    return exploitability;
+}
+
 void writeAverageStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree) {
     int playerToActRangeSize = tree.rangeSize[decisionNode.player];
     int numActions = decisionNode.decisionDataSize;

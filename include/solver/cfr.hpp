@@ -48,6 +48,10 @@ float bestResponseEV(
     Tree& tree
 );
 
+float calculateExploitability(const IGameRules& rules, Tree& tree);
+
+float calculateExploitabilityFast(const IGameRules& rules, Tree& tree);
+
 void writeAverageStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree);
 
 std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree);

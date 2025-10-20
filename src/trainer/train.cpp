@@ -13,15 +13,6 @@
 #include <string>
 #include <vector>
 
-namespace {
-float calculateExploitability(const IGameRules& rules, Tree& tree) {
-    float player0BestResponseEV = bestResponseEV(Player::P0, rules, tree);
-    float player1BestResponseEV = bestResponseEV(Player::P1, rules, tree);
-    float exploitability = (player0BestResponseEV + player1BestResponseEV - tree.deadMoney) / 2.0f;
-    return exploitability;
-}
-} // namespace
-
 void train(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, const std::optional<std::string>& strategyOutputFileOption) {
     assert(maxIterations > 0);
 
@@ -92,7 +83,9 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
 
     std::cout << "Calculating expected value of final strategy...\n" << std::flush;
     float player0ExpectedValue = expectedValue(Player::P0, rules, tree);
-    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n\n";
+    float player1ExpectedValue = expectedValue(Player::P1, rules, tree);
+    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n";
+    std::cout << "Player 1 expected value: " << std::fixed << std::setprecision(5) << player1ExpectedValue << "\n\n";
 
     std::cout << "Calculating exploitability of final strategy...\n" << std::flush;
     float exploitability = resultOption ? resultOption->exploitability : calculateExploitability(rules, tree);

@@ -42,19 +42,15 @@ TEST(EndToEndTest, KuhnPoker) {
     // https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
 
     // Kuhn poker has a known EV of -1/18 for the starting player
-    float player0ExpectedValue = expectedValue(Player::P0, kuhnPokerRules, tree);
     static constexpr float ExpectedPlayer0ExpectedValue = -1.0f / 18.0f;
+    float player0ExpectedValue = expectedValue(Player::P0, kuhnPokerRules, tree);
+    float player1ExpectedValue = expectedValue(Player::P1, kuhnPokerRules, tree);
     EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
-
-    // Make sure the exploitative strategies are at least as strong as the Nash strategy
-    float player0BestResponseEV = bestResponseEV(Player::P0, kuhnPokerRules, tree);
-    float player1BestResponseEV = bestResponseEV(Player::P1, kuhnPokerRules, tree);
-    ASSERT_GE(player0BestResponseEV, player0ExpectedValue);
-    ASSERT_GE(player1BestResponseEV, -player0ExpectedValue);
+    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
 
     // Make sure exploitability is non-negative and small
     static constexpr float ExploitabilityEpsilon = 1e-2;
-    float exploitability = (player0BestResponseEV + player1BestResponseEV) / 2.0f;
+    float exploitability = calculateExploitability(kuhnPokerRules, tree);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
 
@@ -133,17 +129,13 @@ TEST(EndToEndTest, LeducPoker) {
     // Make sure EV is correct
     static constexpr float StrategyEpsilon = 1e-3;
     float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree);
+    float player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree);
     EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
-
-   // Make sure the exploitative strategies are at least as strong as the Nash strategy
-    float player0BestResponseEV = bestResponseEV(Player::P0, leducPokerRules, tree);
-    float player1BestResponseEV = bestResponseEV(Player::P1, leducPokerRules, tree);
-    ASSERT_GE(player0BestResponseEV, player0ExpectedValue);
-    ASSERT_GE(player1BestResponseEV, -player0ExpectedValue);
+    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
 
     // Make sure exploitability is non-negative and small
     static constexpr float ExploitabilityEpsilon = 1e-2;
-    float exploitability = (player0BestResponseEV + player1BestResponseEV) / 2.0f;
+    float exploitability = calculateExploitability(leducPokerRules, tree);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
 }
