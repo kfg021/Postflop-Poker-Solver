@@ -88,7 +88,7 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
     std::cout << "Player 1 expected value: " << std::fixed << std::setprecision(5) << player1ExpectedValue << "\n\n";
 
     std::cout << "Calculating exploitability of final strategy...\n" << std::flush;
-    float exploitability = resultOption ? resultOption->exploitability : calculateExploitability(rules, tree);
+    float exploitability = resultOption ? resultOption->exploitability : calculateExploitabilityFast(rules, tree);
     float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
     std::cout << "Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n\n";
 
