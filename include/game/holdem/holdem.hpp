@@ -50,7 +50,7 @@ public:
     const std::vector<CardSet>& getRangeHands(Player player) const override;
     const std::vector<float>& getInitialRangeWeights(Player player) const override;
     std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const override;
-    std::string getActionName(ActionID actionID) const override;
+    std::string getActionName(ActionID actionID, int betRaiseSize) const override;
 
 private:
     void buildHandRankTables();

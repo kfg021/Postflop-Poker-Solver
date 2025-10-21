@@ -37,6 +37,7 @@ GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
         .totalWagers = { 1, 1 }, // Each player antes 1
+        .lastStreetWager = 1,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = Street::Turn, // Since Leduc poker has one street, we begin action on the turn 
@@ -122,6 +123,7 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
+        .lastStreetWager = state.lastStreetWager,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
@@ -155,12 +157,17 @@ FixedVector<GameState, MaxNumDealCards> LeducPoker::getNewStatesAfterChance(cons
     assert(state.currentBoard == 0);
     assert(state.currentStreet == Street::Turn);
 
+    // At a chance node both players must have wagered the same amount
+    assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+    int lastStreetWager = state.totalWagers[Player::P0];
+
     FixedVector<GameState, MaxNumDealCards> statesAfterChance;
 
     for (CardSet hand : PossibleHands) {
         GameState newState = {
             .currentBoard = hand,
             .totalWagers = state.totalWagers,
+            .lastStreetWager = lastStreetWager,
             .playerToAct = Player::P0, // Player 0 always starts a new betting round
             .lastAction = static_cast<ActionID>(Action::StreetStart),
             .currentStreet = Street::River,
@@ -243,7 +250,7 @@ std::span<const HandData> LeducPoker::getSortedHandRanks(Player /*player*/, Card
     }
 }
 
-std::string LeducPoker::getActionName(ActionID actionID) const {
+std::string LeducPoker::getActionName(ActionID actionID, int betRaiseSize) const {
     switch (static_cast<Action>(actionID)) {
         case Action::Fold:
             return "Fold";
@@ -252,9 +259,9 @@ std::string LeducPoker::getActionName(ActionID actionID) const {
         case Action::Call:
             return "Call";
         case Action::Bet:
-            return "Bet";
+            return "Bet " + std::to_string(betRaiseSize);
         case Action::Raise:
-            return "Raise";
+            return "Raise " + std::to_string(betRaiseSize);
         default:
             assert(false);
             return "???";

@@ -26,7 +26,7 @@ public:
     virtual std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const = 0;
 
     // Functions for output
-    virtual std::string getActionName(ActionID actionID) const = 0;
+    virtual std::string getActionName(ActionID actionID, int betRaiseSize) const = 0;
 };
 
 #endif // GAME_RULES_HPP

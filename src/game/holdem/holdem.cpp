@@ -121,6 +121,7 @@ GameState Holdem::getInitialGameState() const {
     const GameState initialState = {
         .currentBoard = m_settings.startingCommunityCards,
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
+        .lastStreetWager = m_settings.startingPlayerWagers,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = getStartingStreet()
@@ -283,6 +284,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
+        .lastStreetWager = state.lastStreetWager,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
@@ -354,6 +356,10 @@ FixedVector<GameState, MaxNumDealCards> Holdem::getNewStatesAfterChance(const Ga
     assert(getNodeType(state) == NodeType::Chance);
     assert(state.currentStreet != Street::River);
 
+    // At a chance node both players must have wagered the same amount
+    assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+    int lastStreetWager = state.totalWagers[Player::P0];
+
     FixedVector<GameState, MaxNumDealCards> statesAfterChance;
 
     CardSet availableCards = Deck & ~state.currentBoard;
@@ -365,6 +371,7 @@ FixedVector<GameState, MaxNumDealCards> Holdem::getNewStatesAfterChance(const Ga
         GameState newState = {
             .currentBoard = newBoard,
             .totalWagers = state.totalWagers,
+            .lastStreetWager = lastStreetWager,
             .playerToAct = Player::P0, // Player 0 always starts a new betting round
             .lastAction = static_cast<ActionID>(Action::StreetStart),
             .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street
@@ -416,19 +423,7 @@ std::span<const HandData> Holdem::getSortedHandRanks(Player player, CardSet boar
     return { rangeBegin, rangeEnd };
 }
 
-std::string Holdem::getActionName(ActionID actionID) const {
-    auto getBetName = [this](int betSizeIndex) -> std::string {
-        assert(betSizeIndex < m_settings.betSizes.size());
-        int betPercentage = m_settings.betSizes[betSizeIndex];
-        return "Bet" + std::to_string(betPercentage) + "%";
-    };
-
-    auto getRaiseName = [this](int raiseSizeIndex) -> std::string {
-        assert(raiseSizeIndex < m_settings.raiseSizes.size());
-        int raisePercentage = m_settings.raiseSizes[raiseSizeIndex];
-        return "Raise" + std::to_string(raisePercentage) + "%";
-    };
-
+std::string Holdem::getActionName(ActionID actionID, int betRaiseSize) const {
     switch (static_cast<Action>(actionID)) {
         case Action::Fold:
             return "Fold";
@@ -437,19 +432,15 @@ std::string Holdem::getActionName(ActionID actionID) const {
         case Action::Call:
             return "Call";
         case Action::BetSize0:
-            return getBetName(0);
         case Action::BetSize1:
-            return getBetName(1);
         case Action::BetSize2:
-            return getBetName(2);
+            return "Bet " + std::to_string(betRaiseSize);
         case Action::RaiseSize0:
-            return getRaiseName(0);
         case Action::RaiseSize1:
-            return getRaiseName(1);
         case Action::RaiseSize2:
-            return getRaiseName(2);
+            return "Raise " + std::to_string(betRaiseSize);
         case Action::AllIn:
-            return "AllIn";
+            return "All-in " + std::to_string(betRaiseSize);
         default:
             assert(false);
             return "???";

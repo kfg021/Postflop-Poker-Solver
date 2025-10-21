@@ -10,6 +10,8 @@
 #include <cstdint>
 #include <vector>
 
+#include <iostream>
+
 namespace {
 // sameHandIndexTable[p][i] = j iff the ith entry in player p's range is equal to the jth entry in the other player's range
 // (or -1 if no such index exists)
@@ -64,6 +66,11 @@ double getTotalRangeWeight(const IGameRules& rules) {
 
     return totalRangeWeight;
 }
+
+int getLastBetSize(const GameState& state) {
+    int lastBetTotal = std::max(state.totalWagers[Player::P0], state.totalWagers[Player::P1]);
+    return lastBetTotal - state.lastStreetWager;
+}
 } // namespace
 
 bool Tree::isTreeSkeletonBuilt() const {
@@ -113,6 +120,7 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     allChanceNextNodeIndices.shrink_to_fit();
     allDecisions.shrink_to_fit();
     allDecisionNextNodeIndices.shrink_to_fit();
+    allDecisionBetRaiseSizes.shrink_to_fit();
 }
 
 std::size_t Tree::getNumberOfDecisionNodes() const {
@@ -125,8 +133,11 @@ std::size_t Tree::getTreeSkeletonSize() const {
 
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
-    std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID)) + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
-    std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID)) + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t));
+    std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID))
+        + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
+    std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID))
+        + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t))
+        + (allDecisionBetRaiseSizes.capacity() * sizeof(int));
     std::size_t rangeHandsHeapSize = (rangeHands[Player::P0].capacity() + rangeHands[Player::P1].capacity()) * sizeof(CardSet);
     std::size_t sameHandIndexTableSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(int);
     return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandsHeapSize + sameHandIndexTableSize;
@@ -194,9 +205,11 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
     // Recurse to child nodes
     FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
     FixedVector<std::size_t, MaxNumActions> nextNodeIndices;
+    FixedVector<int, MaxNumActions> betRaiseSizes;
     for (ActionID actionID : validActions) {
         GameState newState = rules.getNewStateAfterDecision(state, actionID);
         nextNodeIndices.pushBack(createNode(rules, newState));
+        betRaiseSizes.pushBack(getLastBetSize(newState));
     }
     assert(nextNodeIndices.size() == validActions.size());
 
@@ -214,7 +227,9 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
     m_trainingDataLength += nodeTrainingDataLength;
     allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
     allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
+    allDecisionBetRaiseSizes.insert(allDecisionBetRaiseSizes.end(), betRaiseSizes.begin(), betRaiseSizes.end());
     assert(allDecisions.size() == allDecisionNextNodeIndices.size());
+    assert(allDecisions.size() == allDecisionBetRaiseSizes.size());
     ++m_numDecisionNodes;
 
     allNodes.emplace_back(decisionNode);

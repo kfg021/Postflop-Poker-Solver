@@ -49,6 +49,7 @@ public:
     // Data for decision nodes
     std::vector<ActionID> allDecisions;
     std::vector<std::size_t> allDecisionNextNodeIndices;
+    std::vector<int> allDecisionBetRaiseSizes;
     std::vector<float> allStrategySums;
     std::vector<float> allRegretSums;
 

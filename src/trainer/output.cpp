@@ -49,7 +49,8 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     auto& validActions = j["ValidActions"];
     for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
         ActionID actionID = tree.allDecisions[decisionNode.decisionDataOffset + i];
-        validActions.push_back(rules.getActionName(actionID));
+        int betRaiseSize = tree.allDecisionBetRaiseSizes[decisionNode.decisionDataOffset + i];
+        validActions.push_back(rules.getActionName(actionID, betRaiseSize));
     }
 
     auto& strategy = j["Strategy"];
