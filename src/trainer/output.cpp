@@ -14,8 +14,7 @@
 #include <iostream>
 #include <string>
 
-// TODO: Fix printing isomorphisms
-// TODO: Printing is fully broken
+// TODO: Print isomorphisms of chance cards
 
 namespace {
 using json = nlohmann::ordered_json;

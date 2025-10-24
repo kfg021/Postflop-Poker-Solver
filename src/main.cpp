@@ -21,7 +21,7 @@ void trainKuhnPoker(int maxIterations, const std::optional<std::string>& strateg
 }
 
 void trainLeducPoker(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
-    const LeducPoker leducPokerRules;
+    const LeducPoker leducPokerRules(true);
 
     static constexpr float TargetExploitabilityPercent = 0.3f;
     static constexpr int ExploitabilityCheckFrequency = 1000;

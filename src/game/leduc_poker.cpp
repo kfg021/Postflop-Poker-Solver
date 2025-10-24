@@ -34,6 +34,8 @@ const std::array<CardSet, 6> PossibleHands = {
 };
 } // namespace
 
+LeducPoker::LeducPoker(bool useIsomorphism) : m_useIsomorphism{ useIsomorphism } {};
+
 GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
@@ -164,9 +166,14 @@ ChanceNodeInfo LeducPoker::getChanceNodeInfo(CardSet board) const {
         | PossibleHands[5];
     assert(getSetSize(Deck) == 6);
 
+    FixedVector<SuitEquivalenceClass, 4> isomorphisms;
+    if (m_useIsomorphism) {
+        isomorphisms.pushBack({ Suit::Hearts, Suit::Spades });
+    }
+
     return {
         .availableCards = Deck,
-        .isomorphisms = {{ Suit::Hearts, Suit::Spades }}
+        .isomorphisms = isomorphisms
     };
 }
 
@@ -241,14 +248,14 @@ std::span<const HandData> LeducPoker::getSortedHandRanks(Player /*player*/, Card
     }
 }
 
- int LeducPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit x, Suit y) const {
-    if(x > y) std::swap(x, y);
+int LeducPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit x, Suit y) const {
+    if (x > y) std::swap(x, y);
     assert((x == Suit::Hearts) && (y == Suit::Spades));
 
     // Leduc poker hands are ordered like [Jh, Js, Qh, Qs, Kh, Ks],
     // so to swap suits we either add or subtract 1 depending on the index
     return handIndex ^ 1;
- }
+}
 
 std::string LeducPoker::getActionName(ActionID actionID, int betRaiseSize) const {
     switch (static_cast<Action>(actionID)) {

@@ -178,7 +178,7 @@ std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& sta
             }
         }
 
-        assert(false);
+        // Assume that nodes not present in the list are their own equivalence class
         return suit;
     };
 

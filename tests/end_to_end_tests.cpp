@@ -7,7 +7,7 @@
 #include "solver/tree.hpp"
 #include "trainer/output.hpp"
 
-TEST(EndToEndTest, KuhnPoker) {
+TEST(EndToEndTest, Kuhn) {
     KuhnPoker kuhnPokerRules;
     Tree tree;
     tree.buildTreeSkeleton(kuhnPokerRules);
@@ -105,14 +105,14 @@ TEST(EndToEndTest, KuhnPoker) {
     ASSERT_NEAR(getStrategyValue(KuhnActionID::BetOrCall, KuhnHandID::King, bet), 1.0f, StrategyEpsilon);
 }
 
-TEST(EndToEndTest, LeducPoker) {
-    LeducPoker leducPokerRules;
+TEST(EndToEndTest, LeducWithoutIsomorphism) {
+    LeducPoker leducPokerRules(false);
     Tree tree;
     tree.buildTreeSkeleton(leducPokerRules);
 
     // Test tree is correct structure
-    ASSERT_EQ(tree.allNodes.size(), 240); // 465 without isomorphism
-    ASSERT_EQ(tree.getNumberOfDecisionNodes(), 96); // 186 without isomorphism
+    ASSERT_EQ(tree.allNodes.size(), 465);
+    ASSERT_EQ(tree.getNumberOfDecisionNodes(), 186);
 
     tree.buildFullTree();
 
@@ -125,7 +125,42 @@ TEST(EndToEndTest, LeducPoker) {
 
     // https://cs.stackexchange.com/questions/169593/nash-equilibrium-details-for-leduc-holdem
     static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
-    
+
+    // Make sure EV is correct
+    static constexpr float StrategyEpsilon = 1e-3;
+    float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree);
+    float player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree);
+    EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+
+    // Make sure exploitability is non-negative and small
+    static constexpr float ExploitabilityEpsilon = 1e-2;
+    float exploitability = calculateExploitability(leducPokerRules, tree);
+    ASSERT_GE(exploitability, 0.0f);
+    ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
+}
+
+TEST(EndToEndTest, LeducWithIsomorphism) {
+    LeducPoker leducPokerRules(true);
+    Tree tree;
+    tree.buildTreeSkeleton(leducPokerRules);
+
+    // Test tree is correct structure
+    ASSERT_EQ(tree.allNodes.size(), 240);
+    ASSERT_EQ(tree.getNumberOfDecisionNodes(), 96);
+
+    tree.buildFullTree();
+
+    static constexpr float Iterations = 10000;
+    for (int i = 0; i < Iterations; ++i) {
+        for (Player hero : { Player::P0, Player::P1 }) {
+            discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree);
+        }
+    }
+
+    // https://cs.stackexchange.com/questions/169593/nash-equilibrium-details-for-leduc-holdem
+    static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
+
     // Make sure EV is correct
     static constexpr float StrategyEpsilon = 1e-3;
     float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree);
