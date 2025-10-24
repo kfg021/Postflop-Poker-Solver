@@ -121,7 +121,7 @@ GameState Holdem::getInitialGameState() const {
     const GameState initialState = {
         .currentBoard = m_settings.startingCommunityCards,
         .totalWagers = { m_settings.startingPlayerWagers, m_settings.startingPlayerWagers },
-        .lastStreetWager = m_settings.startingPlayerWagers,
+        .previousStreetsWager = m_settings.startingPlayerWagers,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = getStartingStreet()
@@ -284,7 +284,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
-        .lastStreetWager = state.lastStreetWager,
+        .previousStreetsWager = state.previousStreetsWager,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,
@@ -358,7 +358,7 @@ ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
 
     // // At a chance node both players must have wagered the same amount
     // assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
-    // int lastStreetWager = state.totalWagers[Player::P0];
+    // int previousStreetsWager = state.totalWagers[Player::P0];
 
     // FixedVector<GameState, MaxNumDealCards> statesAfterChance;
 
@@ -371,7 +371,7 @@ ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
     //     GameState newState = {
     //         .currentBoard = newBoard,
     //         .totalWagers = state.totalWagers,
-    //         .lastStreetWager = lastStreetWager,
+    //         .previousStreetsWager = previousStreetsWager,
     //         .playerToAct = Player::P0, // Player 0 always starts a new betting round
     //         .lastAction = static_cast<ActionID>(Action::StreetStart),
     //         .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street

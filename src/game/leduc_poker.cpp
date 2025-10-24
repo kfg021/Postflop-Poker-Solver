@@ -40,7 +40,7 @@ GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
         .currentBoard = 0,
         .totalWagers = { 1, 1 }, // Each player antes 1
-        .lastStreetWager = 1,
+        .previousStreetsWager = 1,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
         .currentStreet = Street::Turn, // Since Leduc poker has one street, we begin action on the turn 
@@ -126,7 +126,7 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     GameState nextState = {
         .currentBoard = state.currentBoard,
         .totalWagers = state.totalWagers,
-        .lastStreetWager = state.lastStreetWager,
+        .previousStreetsWager = state.previousStreetsWager,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
         .currentStreet = state.currentStreet,

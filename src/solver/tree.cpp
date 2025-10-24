@@ -69,7 +69,7 @@ double getTotalRangeWeight(const IGameRules& rules) {
 
 int getLastBetSize(const GameState& state) {
     int lastBetTotal = std::max(state.totalWagers[Player::P0], state.totalWagers[Player::P1]);
-    return lastBetTotal - state.lastStreetWager;
+    return lastBetTotal - state.previousStreetsWager;
 }
 } // namespace
 
@@ -206,7 +206,7 @@ std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& sta
             GameState nextState = {
                 .currentBoard = state.currentBoard | cardIDToSet(nextCard), // Add next card to board
                 .totalWagers = state.totalWagers,
-                .lastStreetWager = state.totalWagers[Player::P0],
+                .previousStreetsWager = state.totalWagers[Player::P0],
                 .playerToAct = Player::P0, // Player 0 always starts a new betting round
                 .lastAction = streetStart,
                 .currentStreet = getNextStreet(state.currentStreet), // Advance to the next street after a chance node

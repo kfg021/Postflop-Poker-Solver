@@ -62,7 +62,7 @@ GameState getStateAfterChance(const GameState& state) {
     GameState nextState = {
         .currentBoard = state.currentBoard | cardIDToSet(nextCard),
         .totalWagers = state.totalWagers,
-        .lastStreetWager = state.totalWagers[Player::P0],
+        .previousStreetsWager = state.totalWagers[Player::P0],
         .playerToAct = Player::P0,
         .lastAction = 0,
         .currentStreet = nextStreet
