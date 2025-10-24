@@ -77,7 +77,9 @@ public:
 
 private:
     constexpr int getPlayerID(Player player) const {
-        return (player == Player::P0) ? 0 : 1;
+        int playerID = static_cast<int>(player);
+        assert(playerID == 0 || playerID == 1);
+        return playerID;
     }
 
     std::array<T, 2> m_array;

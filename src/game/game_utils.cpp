@@ -14,8 +14,9 @@ constexpr char CardSuitNames[] = "cdhs";
 } // namespace
 
 Player getOpposingPlayer(Player player) {
-    assert(player == Player::P0 || player == Player::P1);
-    return (player == Player::P0) ? Player::P1 : Player::P0;
+    int playerID = static_cast<int>(player);
+    assert(playerID == 0 || playerID == 1);
+    return static_cast<Player>(playerID ^ 1);
 }
 
 Value getCardValue(CardID cardID) {
