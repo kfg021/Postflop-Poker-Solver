@@ -34,7 +34,7 @@ const std::array<CardSet, 6> PossibleHands = {
 };
 } // namespace
 
-LeducPoker::LeducPoker(bool useIsomorphism) : m_useIsomorphism{ useIsomorphism } {};
+LeducPoker::LeducPoker(bool useChanceCardIsomorphism) : m_useChanceCardIsomorphism{ useChanceCardIsomorphism } {};
 
 GameState LeducPoker::getInitialGameState() const {
     static const GameState InitialState = {
@@ -167,7 +167,7 @@ ChanceNodeInfo LeducPoker::getChanceNodeInfo(CardSet board) const {
     assert(getSetSize(Deck) == 6);
 
     FixedVector<SuitEquivalenceClass, 4> isomorphisms;
-    if (m_useIsomorphism) {
+    if (m_useChanceCardIsomorphism) {
         isomorphisms.pushBack({ Suit::Hearts, Suit::Spades });
     }
 

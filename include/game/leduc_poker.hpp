@@ -10,7 +10,7 @@
 
 class LeducPoker final : public IGameRules {
 public:
-    LeducPoker(bool useIsomorphism);
+    LeducPoker(bool useChanceCardIsomorphism);
 
     GameState getInitialGameState() const override;
     int getDeadMoney() const override;
@@ -25,7 +25,7 @@ public:
     std::string getActionName(ActionID actionID, int betRaiseSize) const override;
 
 private:
-    bool m_useIsomorphism;
+    bool m_useChanceCardIsomorphism;
 };
 
 #endif // LEDUC_POKER_HPP
