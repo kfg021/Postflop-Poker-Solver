@@ -14,6 +14,9 @@
 #include <iostream>
 #include <string>
 
+// TODO: Fix printing isomorphisms
+// TODO: Printing is fully broken
+
 namespace {
 using json = nlohmann::ordered_json;
 
@@ -44,7 +47,7 @@ json buildJSONChance(const IGameRules& rules, const ChanceNode& chanceNode, Tree
 json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode, Tree& tree, CardSet board) {
     json j;
     j["NodeType"] = "Decision";
-    j["Player"] = (decisionNode.player == Player::P0) ? 0 : 1;
+    j["Player"] = (decisionNode.playerToAct == Player::P0) ? 0 : 1;
 
     auto& validActions = j["ValidActions"];
     for (int i = 0; i < decisionNode.decisionDataSize; ++i) {
@@ -56,7 +59,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     auto& strategy = j["Strategy"];
     writeAverageStrategyToBuffer(decisionNode, tree);
 
-    const auto& playerHands = rules.getRangeHands(decisionNode.player);
+    const auto& playerHands = rules.getRangeHands(decisionNode.playerToAct);
     for (int i = 0; i < playerHands.size(); ++i) {
         CardSet hand = playerHands[i];
 

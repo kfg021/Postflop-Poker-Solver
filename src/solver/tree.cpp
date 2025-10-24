@@ -138,9 +138,8 @@ std::size_t Tree::getTreeSkeletonSize() const {
     std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID))
         + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t))
         + (allDecisionBetRaiseSizes.capacity() * sizeof(int));
-    std::size_t rangeHandsHeapSize = (rangeHands[Player::P0].capacity() + rangeHands[Player::P1].capacity()) * sizeof(CardSet);
     std::size_t sameHandIndexTableSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(int);
-    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandsHeapSize + sameHandIndexTableSize;
+    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + sameHandIndexTableSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
@@ -171,24 +170,69 @@ std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
 }
 
 std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& state) {
+    auto getParentSuit = [](Suit suit, const FixedVector<SuitEquivalenceClass, 4>& isomorphisms) -> Suit {
+        for (SuitEquivalenceClass isomorphism : isomorphisms) {
+            if (isomorphism.contains(suit)) {
+                // Choose the first node to be the representative for this equivalence class
+                return isomorphism[0];
+            }
+        }
+
+        assert(false);
+        return suit;
+    };
+
     // Recurse to child nodes
     FixedVector<CardID, MaxNumDealCards> nextCards;
     FixedVector<std::size_t, MaxNumDealCards> nextNodeIndices;
-    for (const GameState& newState : rules.getNewStatesAfterChance(state)) {
-        // A chance node adds exactly one card to the board
-        CardSet addedCards = newState.currentBoard & ~state.currentBoard;
-        assert(getSetSize(addedCards) == 1);
-        CardID newCard = getLowestCardInSet(addedCards);
+    FixedVector<SuitMapping, 3> suitMappings;
 
-        nextCards.pushBack(newCard);
-        nextNodeIndices.pushBack(createNode(rules, newState));
+    ChanceNodeInfo chanceNodeInfo = rules.getChanceNodeInfo(state.currentBoard);
+    int numChanceCards = getSetSize(chanceNodeInfo.availableCards);
+
+    CardSet temp = chanceNodeInfo.availableCards;
+    for (int i = 0; i < numChanceCards; ++i) {
+        CardID nextCard = popLowestCardFromSet(temp);
+
+        Suit suit = getCardSuit(nextCard);
+        Suit parentSuit = getParentSuit(suit, chanceNodeInfo.isomorphisms);
+
+        if (suit == parentSuit) {
+            // At a chance node both players should have wagered same amount
+            assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+
+            ActionID streetStart = rules.getInitialGameState().lastAction;
+
+            GameState nextState = {
+                .currentBoard = state.currentBoard | cardIDToSet(nextCard), // Add next card to board
+                .totalWagers = state.totalWagers,
+                .lastStreetWager = state.totalWagers[Player::P0],
+                .playerToAct = Player::P0, // Player 0 always starts a new betting round
+                .lastAction = streetStart,
+                .currentStreet = getNextStreet(state.currentStreet), // Advance to the next street after a chance node
+            };
+
+            nextCards.pushBack(nextCard);
+            nextNodeIndices.pushBack(createNode(rules, nextState));
+        }
+        else {
+            // This card would be equivalent to a card with the same value and the parent suit
+            // We can save space by not storing it
+
+            SuitMapping mapping = { .child = suit, .parent = parentSuit };
+            if (!suitMappings.contains(mapping)) {
+                suitMappings.pushBack(mapping);
+            }
+        }
     }
+    assert(temp == 0);
     assert(nextCards.size() == nextNodeIndices.size());
 
     // Fill in current node information
     ChanceNode chanceNode = {
-        .board = state.currentBoard,
+        .availableCards = chanceNodeInfo.availableCards,
         .chanceDataOffset = allChanceCards.size(),
+        .suitMappings = suitMappings,
         .chanceDataSize = static_cast<std::uint8_t>(nextCards.size())
     };
 
@@ -218,7 +262,7 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
         .trainingDataOffset = m_trainingDataLength,
         .decisionDataOffset = allDecisions.size(),
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
-        .player = state.playerToAct
+        .playerToAct = state.playerToAct
     };
 
     // Update tree information

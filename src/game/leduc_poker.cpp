@@ -9,7 +9,6 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 namespace {
 enum class Action : std::uint8_t {
@@ -21,16 +20,18 @@ enum class Action : std::uint8_t {
     Raise
 };
 
-std::array<CardSet, 6> getHands(const std::array<std::string, 6>& cardNames) {
-    std::array<CardSet, 6> hands;
-    for (int i = 0; i < 6; ++i) {
-        hands[i] = cardIDToSet(getCardIDFromName(cardNames[i]).getValue());
-    }
-    return hands;
+CardSet getHand(Value value, Suit suit) {
+    return cardIDToSet(getCardIDFromValueAndSuit(value, suit));
 }
 
-// Leduc poker has two copies each of [Jack, Queen, King]
-const auto PossibleHands = getHands({ "Jh", "Js", "Qh", "Qs", "Kh", "Ks" });
+const std::array<CardSet, 6> PossibleHands = {
+    getHand(Value::Jack, Suit::Hearts),
+    getHand(Value::Jack, Suit::Spades),
+    getHand(Value::Queen, Suit::Hearts),
+    getHand(Value::Queen, Suit::Spades),
+    getHand(Value::King, Suit::Hearts),
+    getHand(Value::King, Suit::Spades)
+};
 } // namespace
 
 GameState LeducPoker::getInitialGameState() const {
@@ -152,39 +153,29 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     return nextState;
 }
 
-FixedVector<GameState, MaxNumDealCards> LeducPoker::getNewStatesAfterChance(const GameState& state) const {
-    assert(getNodeType(state) == NodeType::Chance);
-    assert(state.currentBoard == 0);
-    assert(state.currentStreet == Street::Turn);
+ChanceNodeInfo LeducPoker::getChanceNodeInfo(CardSet board) const {
+    assert(board == 0);
 
-    // At a chance node both players must have wagered the same amount
-    assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
-    int lastStreetWager = state.totalWagers[Player::P0];
+    static const CardSet Deck = PossibleHands[0]
+        | PossibleHands[1]
+        | PossibleHands[2]
+        | PossibleHands[3]
+        | PossibleHands[4]
+        | PossibleHands[5];
+    assert(getSetSize(Deck) == 6);
 
-    FixedVector<GameState, MaxNumDealCards> statesAfterChance;
-
-    for (CardSet hand : PossibleHands) {
-        GameState newState = {
-            .currentBoard = hand,
-            .totalWagers = state.totalWagers,
-            .lastStreetWager = lastStreetWager,
-            .playerToAct = Player::P0, // Player 0 always starts a new betting round
-            .lastAction = static_cast<ActionID>(Action::StreetStart),
-            .currentStreet = Street::River,
-        };
-        statesAfterChance.pushBack(newState);
-    }
-
-    return statesAfterChance;
+    return {
+        .availableCards = Deck,
+        .isomorphisms = {{ Suit::Hearts, Suit::Spades }}
+    };
 }
 
-const std::vector<CardSet>& LeducPoker::getRangeHands(Player /*player*/) const {
-    static const std::vector<CardSet> PossibleHandsVector(PossibleHands.begin(), PossibleHands.end());
-    return PossibleHandsVector;
+std::span<const CardSet> LeducPoker::getRangeHands(Player /*player*/) const {
+    return PossibleHands;
 }
 
-const std::vector<float>& LeducPoker::getInitialRangeWeights(Player /*player*/) const {
-    static const std::vector<float> Weights(6, 1.0f);
+std::span<const float> LeducPoker::getInitialRangeWeights(Player /*player*/) const {
+    static constexpr std::array<float, 6> Weights = { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
     return Weights;
 }
 
@@ -249,6 +240,15 @@ std::span<const HandData> LeducPoker::getSortedHandRanks(Player /*player*/, Card
             return {};
     }
 }
+
+ int LeducPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit x, Suit y) const {
+    if(x > y) std::swap(x, y);
+    assert((x == Suit::Hearts) && (y == Suit::Spades));
+
+    // Leduc poker hands are ordered like [Jh, Js, Qh, Qs, Kh, Ks],
+    // so to swap suits we either add or subtract 1 depending on the index
+    return handIndex ^ 1;
+ }
 
 std::string LeducPoker::getActionName(ActionID actionID, int betRaiseSize) const {
     switch (static_cast<Action>(actionID)) {

@@ -7,7 +7,6 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 namespace {
 enum class Action : std::uint8_t {
@@ -18,16 +17,15 @@ enum class Action : std::uint8_t {
     Bet
 };
 
-std::array<CardSet, 3> getHands(const std::array<std::string, 3>& cardNames) {
-    std::array<CardSet, 3> hands;
-    for (int i = 0; i < 3; ++i) {
-        hands[i] = cardIDToSet(getCardIDFromName(cardNames[i]).getValue());
-    }
-    return hands;
+CardSet getHand(Value value, Suit suit) {
+    return cardIDToSet(getCardIDFromValueAndSuit(value, suit));
 }
 
-// Kuhn poker has [Jack, Queen, King], suits irrelevant
-const auto PossibleHands = getHands({ "Js", "Qs", "Ks" });
+const std::array<CardSet, 3> PossibleHands = {
+    getHand(Value::Jack, Suit::Spades),
+    getHand(Value::Queen, Suit::Spades),
+    getHand(Value::King, Suit::Spades)
+};
 } // namespace
 
 GameState KuhnPoker::getInitialGameState() const {
@@ -119,19 +117,18 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
     return nextState;
 }
 
-FixedVector<GameState, MaxNumDealCards> KuhnPoker::getNewStatesAfterChance(const GameState& /*state*/) const {
+ChanceNodeInfo KuhnPoker::getChanceNodeInfo(CardSet /*board*/) const {
     // Kuhn poker has no chance nodes
     assert(false);
     return {};
 }
 
-const std::vector<CardSet>& KuhnPoker::getRangeHands(Player /*player*/) const {
-    static const std::vector<CardSet> PossibleHandsVector(PossibleHands.begin(), PossibleHands.end());
-    return PossibleHandsVector;
+std::span<const CardSet> KuhnPoker::getRangeHands(Player /*player*/) const {
+    return PossibleHands;
 }
 
-const std::vector<float>& KuhnPoker::getInitialRangeWeights(Player /*player*/) const {
-    static const std::vector<float> Weights(3, 1.0f);
+std::span<const float> KuhnPoker::getInitialRangeWeights(Player /*player*/) const {
+    static constexpr std::array<float, 3> Weights = { 1.0f, 1.0f, 1.0f };
     return Weights;
 }
 
@@ -149,6 +146,12 @@ std::span<const HandData> KuhnPoker::getSortedHandRanks(Player /*player*/, CardS
     };
 
     return SortedHandRanks;
+}
+
+int KuhnPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit /*x*/, Suit /*y*/) const {
+    // Kuhn poker only has one suit and no isomorphisms
+    assert(false);
+    return handIndex;
 }
 
 std::string KuhnPoker::getActionName(ActionID actionID, int /*betRaiseSize*/) const {

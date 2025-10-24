@@ -352,42 +352,50 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     return nextState;
 }
 
-FixedVector<GameState, MaxNumDealCards> Holdem::getNewStatesAfterChance(const GameState& state) const {
-    assert(getNodeType(state) == NodeType::Chance);
-    assert(state.currentStreet != Street::River);
+ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
+    // assert(getNodeType(state) == NodeType::Chance);
+    // assert(state.currentStreet != Street::River);
 
-    // At a chance node both players must have wagered the same amount
-    assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
-    int lastStreetWager = state.totalWagers[Player::P0];
+    // // At a chance node both players must have wagered the same amount
+    // assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+    // int lastStreetWager = state.totalWagers[Player::P0];
 
-    FixedVector<GameState, MaxNumDealCards> statesAfterChance;
+    // FixedVector<GameState, MaxNumDealCards> statesAfterChance;
 
-    CardSet availableCards = Deck & ~state.currentBoard;
-    int numChanceCards = getSetSize(availableCards);
-    for (int i = 0; i < numChanceCards; ++i) {
-        CardID dealCard = popLowestCardFromSet(availableCards);
-        CardSet newBoard = state.currentBoard | cardIDToSet(dealCard);
+    // CardSet availableCards = Deck & ~state.currentBoard;
+    // int numChanceCards = getSetSize(availableCards);
+    // for (int i = 0; i < numChanceCards; ++i) {
+    //     CardID dealCard = popLowestCardFromSet(availableCards);
+    //     CardSet newBoard = state.currentBoard | cardIDToSet(dealCard);
 
-        GameState newState = {
-            .currentBoard = newBoard,
-            .totalWagers = state.totalWagers,
-            .lastStreetWager = lastStreetWager,
-            .playerToAct = Player::P0, // Player 0 always starts a new betting round
-            .lastAction = static_cast<ActionID>(Action::StreetStart),
-            .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street
-        };
-        statesAfterChance.pushBack(newState);
-    }
-    assert(availableCards == 0);
+    //     GameState newState = {
+    //         .currentBoard = newBoard,
+    //         .totalWagers = state.totalWagers,
+    //         .lastStreetWager = lastStreetWager,
+    //         .playerToAct = Player::P0, // Player 0 always starts a new betting round
+    //         .lastAction = static_cast<ActionID>(Action::StreetStart),
+    //         .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street
+    //     };
+    //     statesAfterChance.pushBack(newState);
+    // }
+    // assert(availableCards == 0);
 
-    return statesAfterChance;
+    // return statesAfterChance;
+
+    ChanceNodeInfo chanceNodeInfo;
+    chanceNodeInfo.availableCards = Deck & ~board;
+
+    // TODO: Implement 
+    // TODO: Need to make sure that ranges are symmetrical to do isomorphism
+    assert(false);
+    return chanceNodeInfo;
 }
 
-const std::vector<CardSet>& Holdem::getRangeHands(Player player) const {
+std::span<const CardSet> Holdem::getRangeHands(Player player) const {
     return m_settings.ranges[player].hands;
 }
 
-const std::vector<float>& Holdem::getInitialRangeWeights(Player player) const {
+std::span<const float> Holdem::getInitialRangeWeights(Player player) const {
     return m_settings.ranges[player].weights;
 }
 
@@ -421,6 +429,12 @@ std::span<const HandData> Holdem::getSortedHandRanks(Player player, CardSet boar
     auto rangeBegin = m_handRanks[player].begin() + handRankOffset;
     auto rangeEnd = rangeBegin + playerRangeSize;
     return { rangeBegin, rangeEnd };
+}
+
+int Holdem::getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const {
+    // TODO: Implement
+    assert(false);
+    return 0;
 }
 
 std::string Holdem::getActionName(ActionID actionID, int betRaiseSize) const {

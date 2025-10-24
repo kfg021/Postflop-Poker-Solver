@@ -2,6 +2,7 @@
 #define GAME_TYPES_HPP
 
 #include "game/holdem/config.hpp"
+#include "util/fixed_vector.hpp"
 
 #include <algorithm>
 #include <array>
@@ -98,8 +99,23 @@ struct HandData {
     auto operator<=>(const HandData&) const = default;
 };
 
+using SuitEquivalenceClass = FixedVector<Suit, 4>;
+
+struct ChanceNodeInfo {
+    CardSet availableCards;
+    FixedVector<SuitEquivalenceClass, 4> isomorphisms;
+};
+
+struct SuitMapping {
+    Suit child;
+    Suit parent;
+
+    bool operator==(const SuitMapping&) const = default;
+};
+
 // std::span doesn't have == for some reason...
-inline bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
+template <typename T>
+bool operator==(std::span<const T> lhs, std::span<const T> rhs) {
     return std::ranges::equal(lhs, rhs);
 }
 

@@ -11,7 +11,7 @@ static constexpr float Epsilon = 1e-5;
 
 TEST(CardNameParsingTest, CorrectCardNameParsing) {
     const std::string CardValueNames = "23456789TJQKA";
-    const std::string CardSuitNames = "chds";
+    const std::string CardSuitNames = "cdhs";
 
     for (int i = 0; i < 52; ++i) {
         int valueIndex = i / 4;

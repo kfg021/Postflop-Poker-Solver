@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 #include <vector>
 
 class Tree {
@@ -32,7 +33,7 @@ public:
     std::size_t getRootNodeIndex() const;
 
     // Game data
-    PlayerArray<std::vector<CardSet>> rangeHands;
+    PlayerArray<std::span<const CardSet>> rangeHands; // TODO: Probably should copy data into tree
     PlayerArray<int> rangeSize;
     PlayerArray<std::vector<int>> sameHandIndexTable;
     int gameHandSize;

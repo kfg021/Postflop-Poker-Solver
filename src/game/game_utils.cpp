@@ -10,7 +10,7 @@
 
 namespace {
 constexpr char CardValueNames[] = "23456789TJQKA";
-constexpr char CardSuitNames[] = "chds";
+constexpr char CardSuitNames[] = "cdhs";
 } // namespace
 
 Player getOpposingPlayer(Player player) {
@@ -95,6 +95,27 @@ CardID popLowestCardFromSet(CardSet& cardSet) {
     CardID lowestCard = getLowestCardInSet(cardSet);
     cardSet &= ~cardIDToSet(lowestCard);
     return lowestCard;
+}
+
+CardSet swapSuits(CardSet cardSet, Suit x, Suit y) {
+    assert(x != y);
+
+    static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
+
+    int suit1ID = static_cast<int>(x);
+    int suit2ID = static_cast<int>(y);
+
+    if (suit1ID > suit2ID) std::swap(suit1ID, suit2ID);
+
+    int diff = suit2ID - suit1ID;
+    assert(diff > 0);
+    
+    CardSet suit1Masked = cardSet & (SingleSuitMask << suit1ID);
+    CardSet suit2Masked = cardSet & (SingleSuitMask << suit2ID);
+    
+    cardSet &= ~(suit1Masked | suit2Masked);
+    cardSet |= (suit1Masked << diff) | (suit2Masked >> diff);
+    return cardSet;
 }
 
 std::vector<std::string> getCardSetNames(CardSet cardSet) {

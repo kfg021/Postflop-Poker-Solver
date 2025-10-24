@@ -45,7 +45,7 @@ std::size_t getReachProbsIndex(int hand, std::size_t nodeIndex, const TraversalC
 }
 
 void writeCurrentStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree) {
-    int playerToActRangeSize = tree.rangeSize[decisionNode.player];
+    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
 
@@ -147,13 +147,11 @@ void traverseChance(
     int heroRangeSize = tree.rangeSize[hero];
     int villainRangeSize = tree.rangeSize[villain];
 
-    int numChanceCards = chanceNode.chanceDataSize;
-
     // Normalize expected values by the number of total chance cards possible
     // Hero and villain both have a hand
-    int chanceCardReachFactor = numChanceCards - (2 * tree.gameHandSize);
+    int chanceCardReachFactor = getSetSize(chanceNode.availableCards) - (2 * tree.gameHandSize);
 
-    for (int cardIndex = 0; cardIndex < numChanceCards; ++cardIndex) {
+    for (int cardIndex = 0; cardIndex < chanceNode.chanceDataSize; ++cardIndex) {
         CardID chanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + cardIndex];
         std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + cardIndex];
         assert(nextNodeIndex < tree.allNodes.size());
@@ -176,13 +174,32 @@ void traverseChance(
 
         for (int hand = 0; hand < heroRangeSize; ++hand) {
             std::size_t currentNodeEVIndex = getExpectedValueIndex(hand, nodeIndex, constants, tree);
-            std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, tree);
 
+            // First calculate the contribution from the chance card itself
+            std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, tree);
             if (areHandAndCardDisjoint(hero, hand, chanceCard)) {
                 allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex];
             }
             else {
                 assert(allExpectedValues[nextNodeEVIndex] == 0.0f);
+            }
+
+            // Then calculate contribution for all isomorphisms
+            for (SuitMapping mapping : chanceNode.suitMappings) {
+                assert(mapping.parent != mapping.child);
+
+                if (mapping.parent == getCardSuit(chanceCard)) {
+                    CardID isomorphicCard = getCardIDFromValueAndSuit(getCardValue(chanceCard), mapping.child);
+                    int indexAfterSuitSwap = rules.getHandIndexAfterSuitSwap(constants.hero, hand, mapping.parent, mapping.child);
+
+                    std::size_t nextNodeEVIndexIsomorphism = getExpectedValueIndex(indexAfterSuitSwap, nextNodeIndex, constants, tree);
+                    if (areHandAndCardDisjoint(hero, hand, isomorphicCard)) {
+                        allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndexIsomorphism];
+                    }
+                    else {
+                        assert(allExpectedValues[nextNodeEVIndexIsomorphism] == 0.0f);
+                    }
+                }
             }
         }
     }
@@ -414,7 +431,7 @@ void traverseDecision(
         }
     };
 
-    if (constants.hero == decisionNode.player) {
+    if (constants.hero == decisionNode.playerToAct) {
         switch (constants.mode) {
             case TraversalMode::VanillaCfr:
             case TraversalMode::CfrPlus:
@@ -860,7 +877,7 @@ float calculateExploitabilityFast(const IGameRules& rules, Tree& tree) {
 }
 
 void writeAverageStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree) {
-    int playerToActRangeSize = tree.rangeSize[decisionNode.player];
+    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
 
@@ -890,7 +907,7 @@ void writeAverageStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree) 
 std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree) {
     assert(action >= 0 && action < decisionNode.decisionDataSize);
 
-    int playerToActRangeSize = tree.rangeSize[decisionNode.player];
+    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
     assert(hand >= 0 && hand < playerToActRangeSize);
 
     return decisionNode.trainingDataOffset + (action * playerToActRangeSize) + hand;

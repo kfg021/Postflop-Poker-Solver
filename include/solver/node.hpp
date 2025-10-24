@@ -6,16 +6,17 @@
 #include <cstddef>
 #include <cstdint>
 
-// Data in structs is ordered from largest to smallest for packing purposes
-
 struct ChanceNode {
-    // State of the board before the next card is dealt
-    CardSet board;
+    // A set containing all of the different cards that could come on the turn / river given the current board
+    CardSet availableCards;
 
     // Offset into the allChanceCards and allChanceNextNodeIndices vectors
     std::size_t chanceDataOffset;
 
-    // Equal to the number of different cards that could come on the turn / river given the current board
+    // Stores mappings for isomorphic suits
+    FixedVector<SuitMapping, 3> suitMappings;
+
+    // The number of chance cards (not including isomorphic cards)
     std::uint8_t chanceDataSize;
 };
 
@@ -30,14 +31,14 @@ struct DecisionNode {
     std::uint8_t decisionDataSize;
 
     // Which player is currently taking an action
-    Player player;
+    Player playerToAct;
 };
 
 struct FoldNode {
     // State of the board after fold
     CardSet board;
 
-    // How much the folding player had in their wagered when they folded
+    // How much the folding player had wagered when they folded
     int foldingPlayerWager;
 
     // The player who folded
@@ -48,8 +49,7 @@ struct ShowdownNode {
     // State of the board after end of betting
     CardSet board;
 
-    // The amount of money that each player has wagered
-    // (At showdown, this must be the same for both players)
+    // The amount of money wagered per player (equal for both players at showdown)
     int playerWagers;
 };
 

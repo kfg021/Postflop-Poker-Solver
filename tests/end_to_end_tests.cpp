@@ -111,8 +111,8 @@ TEST(EndToEndTest, LeducPoker) {
     tree.buildTreeSkeleton(leducPokerRules);
 
     // Test tree is correct structure
-    ASSERT_EQ(tree.allNodes.size(), 465);
-    ASSERT_EQ(tree.getNumberOfDecisionNodes(), 186);
+    ASSERT_EQ(tree.allNodes.size(), 240); // 465 without isomorphism
+    ASSERT_EQ(tree.getNumberOfDecisionNodes(), 96); // 186 without isomorphism
 
     tree.buildFullTree();
 

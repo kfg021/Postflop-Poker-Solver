@@ -6,7 +6,6 @@
 
 #include <span>
 #include <string>
-#include <vector>
 
 class IGameRules {
 public:
@@ -18,12 +17,13 @@ public:
     virtual NodeType getNodeType(const GameState& state) const = 0;
     virtual FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const = 0;
     virtual GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const = 0;
-    virtual FixedVector<GameState, MaxNumDealCards> getNewStatesAfterChance(const GameState& state) const = 0;
-    virtual const std::vector<CardSet>& getRangeHands(Player player) const = 0;
+    virtual ChanceNodeInfo getChanceNodeInfo(CardSet board) const = 0;
+    virtual std::span<const CardSet> getRangeHands(Player player) const = 0;
 
     // Functions for the CFR algorithm
-    virtual const std::vector<float>& getInitialRangeWeights(Player player) const = 0;
+    virtual std::span<const float> getInitialRangeWeights(Player player) const = 0;
     virtual std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const = 0;
+    virtual int getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const = 0;
 
     // Functions for output
     virtual std::string getActionName(ActionID actionID, int betRaiseSize) const = 0;
