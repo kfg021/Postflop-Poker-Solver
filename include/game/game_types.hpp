@@ -59,6 +59,22 @@ enum class Suit : std::uint8_t {
     Spades
 };
 
+struct HandData {
+    HandRank rank;
+    int index;
+
+    auto operator<=>(const HandData&) const = default;
+};
+
+// std::span doesn't have == for some reason...
+// These are needed to use PlayerArray<std::span<const T>>
+inline bool operator==(std::span<const CardSet> lhs, std::span<const CardSet> rhs) {
+    return std::ranges::equal(lhs, rhs);
+}
+inline bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
+    return std::ranges::equal(lhs, rhs);
+}
+
 template <typename T>
 class PlayerArray {
 public:
@@ -94,13 +110,6 @@ struct GameState {
     Street currentStreet;
 };
 
-struct HandData {
-    HandRank rank;
-    int index;
-
-    auto operator<=>(const HandData&) const = default;
-};
-
 using SuitEquivalenceClass = FixedVector<Suit, 4>;
 
 struct ChanceNodeInfo {
@@ -114,14 +123,5 @@ struct SuitMapping {
 
     bool operator==(const SuitMapping&) const = default;
 };
-
-// std::span doesn't have == for some reason...
-// These are needed to use PlayerArray<std::span<const T>>
-inline bool operator==(std::span<const CardSet> lhs, std::span<const CardSet> rhs) {
-    return std::ranges::equal(lhs, rhs);
-}
-inline bool operator==(std::span<const HandData> lhs, std::span<const HandData> rhs) {
-    return std::ranges::equal(lhs, rhs);
-}
 
 #endif // GAME_TYPES_HPP
