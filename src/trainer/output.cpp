@@ -11,7 +11,6 @@
 #include <cassert>
 #include <cstdint>
 #include <fstream>
-#include <iostream>
 #include <string>
 
 // TODO: Print isomorphisms of chance cards

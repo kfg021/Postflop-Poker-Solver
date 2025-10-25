@@ -11,8 +11,6 @@
 #include <string>
 #include <vector>
 
-#include <iostream>
-
 namespace {
 class HoldemActionTest : public ::testing::Test {
 protected:

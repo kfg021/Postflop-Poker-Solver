@@ -10,8 +10,6 @@
 #include <cstdint>
 #include <vector>
 
-#include <iostream>
-
 namespace {
 // sameHandIndexTable[p][i] = j iff the ith entry in player p's range is equal to the jth entry in the other player's range
 // (or -1 if no such index exists)

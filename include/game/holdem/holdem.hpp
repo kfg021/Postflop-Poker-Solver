@@ -29,6 +29,7 @@ public:
         int startingPlayerWagers;
         int effectiveStackRemaining;
         int deadMoney;
+        bool useChanceCardIsomorphism;
 
         // TODO:
         // Different sizes for each street
@@ -54,13 +55,15 @@ public:
     std::string getActionName(ActionID actionID, int betRaiseSize) const override;
 
 private:
-    void buildHandRankTables();
+    void buildHandTables();
     int getTotalEffectiveStack() const;
     bool areBothPlayersAllIn(const GameState& state) const;
     Street getStartingStreet() const;
 
     Settings m_settings;
     PlayerArray<std::vector<HandData>> m_handRanks;
+    PlayerArray<std::array<int, holdem::NumPossibleTwoCardHands>> m_handIndices;
+    std::array<std::array<bool, 4>, 4> m_suitCompatibilityTable;
 };
 
 #endif // HOLDEM_HPP

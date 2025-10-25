@@ -62,7 +62,7 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
         }
 
         if ((exploitabilityCheckFrequency > 0) && (iteration % exploitabilityCheckFrequency == 0)) {
-            float exploitability = calculateExploitability(rules, tree);
+            float exploitability = calculateExploitabilityFast(rules, tree);
             float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
             std::cout << "Finished iteration " << iteration << ". Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n";
             if (exploitabilityPercent <= targetPercentExploitability) {

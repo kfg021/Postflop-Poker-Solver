@@ -118,10 +118,8 @@ HandRank getFiveCardHandRank(CardSet hand) {
 
         // Check for flushes
         bool isFlush = false;
-        static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
-        for (int i = 0; i < 4; ++i) {
-            bool isFlushThisSuit = (getSetSize(hand & (SingleSuitMask << i)) == 5);
-            isFlush |= isFlushThisSuit;
+        for (Suit suit : { Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades }) {
+            isFlush |= getSetSize(filterCardsWithSuit(hand, suit)) == 5;
         }
 
         // Check for straight flushes

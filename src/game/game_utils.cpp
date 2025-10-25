@@ -6,7 +6,7 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
-#include <string_view>
+#include <string>
 
 namespace {
 constexpr char CardValueNames[] = "23456789TJQKA";
@@ -98,24 +98,25 @@ CardID popLowestCardFromSet(CardSet& cardSet) {
     return lowestCard;
 }
 
+CardSet filterCardsWithSuit(CardSet cardSet, Suit suit) {
+    static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
+    int suitID = static_cast<int>(suit);
+    return cardSet & (SingleSuitMask << suitID);
+}
+
 CardSet swapSuits(CardSet cardSet, Suit x, Suit y) {
     assert(x != y);
+    if (x > y) std::swap(x, y);
 
-    static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
+    CardSet suit0Masked = filterCardsWithSuit(cardSet, x);
+    CardSet suit1Masked = filterCardsWithSuit(cardSet, y);
 
-    int suit1ID = static_cast<int>(x);
-    int suit2ID = static_cast<int>(y);
-
-    if (suit1ID > suit2ID) std::swap(suit1ID, suit2ID);
-
-    int diff = suit2ID - suit1ID;
+    int diff = static_cast<int>(y) - static_cast<int>(x);
     assert(diff > 0);
-    
-    CardSet suit1Masked = cardSet & (SingleSuitMask << suit1ID);
-    CardSet suit2Masked = cardSet & (SingleSuitMask << suit2ID);
-    
-    cardSet &= ~(suit1Masked | suit2Masked);
-    cardSet |= (suit1Masked << diff) | (suit2Masked >> diff);
+
+    cardSet &= ~(suit0Masked | suit1Masked);
+    cardSet |= (suit0Masked << diff) | (suit1Masked >> diff);
+
     return cardSet;
 }
 

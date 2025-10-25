@@ -31,7 +31,6 @@ enum class Action : std::uint8_t {
     AllIn
 };
 
-static constexpr int NumPossibleTwoCardRunouts = (holdem::DeckSize * (holdem::DeckSize - 1)) / 2;
 static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
 
 int mapTwoCardSetToIndex(CardSet cardSet) {
@@ -42,7 +41,7 @@ int mapTwoCardSetToIndex(CardSet cardSet) {
     assert(cardSet == 0);
 
     int finalIndex = card0Index + (card1Index * (card1Index - 1)) / 2;
-    assert(finalIndex < NumPossibleTwoCardRunouts);
+    assert(finalIndex < holdem::NumPossibleTwoCardHands);
     return finalIndex;
 }
 
@@ -114,7 +113,7 @@ std::optional<PlayerArray<int>> tryGetWagersAfterRaise(
 } // namespace
 
 Holdem::Holdem(const Settings& settings) : m_settings{ settings } {
-    buildHandRankTables();
+    buildHandTables();
 }
 
 GameState Holdem::getInitialGameState() const {
@@ -353,42 +352,100 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
 }
 
 ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
-    // assert(getNodeType(state) == NodeType::Chance);
-    // assert(state.currentStreet != Street::River);
+    auto mergeSuitClasses = [](FixedVector<SuitEquivalenceClass, 4>& isomorphisms, Suit x, Suit y) -> void {
+        // Inefficient, but there are only 4 suits...
+        int suit0Class = -1;
+        int suit1Class = -1;
+        for (int i = 0; i < isomorphisms.size(); ++i) {
+            if (isomorphisms[i].contains(x)) {
+                assert(suit0Class == -1);
+                suit0Class = i;
+            }
 
-    // // At a chance node both players must have wagered the same amount
-    // assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
-    // int previousStreetsWager = state.totalWagers[Player::P0];
+            if (isomorphisms[i].contains(y)) {
+                assert(suit1Class == -1);
+                suit1Class = i;
+            }
+        }
+        assert(suit0Class != -1 && suit1Class != -1);
 
-    // FixedVector<GameState, MaxNumDealCards> statesAfterChance;
+        if (suit0Class != suit1Class) {
+            FixedVector<SuitEquivalenceClass, 4> newIsomorphisms;
 
-    // CardSet availableCards = Deck & ~state.currentBoard;
-    // int numChanceCards = getSetSize(availableCards);
-    // for (int i = 0; i < numChanceCards; ++i) {
-    //     CardID dealCard = popLowestCardFromSet(availableCards);
-    //     CardSet newBoard = state.currentBoard | cardIDToSet(dealCard);
+            // The two suits are in different equivalence classes, merge them into one
+            SuitEquivalenceClass mergedClass;
+            for (Suit suit : isomorphisms[suit0Class]) {
+                assert(!mergedClass.contains(suit));
+                mergedClass.pushBack(suit);
+            }
+            for (Suit suit : isomorphisms[suit1Class]) {
+                assert(!mergedClass.contains(suit));
+                mergedClass.pushBack(suit);
+            }
+            newIsomorphisms.pushBack(mergedClass);
 
-    //     GameState newState = {
-    //         .currentBoard = newBoard,
-    //         .totalWagers = state.totalWagers,
-    //         .previousStreetsWager = previousStreetsWager,
-    //         .playerToAct = Player::P0, // Player 0 always starts a new betting round
-    //         .lastAction = static_cast<ActionID>(Action::StreetStart),
-    //         .currentStreet = getNextStreet(state.currentStreet), // After a card is dealt we move to the next street
-    //     };
-    //     statesAfterChance.pushBack(newState);
-    // }
-    // assert(availableCards == 0);
+            // Add all unchanged isomorphisms to new list
+            for (int i = 0; i < isomorphisms.size(); ++i) {
+                if (i != suit0Class && i != suit1Class) {
+                    newIsomorphisms.pushBack(isomorphisms[i]);
+                }
+            }
 
-    // return statesAfterChance;
+            isomorphisms = newIsomorphisms;
+        }
+    };
 
-    ChanceNodeInfo chanceNodeInfo;
-    chanceNodeInfo.availableCards = Deck & ~board;
+    FixedVector<SuitEquivalenceClass, 4> isomorphisms;
 
-    // TODO: Implement 
-    // TODO: Need to make sure that ranges are symmetrical to do isomorphism
-    assert(false);
-    return chanceNodeInfo;
+    // TODO: Do this logic only once per street, not once per chance node
+    if (m_settings.useChanceCardIsomorphism) {
+        isomorphisms = {
+           { Suit::Clubs },
+           { Suit::Diamonds },
+           { Suit::Hearts },
+           { Suit::Spades }
+        };
+
+        for (int suit0 = 0; suit0 < 4; ++suit0) {
+            for (int suit1 = suit0 + 1; suit1 < 4; ++suit1) {
+                Suit x = static_cast<Suit>(suit0);
+                Suit y = static_cast<Suit>(suit1);
+
+                // This makes sure that the starting board and ranges remain the same after a suit swap
+                bool areSuitsIsomorphic = m_suitCompatibilityTable[suit0][suit1];
+
+                CardSet previouslyDealtCards = board & ~m_settings.startingCommunityCards;
+                bool wasTurnCardDealt = (previouslyDealtCards != 0);
+                if (wasTurnCardDealt) {
+                    // This is the third condition that needs to be satisfied for two suits to be isomorphic.
+                    // If the turn card was dealt and is either of the suits, then they are not isomorphic.
+                    // This is because after the starting board, the ordering of cards matters.
+                    // Ex: If the board was Ks2s2h and the turn was Kh, spades and hearts ARE NOT isomorphic because although the cards are the same,
+                    // a king on the turn is fundamentally different than a king on the flop. 
+                    // However, if the input board was Ks2s2hKh, then spades and hearts ARE isomorphic, because the ordering the starting board doesn't matter
+                    // (The input player ranges have already have the information about the ordering of the cards factored in)
+
+                    // The turn is the only street that could be dealt at this point
+                    // If the river were already dealt, then we wouldn't be at a chance node
+                    assert(getSetSize(previouslyDealtCards) == 1);
+
+                    CardID dealtTurn = getLowestCardInSet(previouslyDealtCards);
+                    Suit dealtTurnSuit = getCardSuit(dealtTurn);
+                    bool dealtTurnContainsNeitherSuit = (dealtTurnSuit != x) && (dealtTurnSuit != y);
+                    areSuitsIsomorphic &= dealtTurnContainsNeitherSuit;
+                }
+
+                if (areSuitsIsomorphic) {
+                    mergeSuitClasses(isomorphisms, x, y);
+                }
+            }
+        }
+    }
+
+    return {
+        .availableCards = Deck & ~board,
+        .isomorphisms = isomorphisms
+    };
 }
 
 std::span<const CardSet> Holdem::getRangeHands(Player player) const {
@@ -432,9 +489,14 @@ std::span<const HandData> Holdem::getSortedHandRanks(Player player, CardSet boar
 }
 
 int Holdem::getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const {
-    // TODO: Implement
-    assert(false);
-    return 0;
+    assert(m_suitCompatibilityTable[static_cast<int>(x)][static_cast<int>(y)]);
+
+    CardSet swappedHand = swapSuits(m_settings.ranges[player].hands[handIndex], x, y);
+    int swappedHandIndexInTable = mapTwoCardSetToIndex(swappedHand);
+    int swappedHandIndex = m_handIndices[player][swappedHandIndexInTable];
+    assert(swappedHandIndex != -1);
+
+    return swappedHandIndex;
 }
 
 std::string Holdem::getActionName(ActionID actionID, int betRaiseSize) const {
@@ -461,7 +523,7 @@ std::string Holdem::getActionName(ActionID actionID, int betRaiseSize) const {
     }
 }
 
-void Holdem::buildHandRankTables() {
+void Holdem::buildHandTables() {
     std::unordered_map<CardSet, HandRank> seenFiveCardHandRanks;
 
     auto insertSevenCardHandRank = [this, &seenFiveCardHandRanks](Player player, CardSet board, int handRankOffset, int rangeIndex) -> void {
@@ -546,7 +608,7 @@ void Holdem::buildHandRankTables() {
             // We are starting at the flop, so we have to consider each possible turn and river runout
             for (Player player : { Player::P0, Player::P1 }) {
                 int playerRangeSize = ranges[player].hands.size();
-                int handRankTableSize = NumPossibleTwoCardRunouts * playerRangeSize;
+                int handRankTableSize = holdem::NumPossibleTwoCardHands * playerRangeSize;
                 m_handRanks[player].resize(handRankTableSize);
 
                 for (CardID turnCard = 0; turnCard < holdem::DeckSize; ++turnCard) {
@@ -571,6 +633,63 @@ void Holdem::buildHandRankTables() {
         default:
             assert(false);
             break;
+    }
+
+    // Build hand index table for card isomorphisms
+    for (Player player : { Player::P0, Player::P1 }) {
+        m_handIndices[player].fill(-1);
+        for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
+            int handIndexInTable = mapTwoCardSetToIndex(m_settings.ranges[player].hands[handIndex]);
+            m_handIndices[player][handIndexInTable] = handIndex;
+        }
+    }
+
+    // Build suit compatibility table for card isomorphisms
+    for (int suit = 0; suit < 4; ++suit) {
+        m_suitCompatibilityTable[suit][suit] = true;
+    }
+
+    for (int suit0 = 0; suit0 < 4; ++suit0) {
+        for (int suit1 = suit0 + 1; suit1 < 4; ++suit1) {
+            // In order for two suits x and y to be isomorphic, we need the three conditions to hold:
+            // 1) The values of the starting community cards with suit x must be identical to the values with suit y
+            // 2) For all hands in the both player's ranges, the starting weight for that hand needs to be identical to the starting weight for that hand after swapping suits x and y
+            // 3) If the turn card was dealt, it cannot be suit x or y (this is checked later for each possible turn card)
+
+            Suit x = static_cast<Suit>(suit0);
+            Suit y = static_cast<Suit>(suit1);
+
+            CardSet suit0Masked = filterCardsWithSuit(m_settings.startingCommunityCards, x);
+            CardSet suit1Masked = filterCardsWithSuit(m_settings.startingCommunityCards, y);
+            bool isStartingBoardSymmetric = swapSuits(suit0Masked, x, y) == suit1Masked;
+
+            auto areStartingRangesSymmetric = [this, x, y]() -> bool {
+                for (Player player : {Player::P0, Player::P1}) {
+                    for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
+                        CardSet swappedHand = swapSuits(m_settings.ranges[player].hands[handIndex], x, y);
+                        int swappedHandIndexInTable = mapTwoCardSetToIndex(swappedHand);
+                        int swappedHandIndex = m_handIndices[player][swappedHandIndexInTable];
+
+                        if (swappedHandIndex == -1) {
+                            // Ranges cannot be symmetric, since the swapped hand does not even exist in the player's range
+                            return false;
+                        }
+
+                        float weightBeforeSwap = m_settings.ranges[player].weights[handIndex];
+                        float weightAfterSwap = m_settings.ranges[player].weights[swappedHandIndex];
+                        if (weightBeforeSwap != weightAfterSwap) {
+                            return false;
+                        }
+                    }
+                }
+
+                return true;
+            };
+
+            bool areSuitsCombatible = isStartingBoardSymmetric && areStartingRangesSymmetric();
+            m_suitCompatibilityTable[suit0][suit1] = areSuitsCombatible;
+            m_suitCompatibilityTable[suit1][suit0] = areSuitsCombatible;
+        }
     }
 }
 

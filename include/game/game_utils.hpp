@@ -25,6 +25,7 @@ bool setContainsCard(CardSet cardSet, CardID cardID);
 bool areSetsDisjoint(CardSet x, CardSet y);
 CardID getLowestCardInSet(CardSet cardSet);
 CardID popLowestCardFromSet(CardSet& cardSet);
+CardSet filterCardsWithSuit(CardSet cardSet, Suit suit);
 CardSet swapSuits(CardSet cardSet, Suit x, Suit y);
 std::vector<std::string> getCardSetNames(CardSet cardSet);
 

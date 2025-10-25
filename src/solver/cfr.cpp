@@ -177,6 +177,7 @@ void traverseChance(
 
             // First calculate the contribution from the chance card itself
             std::size_t nextNodeEVIndex = getExpectedValueIndex(hand, nextNodeIndex, constants, tree);
+
             if (areHandAndCardDisjoint(hero, hand, chanceCard)) {
                 allExpectedValues[currentNodeEVIndex] += allExpectedValues[nextNodeEVIndex];
             }
