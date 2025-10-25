@@ -16,6 +16,8 @@
 #include <span>
 #include <vector>
 
+// TODO: Fix rounding errors causing isomorphic and non-isomorphic solutions to differ
+
 namespace {
 enum class TraversalMode : std::uint8_t {
     VanillaCfr,
