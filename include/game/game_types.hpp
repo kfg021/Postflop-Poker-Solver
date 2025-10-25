@@ -118,7 +118,7 @@ struct SuitMapping {
 // std::span doesn't have == for some reason...
 // This is needed to use PlayerArray<std::span<const T>>
 template <typename T>
-constexpr bool operator==(std::span<const CardSet> lhs, std::span<const CardSet> rhs) {
+constexpr bool operator==(std::span<const T> lhs, std::span<const T> rhs) {
     return std::ranges::equal(lhs, rhs);
 }
 
