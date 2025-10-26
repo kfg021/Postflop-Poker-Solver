@@ -4,10 +4,8 @@
 #include "game/holdem/config.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <span>
 
 constexpr int StandardDeckSize = holdem::DeckSize;
 constexpr int MaxNumDealCards = holdem::MaxNumDealCards;
@@ -80,8 +78,6 @@ public:
         return m_array[getPlayerID(player)];
     }
 
-    constexpr bool operator==(const PlayerArray&) const = default;
-
 private:
     constexpr int getPlayerID(Player player) const {
         int playerID = static_cast<int>(player);
@@ -114,12 +110,5 @@ struct SuitMapping {
 
     bool operator==(const SuitMapping&) const = default;
 };
-
-// std::span doesn't have == for some reason...
-// This is needed to use PlayerArray<std::span<const T>>
-template <typename T>
-constexpr bool operator==(std::span<const T> lhs, std::span<const T> rhs) {
-    return std::ranges::equal(lhs, rhs);
-}
 
 #endif // GAME_TYPES_HPP

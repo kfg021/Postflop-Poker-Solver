@@ -90,6 +90,10 @@ GameState simulateStreet(const Holdem& holdemRules, Street street, const std::ve
     }
     return newState;
 }
+
+bool areWagersEqual(PlayerArray<int> lhs, PlayerArray<int> rhs) {
+    return (lhs[Player::P0] == rhs[Player::P0]) && (lhs[Player::P1] == rhs[Player::P1]);
+}
 } // namespace
 
 TEST_F(HoldemActionTest, CurrentPlayerAlternatesCorrectly) {
@@ -153,7 +157,7 @@ TEST_F(HoldemActionTest, FoldIsTerminal) {
 
     // No additional wagers, wagers should be equal to start
     constexpr PlayerArray<int> ExpectedWagers = { 12, 12 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagers);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagers));
 }
 
 TEST_F(HoldemActionTest, EndOfFlopAndTurnIsChance) {
@@ -174,7 +178,7 @@ TEST_F(HoldemActionTest, EndOfRiverIsShowdown) {
     // On the river player 0 bets pot, which is an additional 12 + 12 + 3 = 27
     // So total wager is 12 + 27 = 39
     constexpr PlayerArray<int> ExpectedWagers = { 39, 39 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagers);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagers));
 }
 
 TEST_F(HoldemActionTest, RiverAllInIsShowdown) {
@@ -210,19 +214,19 @@ TEST_F(HoldemActionTest, BetSizesRoundUp) {
     // So after a bet player 0 should be wagering 12 + 9 = 21
     GameState state = holdemRules.getNewStateAfterDecision(holdemRules.getInitialGameState(), BetSize0);
     constexpr PlayerArray<int> ExpectedWagersAfterBet = { 21, 12 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagersAfterBet);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagersAfterBet));
 
     // Raise: 50%
     // After matching the bet, the pot is 21 + 21 + 3 = 45
     // 50% raise is 22.5, rounds up to 23, so total player 1 wager is 21 + 23 = 44
     state = holdemRules.getNewStateAfterDecision(state, RaiseSize0);
     constexpr PlayerArray<int> ExpectedWagersAfterBetRaise = { 21, 44 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagersAfterBetRaise);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagersAfterBetRaise));
 
     // Call: Match current bet
     state = holdemRules.getNewStateAfterDecision(state, Call);
     constexpr PlayerArray<int> ExpectedWagersAfterBetRaiseCall = { 44, 44 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagersAfterBetRaiseCall);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagersAfterBetRaiseCall));
 }
 
 TEST_F(HoldemActionTest, CorrectRaiseSizes) {
@@ -232,7 +236,7 @@ TEST_F(HoldemActionTest, CorrectRaiseSizes) {
     // So after a bet player 0 should be wagering 12 + 41 = 53
     GameState state = holdemRules.getNewStateAfterDecision(holdemRules.getInitialGameState(), BetSize2);
     constexpr PlayerArray<int> ExpectedWagersAfterBet = { 53, 12 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagersAfterBet);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagersAfterBet));
 
     // The two defined raise sizes should be valid 
     auto actions = holdemRules.getValidActions(state);
@@ -245,7 +249,7 @@ TEST_F(HoldemActionTest, CorrectRaiseSizes) {
     // 50% raise is 54.5, rounds up to 55, so total player 1 wager is 53 + 55 = 108
     state = holdemRules.getNewStateAfterDecision(state, RaiseSize0);
     constexpr PlayerArray<int> ExpectedWagersAfterBetRaise = { 53, 108 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagersAfterBetRaise);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagersAfterBetRaise));
 
     // The two defined raise sizes should still be valid 
     actions = holdemRules.getValidActions(state);
@@ -258,7 +262,7 @@ TEST_F(HoldemActionTest, CorrectRaiseSizes) {
     // 100% raise is 219, so total player 0 wager is 108 + 219 = 327
     state = holdemRules.getNewStateAfterDecision(state, RaiseSize1);
     constexpr PlayerArray<int> ExpectedWagersAfterBetRaiseRaise = { 327, 108 };
-    EXPECT_EQ(state.totalWagers, ExpectedWagersAfterBetRaiseRaise);
+    EXPECT_TRUE(areWagersEqual(state.totalWagers, ExpectedWagersAfterBetRaiseRaise));
 
     // Pot is too large for any more raises (effective stack is 360)
     actions = holdemRules.getValidActions(state);
