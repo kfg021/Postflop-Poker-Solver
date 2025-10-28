@@ -860,8 +860,8 @@ float calculateExploitability(const IGameRules& rules, Tree& tree) {
     float player1ExpectedValue = expectedValue(Player::P1, rules, tree);
 
     // Exploitative strategies should always be at least as strong as the Nash strategy
-    assert(player0BestResponseEV > player0ExpectedValue);
-    assert(player1BestResponseEV > player1ExpectedValue);
+    assert(player0BestResponseEV >= player0ExpectedValue);
+    assert(player1BestResponseEV >= player1ExpectedValue);
 
     float player0Distance = player0BestResponseEV - player0ExpectedValue;
     float player1Distance = player1BestResponseEV - player1ExpectedValue;
