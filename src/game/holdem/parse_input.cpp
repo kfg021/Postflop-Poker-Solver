@@ -37,6 +37,7 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
     return buildRangeFromStrings(rangeStrings, 0);
 }
 
+// TODO: Add support for specific hand combos
 Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings, CardSet communityCards) {
     auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {

@@ -17,6 +17,7 @@ FetchContent_MakeAvailable(googletest)
 add_executable(run_tests
     hand_evaluation_tests.cpp
     holdem_action_tests.cpp
+    holdem_isomorphism_tests.cpp
     input_parsing_tests.cpp
     end_to_end_tests.cpp
 )

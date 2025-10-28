@@ -40,7 +40,7 @@ void trainHoldem(int maxIterations, const std::optional<std::string>& strategyOu
     Holdem::Settings holdemSettings = {
         .ranges = ranges,
         .startingCommunityCards = communityCards,
-        .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{50},
+        .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{ 50 },
         .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{},
         .startingPlayerWagers = 50,
         .effectiveStackRemaining = 100,

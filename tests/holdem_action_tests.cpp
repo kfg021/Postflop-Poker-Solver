@@ -17,21 +17,22 @@ protected:
     static inline Holdem::Settings testSettings;
 
     static void SetUpTestSuite() {
-        PlayerArray<Holdem::Range> testingRanges = {
-            buildRangeFromStrings({"AA", "KJ", "TT", "AQo:50"}).getValue(),
-            buildRangeFromStrings({"AA", "KK:25", "QQ", "T9s:33", "27o:99"}).getValue(),
-        };
-
         CardSet testingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s" }).getValue();
+
+        PlayerArray<Holdem::Range> testingRanges = {
+            buildRangeFromStrings({ "AA", "KJ", "TT", "AQo:50" }, testingCommunityCards).getValue(),
+            buildRangeFromStrings({ "AA", "KK:25", "QQ", "T9s:33", "27o:99" }, testingCommunityCards).getValue(),
+        };
 
         testSettings = {
             .ranges = testingRanges,
             .startingCommunityCards = testingCommunityCards,
-            .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{33, 100, 150},
-            .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{50, 100},
+            .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{ 33, 100, 150 },
+            .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{ 50, 100 },
             .startingPlayerWagers = 12,
             .effectiveStackRemaining = 360,
-            .deadMoney = 3
+            .deadMoney = 3,
+            .useChanceCardIsomorphism = true
         };
     }
 };
@@ -201,7 +202,7 @@ TEST_F(HoldemActionTest, FlopAllInIsChanceChanceShowdown) {
 
     GameState stateAfterFirstChance = getStateAfterChance(state);
     EXPECT_EQ(holdemRules.getNodeType(stateAfterFirstChance), NodeType::Chance);
-        
+
     GameState stateAfterSecondChance = getStateAfterChance(stateAfterFirstChance);
     EXPECT_EQ(holdemRules.getNodeType(stateAfterSecondChance), NodeType::Showdown);
 }
