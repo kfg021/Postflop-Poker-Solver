@@ -59,7 +59,7 @@ GameState getStateAfterChance(const GameState& state) {
     CardSet nextCard = (nextStreet == Street::Turn) ? turn : river;
 
     GameState nextState = {
-        .currentBoard = state.currentBoard | cardIDToSet(nextCard),
+        .currentBoard = state.currentBoard | nextCard,
         .totalWagers = state.totalWagers,
         .previousStreetsWager = state.totalWagers[Player::P0],
         .playerToAct = Player::P0,
