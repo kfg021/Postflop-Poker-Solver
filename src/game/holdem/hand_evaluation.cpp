@@ -37,6 +37,8 @@ HandRank convertHandStrengthToInt(const HandStrength& handStrength) {
     // Bits [11, 8]:  Kicker 2
     // Bits [7, 4]:   Kicker 3
     // Bits [3, 0]:   Kicker 4
+    // Kickers are represented as their value for non face cards (2-T)
+    // For face cards: J=11, Q=12, K=13, A=14
     // Any bits with non existient kickers are set to 0
 
     HandRank handRank = 0;
@@ -46,7 +48,10 @@ HandRank convertHandStrengthToInt(const HandStrength& handStrength) {
     handRank |= (handTypeID << 20);
 
     for (int i = 0; i < handStrength.kickers.size(); ++i) {
-        std::uint8_t valueID = static_cast<std::uint8_t>(handStrength.kickers[i]);
+        // Adding 2 so that valueID is [2, 14]
+        std::uint8_t valueID = static_cast<std::uint8_t>(handStrength.kickers[i]) + 2;
+        assert(valueID >= 2 && valueID <= 14);
+
         int offset = 16 - (4 * i);
         assert(offset >= 0);
         handRank |= (valueID << offset);
