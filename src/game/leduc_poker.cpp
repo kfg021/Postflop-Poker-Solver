@@ -249,6 +249,8 @@ std::span<const HandData> LeducPoker::getSortedHandRanks(Player /*player*/, Card
 }
 
 int LeducPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit x, Suit y) const {
+    assert(m_useChanceCardIsomorphism);
+
     if (x > y) std::swap(x, y);
     assert((x == Suit::Hearts) && (y == Suit::Spades));
 
