@@ -63,7 +63,8 @@ private:
     Settings m_settings;
     PlayerArray<std::vector<HandData>> m_handRanks;
     PlayerArray<std::array<int, holdem::NumPossibleTwoCardHands>> m_handIndices;
-    std::array<std::array<bool, 4>, 4> m_suitCompatibilityTable;
+    FixedVector<SuitEquivalenceClass, 4> m_startingIsomorphisms;
+    std::array<FixedVector<SuitEquivalenceClass, 4>, 4> m_isomorphismsAfterSuitDealt;
 };
 
 #endif // HOLDEM_HPP
