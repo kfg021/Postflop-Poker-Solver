@@ -94,7 +94,7 @@ CardID getLowestCardInSet(CardSet cardSet) {
 
 CardID popLowestCardFromSet(CardSet& cardSet) {
     CardID lowestCard = getLowestCardInSet(cardSet);
-    cardSet &= ~cardIDToSet(lowestCard);
+    cardSet &= (cardSet - 1);
     return lowestCard;
 }
 
