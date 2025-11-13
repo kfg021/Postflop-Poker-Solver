@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace {
 constexpr char CardValueNames[] = "23456789TJQKA";
