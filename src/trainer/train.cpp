@@ -24,8 +24,6 @@ struct CfrResult {
 };
 
 std::optional<CfrResult> runCfr(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, float startingPot, Tree& tree) {
-    std::optional<CfrResult> resultOption;
-
     for (int i = 0; i < maxIterations; ++i) {
         int iteration = i + 1;
 
@@ -46,13 +44,12 @@ std::optional<CfrResult> runCfr(const IGameRules& rules, float targetPercentExpl
             float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
             std::cout << "Finished iteration " << iteration << ". Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n";
             if (exploitabilityPercent <= targetPercentExploitability) {
-                resultOption = { exploitability, iteration };
-                break;
+                return CfrResult{ exploitability, iteration };
             }
         }
     }
 
-    return resultOption;
+    return std::nullopt;
 }
 } // namespace
 

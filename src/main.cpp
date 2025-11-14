@@ -45,7 +45,7 @@ void trainHoldem(int maxIterations, int numThreads, const std::optional<std::str
         .startingPlayerWagers = 50,
         .effectiveStackRemaining = 100,
         .deadMoney = 0,
-        .useChanceCardIsomorphism = false
+        .useChanceCardIsomorphism = true
     };
 
     static constexpr float TargetExploitabilityPercent = 0.3f;

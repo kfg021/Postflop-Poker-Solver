@@ -34,6 +34,11 @@ add_library(postflop_solver_core STATIC
 )
 
 if(OpenMP_FOUND)
+    if (MSVC)
+        target_compile_options(postflop_solver_core PUBLIC /openmp:llvm)
+        target_link_options(postflop_solver_core PUBLIC /openmp:llvm)
+    endif()
+
     target_link_libraries(postflop_solver_core PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
