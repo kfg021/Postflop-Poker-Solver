@@ -32,6 +32,9 @@ struct DecisionNode {
 
     // Which player is currently taking an action
     Player playerToAct;
+
+    // Is it the flop, turn, or river?
+    Street street;
 };
 
 struct FoldNode {

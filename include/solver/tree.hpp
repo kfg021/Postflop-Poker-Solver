@@ -18,7 +18,6 @@ public:
         gameHandSize{ 0 },
         deadMoney{ 0 },
         totalRangeWeight{ 0.0 },
-        startingStreet{ Street::Flop },
         m_trainingDataLength{ 0 },
         m_numDecisionNodes{ 0 },
         m_inputOutputSize{ 0, 0 } {
@@ -40,7 +39,6 @@ public:
     int gameHandSize;
     int deadMoney;
     double totalRangeWeight;
-    Street startingStreet;
 
     // Vector containing all nodes
     std::vector<Node> allNodes;

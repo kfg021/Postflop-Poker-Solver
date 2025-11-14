@@ -11,25 +11,25 @@
 #include <vector>
 
 namespace {
-void trainKuhnPoker(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
+void trainKuhnPoker(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
     const KuhnPoker kuhnPokerRules;
 
     static constexpr float TargetExploitabilityPercent = 0.3f;
     static constexpr int ExploitabilityCheckFrequency = 10000;
 
-    train(kuhnPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, strategyOutputFileOption);
+    train(kuhnPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, numThreads, strategyOutputFileOption);
 }
 
-void trainLeducPoker(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
+void trainLeducPoker(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
     const LeducPoker leducPokerRules(true);
 
     static constexpr float TargetExploitabilityPercent = 0.3f;
     static constexpr int ExploitabilityCheckFrequency = 1000;
 
-    train(leducPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, strategyOutputFileOption);
+    train(leducPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, numThreads, strategyOutputFileOption);
 }
 
-void trainHoldem(int maxIterations, const std::optional<std::string>& strategyOutputFileOption) {
+void trainHoldem(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
     CardSet communityCards = buildCommunityCardsFromStrings({ "9s", "8h", "3s" }).getValue();
 
     PlayerArray<Holdem::Range> ranges = {
@@ -55,13 +55,13 @@ void trainHoldem(int maxIterations, const std::optional<std::string>& strategyOu
     const Holdem holdemRules{ holdemSettings };
     std::cout << "Finished building lookup tables.\n\n";
 
-    train(holdemRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, strategyOutputFileOption);
+    train(holdemRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, numThreads, strategyOutputFileOption);
 }
 } // namespace
 
 int main() {
-    // trainKuhnPoker(100000, "kuhn_strategy.json");
-    trainLeducPoker(10000, "leduc_strategy.json");
-    // trainHoldem(100, std::nullopt);
+    // trainKuhnPoker(100000, 1, "kuhn_strategy.json");
+    // trainLeducPoker(10000, 1, "leduc_strategy.json");
+    trainHoldem(100, 6, std::nullopt);
     return 0;
 }

@@ -6,6 +6,6 @@
 #include <optional>
 #include <string>
 
-void train(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, const std::optional<std::string>& strategyOutputFile);
+void train(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, int numThreads, const std::optional<std::string>& strategyOutputFile);
 
 #endif // TRAIN_HPP

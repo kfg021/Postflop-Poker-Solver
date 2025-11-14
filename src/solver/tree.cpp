@@ -107,8 +107,6 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     totalRangeWeight = getTotalRangeWeight(rules);
     assert(totalRangeWeight > 0.0);
 
-    startingStreet = rules.getInitialGameState().currentStreet;
-
     m_inputOutputSize = {
         allNodes.size() * rangeSize[Player::P0],
         allNodes.size() * rangeSize[Player::P1]
@@ -145,7 +143,7 @@ std::size_t Tree::getTreeSkeletonSize() const {
 std::size_t Tree::estimateFullTreeSize() const {
     assert(isTreeSkeletonBuilt());
 
-    // allStrategySums, allRegretSums, and currentStrategies will each have length of trainingDataLength
+    // allStrategySums, allRegretSums, and allStrategies will each have m_trainingDataLength elements
     std::size_t trainingDataHeapSize = (m_trainingDataLength * 3) * sizeof(float);
 
     std::size_t inputOutputSize = (m_inputOutputSize[Player::P0] + m_inputOutputSize[Player::P1]) * sizeof(float);
@@ -262,7 +260,8 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
         .trainingDataOffset = m_trainingDataLength,
         .decisionDataOffset = allDecisions.size(),
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
-        .playerToAct = state.playerToAct
+        .playerToAct = state.playerToAct,
+        .street = state.currentStreet
     };
 
     // Update tree information

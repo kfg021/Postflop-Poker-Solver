@@ -11,10 +11,15 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <limits>
 #include <ranges>
 #include <span>
 #include <vector>
+
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 // TODO: Fix rounding errors causing isomorphic and non-isomorphic solutions to differ
 
@@ -267,6 +272,43 @@ void traverseDecision(
         traverseTree(nextNode, nextNodeIndex, constants, rules, allVillainReachProbs, allExpectedValues, tree);
     };
 
+    auto calculateActionEVs = [
+        &decisionNode,
+        &nodeIndex,
+        &constants,
+        &rules,
+        &allVillainReachProbs,
+        &allExpectedValues,
+        &tree
+    ](std::function<void(int)> actionEVFunc) -> void {
+        int numActions = decisionNode.decisionDataSize;
+
+        #ifdef _OPENMP
+        // Not worth trying to parallelize the river because of overhead
+        bool shouldParallelize = (decisionNode.street != Street::River);
+        if (shouldParallelize) {
+            for (int action = 0; action < numActions; ++action) {
+                #pragma omp task
+                {
+                    actionEVFunc(action);
+                }
+            }
+
+            #pragma omp taskwait
+        }
+        else {
+            for (int action = 0; action < numActions; ++action) {
+                actionEVFunc(action);
+            }
+        }
+        #else
+        // Run on single thread if no OpenMP
+        for (int action = 0; action < numActions; ++action) {
+            actionEVFunc(action);
+        }
+        #endif
+    };
+
     auto heroToActTraining = [
         &decisionNode,
         &nodeIndex,
@@ -275,7 +317,8 @@ void traverseDecision(
         &allVillainReachProbs,
         &allExpectedValues,
         &tree,
-        &calculateActionEVHero
+        &calculateActionEVHero,
+        &calculateActionEVs
     ]() {
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
@@ -305,11 +348,7 @@ void traverseDecision(
             }
         }
 
-        // Parallel expected value here
-        for (int action = 0; action < numActions; ++action) {
-            calculateActionEVHero(action);
-        }
-        // Thread join
+        calculateActionEVs(calculateActionEVHero);
 
         // Calculate expected value of strategy
         for (int action = 0; action < numActions; ++action) {
@@ -338,7 +377,7 @@ void traverseDecision(
                 float& regretSum = tree.allRegretSums[trainingIndex];
                 float& strategySum = tree.allStrategySums[trainingIndex];
 
-                float strategyExpectedValue = allExpectedValues[currentNodeEVIndex];     
+                float strategyExpectedValue = allExpectedValues[currentNodeEVIndex];
                 float actionExpectedValue = allExpectedValues[nextNodeEVIndex];
                 regretSum += actionExpectedValue - strategyExpectedValue;
 
@@ -363,7 +402,8 @@ void traverseDecision(
         &allVillainReachProbs,
         &allExpectedValues,
         &tree,
-        &calculateActionEVHero
+        &calculateActionEVHero,
+        &calculateActionEVs
     ]() {
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
@@ -372,11 +412,7 @@ void traverseDecision(
 
         int heroRangeSize = tree.rangeSize[constants.hero];
 
-        // Parallel expected value here
-        for (int action = 0; action < numActions; ++action) {
-            calculateActionEVHero(action);
-        }
-        // Thread join
+        calculateActionEVs(calculateActionEVHero);
 
         // Calculate expected value of strategy
         for (int action = 0; action < numActions; ++action) {
@@ -401,7 +437,8 @@ void traverseDecision(
         &allVillainReachProbs,
         &allExpectedValues,
         &tree,
-        &calculateActionEVHero
+        &calculateActionEVHero,
+        &calculateActionEVs
     ]() -> void {
         // To calculate best response, hero plays the maximally exploitative pure strategy
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
@@ -416,11 +453,7 @@ void traverseDecision(
             allExpectedValues[getExpectedValueIndex(hand, nodeIndex, constants, tree)] = -Infinity;
         }
 
-        // Parallel expected value here
-        for (int action = 0; action < numActions; ++action) {
-            calculateActionEVHero(action);
-        }
-        // Thread join
+        calculateActionEVs(calculateActionEVHero);
 
         // Calculate best response
         for (int action = 0; action < numActions; ++action) {
@@ -449,7 +482,8 @@ void traverseDecision(
         &allVillainReachProbs,
         &allExpectedValues,
         &tree,
-        &calculateActionEVVillain
+        &calculateActionEVVillain,
+        &calculateActionEVs
     ]() -> void {
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
@@ -461,11 +495,7 @@ void traverseDecision(
         int heroRangeSize = tree.rangeSize[constants.hero];
         int villainRangeSize = tree.rangeSize[villain];
 
-        // Parallel expected value here
-        for (int action = 0; action < numActions; ++action) {
-            calculateActionEVVillain(action);
-        }
-        // Thread join
+        calculateActionEVs(calculateActionEVVillain);
 
         /// Calculate expected value of strategy
         // Not the hero's turn; no strategy or regret updates

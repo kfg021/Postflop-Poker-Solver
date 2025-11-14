@@ -13,38 +13,18 @@
 #include <string>
 #include <vector>
 
-void train(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, const std::optional<std::string>& strategyOutputFileOption) {
-    assert(maxIterations > 0);
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
-    Tree tree;
+namespace {
+struct CfrResult {
+    float exploitability;
+    int iteration;
+};
 
-    std::cout << "Building tree...\n" << std::flush;
-
-    tree.buildTreeSkeleton(rules);
-
-    std::cout << "Finished building tree.\n";
-    std::cout << "Total number of nodes: " << tree.allNodes.size() << "\n";
-    std::cout << "Number of decision nodes: " << tree.getNumberOfDecisionNodes() << "\n";
-    std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
-    std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n";
-
-    std::cout << "Initializing tree...\n" << std::flush;
-    tree.buildFullTree();
-    std::cout << "Finished initializing tree.\n\n";
-
-    GameState initialState = rules.getInitialGameState();
-    float startingPot = initialState.totalWagers[Player::P0] + initialState.totalWagers[Player::P1] + tree.deadMoney;
-
-    struct CfrResult {
-        float exploitability;
-        int iteration;
-    };
-
+std::optional<CfrResult> runCfr(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, float startingPot, Tree& tree) {
     std::optional<CfrResult> resultOption;
-
-    std::cout << "Starting training. Target exploitability: "
-        << std::fixed << std::setprecision(5) << targetPercentExploitability
-        << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
 
     for (int i = 0; i < maxIterations; ++i) {
         int iteration = i + 1;
@@ -71,6 +51,55 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
             }
         }
     }
+
+    return resultOption;
+}
+} // namespace
+
+void train(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
+    assert(maxIterations > 0);
+
+    Tree tree;
+
+    std::cout << "Building tree...\n" << std::flush;
+
+    tree.buildTreeSkeleton(rules);
+
+    std::cout << "Finished building tree.\n";
+    std::cout << "Total number of nodes: " << tree.allNodes.size() << "\n";
+    std::cout << "Number of decision nodes: " << tree.getNumberOfDecisionNodes() << "\n";
+    std::cout << "Static tree size: " << getSizeString(tree.getTreeSkeletonSize()) << "\n";
+    std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n";
+
+    std::cout << "Initializing tree...\n" << std::flush;
+    tree.buildFullTree();
+    std::cout << "Finished initializing tree.\n\n";
+
+    GameState initialState = rules.getInitialGameState();
+    float startingPot = initialState.totalWagers[Player::P0] + initialState.totalWagers[Player::P1] + tree.deadMoney;
+    std::optional<CfrResult> resultOption;
+
+    #ifdef _OPENMP
+    omp_set_num_threads(numThreads);
+
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            std::cout << "Starting training in parallel with " << omp_get_num_threads() << " threads. Target exploitability: "
+                << std::fixed << std::setprecision(5) << targetPercentExploitability
+                << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
+
+            resultOption = runCfr(rules, targetPercentExploitability, maxIterations, exploitabilityCheckFrequency, startingPot, tree);
+        }
+    }
+    #else
+    std::cout << "Starting training in single-threaded mode. Target exploitability: "
+        << std::fixed << std::setprecision(5) << targetPercentExploitability
+        << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
+
+    resultOption = runCfr(rules, targetPercentExploitability, maxIterations, exploitabilityCheckFrequency, startingPot, tree);
+    #endif
 
     std::cout << "Finished training.\n";
 
