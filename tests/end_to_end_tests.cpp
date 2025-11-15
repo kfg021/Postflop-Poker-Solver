@@ -7,6 +7,10 @@
 #include "solver/tree.hpp"
 #include "trainer/output.hpp"
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 TEST(EndToEndTest, Kuhn) {
     KuhnPoker kuhnPokerRules;
     Tree tree;
@@ -159,4 +163,119 @@ TEST(EndToEndTest, LeducWithIsomorphism) {
     float exploitability = calculateExploitability(leducPokerRules, tree);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
+}
+
+TEST(EndToEndTest, LeducWithIsomorphismParallel) {
+    #ifdef _OPENMP
+    LeducPoker leducPokerRules(true);
+    Tree tree;
+    tree.buildTreeSkeleton(leducPokerRules);
+
+    // Test tree is correct structure
+    ASSERT_EQ(tree.allNodes.size(), 240);
+    ASSERT_EQ(tree.getNumberOfDecisionNodes(), 96);
+
+    tree.buildFullTree();
+
+    omp_set_num_threads(6);
+
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            static constexpr float Iterations = 10000;
+            for (int i = 0; i < Iterations; ++i) {
+                for (Player hero : { Player::P0, Player::P1 }) {
+                    discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree);
+                }
+            }
+        }
+    }
+
+    // https://cs.stackexchange.com/questions/169593/nash-equilibrium-details-for-leduc-holdem
+    static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
+
+    // Make sure EV is correct
+    static constexpr float StrategyEpsilon = 1e-3;
+    float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree);
+    float player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree);
+    EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+
+    // Make sure exploitability is non-negative and small
+    static constexpr float ExploitabilityEpsilon = 1e-2;
+    float exploitability = calculateExploitability(leducPokerRules, tree);
+    ASSERT_GE(exploitability, 0.0f);
+    ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
+    #else
+    GTEST_SKIP() << "OMP not found, skipping parallel test.";
+    #endif
+}
+
+TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
+    #ifdef _OPENMP
+    struct LeducResult {
+        float player0ExpectedValue;
+        float player1ExpectedValue;
+        float exploitability;
+
+        bool operator==(const LeducResult&) const = default;
+    };
+
+    LeducResult serial, parallel;
+
+    // Serial code
+    {
+        LeducPoker leducPokerRules(true);
+        Tree tree;
+        tree.buildTreeSkeleton(leducPokerRules);
+        tree.buildFullTree();
+
+        static constexpr float Iterations = 10000;
+        for (int i = 0; i < Iterations; ++i) {
+            for (Player hero : { Player::P0, Player::P1 }) {
+                discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree);
+            }
+        }
+
+        serial = {
+            .player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree),
+            .player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree),
+            .exploitability = calculateExploitability(leducPokerRules, tree)
+        };
+    }
+
+    // Parallel code
+    {
+        LeducPoker leducPokerRules(true);
+        Tree tree;
+        tree.buildTreeSkeleton(leducPokerRules);
+        tree.buildFullTree();
+
+        omp_set_num_threads(6);
+
+        #pragma omp parallel
+        {
+            #pragma omp single
+            {
+                static constexpr float Iterations = 10000;
+                for (int i = 0; i < Iterations; ++i) {
+                    for (Player hero : { Player::P0, Player::P1 }) {
+                        discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree);
+                    }
+                }
+            }
+        }
+
+        parallel = {
+            .player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree),
+            .player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree),
+            .exploitability = calculateExploitability(leducPokerRules, tree)
+        };
+    }
+
+    EXPECT_EQ(serial, parallel);
+    #else
+    GTEST_SKIP() << "OMP not found, skipping parallel test.";
+    #endif
 }
