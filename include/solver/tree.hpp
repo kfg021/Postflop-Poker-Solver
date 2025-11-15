@@ -55,7 +55,6 @@ public:
     std::vector<float> allRegretSums;
 
     // Temporary space for CFR, reset after every iteration
-    std::vector<float> allStrategies;
     PlayerArray<std::vector<float>> allInputOutput;
 
 private:
