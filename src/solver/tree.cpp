@@ -143,8 +143,8 @@ std::size_t Tree::getTreeSkeletonSize() const {
 std::size_t Tree::estimateFullTreeSize() const {
     assert(isTreeSkeletonBuilt());
 
-    // allStrategySums and allRegretSums each have m_trainingDataLength elements
-    std::size_t trainingDataHeapSize = (m_trainingDataLength * 2) * sizeof(float);
+    // allStrategySums, allRegretSums, and allStrategies will each have m_trainingDataLength elements
+    std::size_t trainingDataHeapSize = (m_trainingDataLength * 3) * sizeof(float);
 
     std::size_t inputOutputSize = (m_inputOutputSize[Player::P0] + m_inputOutputSize[Player::P1]) * sizeof(float);
 
@@ -314,6 +314,7 @@ void Tree::buildFullTree() {
 
     allStrategySums.assign(m_trainingDataLength, 0.0f);
     allRegretSums.assign(m_trainingDataLength, 0.0f);
+    allStrategies.assign(m_trainingDataLength, 0.0f);
 
     allInputOutput[Player::P0].assign(m_inputOutputSize[Player::P0], 0.0f);
     allInputOutput[Player::P1].assign(m_inputOutputSize[Player::P1], 0.0f);
