@@ -71,6 +71,16 @@ int getLastBetSize(const GameState& state) {
 }
 } // namespace
 
+Tree::Tree() :
+    rangeSize{ 0, 0 },
+    gameHandSize{ 0 },
+    deadMoney{ 0 },
+    totalRangeWeight{ 0.0 },
+    m_trainingDataSize{ 0 },
+    m_numDecisionNodes{ 0 },
+    m_inputOutputSize{ 0, 0 } {
+}
+
 bool Tree::isTreeSkeletonBuilt() const {
     return !allNodes.empty();
 }

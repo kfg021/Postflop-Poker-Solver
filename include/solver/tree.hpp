@@ -13,15 +13,7 @@
 
 class Tree {
 public:
-    Tree() :
-        rangeSize{ 0, 0 },
-        gameHandSize{ 0 },
-        deadMoney{ 0 },
-        totalRangeWeight{ 0.0 },
-        m_trainingDataSize{ 0 },
-        m_numDecisionNodes{ 0 },
-        m_inputOutputSize{ 0, 0 } {
-    }
+    Tree();
 
     bool isTreeSkeletonBuilt() const;
     bool isFullTreeBuilt() const;
