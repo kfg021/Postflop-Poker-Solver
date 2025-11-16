@@ -18,7 +18,7 @@ public:
         gameHandSize{ 0 },
         deadMoney{ 0 },
         totalRangeWeight{ 0.0 },
-        m_trainingDataLength{ 0 },
+        m_trainingDataSize{ 0 },
         m_numDecisionNodes{ 0 },
         m_inputOutputSize{ 0, 0 } {
     }
@@ -65,7 +65,7 @@ private:
     std::size_t createFoldNode(const GameState& state);
     std::size_t createShowdownNode(const GameState& state);
 
-    std::size_t m_trainingDataLength;
+    std::size_t m_trainingDataSize;
     std::size_t m_numDecisionNodes;
     PlayerArray<std::size_t> m_inputOutputSize;
 };

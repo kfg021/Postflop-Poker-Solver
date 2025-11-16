@@ -143,8 +143,8 @@ std::size_t Tree::getTreeSkeletonSize() const {
 std::size_t Tree::estimateFullTreeSize() const {
     assert(isTreeSkeletonBuilt());
 
-    // allStrategySums, allRegretSums, and allStrategies will each have m_trainingDataLength elements
-    std::size_t trainingDataHeapSize = (m_trainingDataLength * 3) * sizeof(float);
+    // allStrategySums, allRegretSums, and allStrategies will each have m_trainingDataSize elements
+    std::size_t trainingDataHeapSize = (m_trainingDataSize * 3) * sizeof(float);
 
     std::size_t inputOutputSize = (m_inputOutputSize[Player::P0] + m_inputOutputSize[Player::P1]) * sizeof(float);
 
@@ -257,7 +257,7 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
 
     // Fill in current node information
     DecisionNode decisionNode = {
-        .trainingDataOffset = m_trainingDataLength,
+        .trainingDataOffset = m_trainingDataSize,
         .decisionDataOffset = allDecisions.size(),
         .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
         .playerToAct = state.playerToAct,
@@ -266,8 +266,8 @@ std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& s
 
     // Update tree information
     int playerToActRangeSize = rules.getInitialRangeWeights(state.playerToAct).size();
-    std::size_t nodeTrainingDataLength = static_cast<std::size_t>(playerToActRangeSize) * decisionNode.decisionDataSize;
-    m_trainingDataLength += nodeTrainingDataLength;
+    std::size_t nodeTrainingDataSize = static_cast<std::size_t>(playerToActRangeSize) * decisionNode.decisionDataSize;
+    m_trainingDataSize += nodeTrainingDataSize;
     allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
     allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
     allDecisionBetRaiseSizes.insert(allDecisionBetRaiseSizes.end(), betRaiseSizes.begin(), betRaiseSizes.end());
@@ -312,9 +312,9 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
 void Tree::buildFullTree() {
     assert(isTreeSkeletonBuilt() && !isFullTreeBuilt());
 
-    allStrategySums.assign(m_trainingDataLength, 0.0f);
-    allRegretSums.assign(m_trainingDataLength, 0.0f);
-    allStrategies.assign(m_trainingDataLength, 0.0f);
+    allStrategySums.assign(m_trainingDataSize, 0.0f);
+    allRegretSums.assign(m_trainingDataSize, 0.0f);
+    allStrategies.assign(m_trainingDataSize, 0.0f);
 
     allInputOutput[Player::P0].assign(m_inputOutputSize[Player::P0], 0.0f);
     allInputOutput[Player::P1].assign(m_inputOutputSize[Player::P1], 0.0f);
