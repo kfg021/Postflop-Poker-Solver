@@ -490,7 +490,20 @@ void traverseDecision(
 
         Player villain = getOpposingPlayer(constants.hero);
 
-        writeCurrentStrategyToBuffer(decisionNode, tree);
+        switch (constants.mode) {
+            case TraversalMode::VanillaCfr:
+            case TraversalMode::CfrPlus:
+            case TraversalMode::DiscountedCfr:
+                writeCurrentStrategyToBuffer(decisionNode, tree);
+                break;
+            case TraversalMode::ExpectedValue:
+            case TraversalMode::BestResponse:
+                writeAverageStrategyToBuffer(decisionNode, tree);
+                break;
+            default:
+                assert(false);
+                break;
+        }
 
         int heroRangeSize = tree.rangeSize[constants.hero];
         int villainRangeSize = tree.rangeSize[villain];
