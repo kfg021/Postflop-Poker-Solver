@@ -55,6 +55,7 @@ public:
     std::vector<float> allRegretSums;
 
     // Temporary space for CFR, reset after every iteration
+    // TODO: Use custom allocator
     std::vector<float> allStrategies;
     PlayerArray<std::vector<float>> allInputOutput;
 
