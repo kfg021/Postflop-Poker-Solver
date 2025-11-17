@@ -77,8 +77,7 @@ Tree::Tree() :
     deadMoney{ 0 },
     totalRangeWeight{ 0.0 },
     m_trainingDataSize{ 0 },
-    m_numDecisionNodes{ 0 },
-    m_inputOutputSize{ 0, 0 } {
+    m_numDecisionNodes{ 0 } {
 }
 
 bool Tree::isTreeSkeletonBuilt() const {
@@ -117,11 +116,6 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     totalRangeWeight = getTotalRangeWeight(rules);
     assert(totalRangeWeight > 0.0);
 
-    m_inputOutputSize = {
-        allNodes.size() * rangeSize[Player::P0],
-        allNodes.size() * rangeSize[Player::P1]
-    };
-
     // Free unnecessary memory - vectors are done growing
     allNodes.shrink_to_fit();
     allChanceCards.shrink_to_fit();
@@ -153,12 +147,10 @@ std::size_t Tree::getTreeSkeletonSize() const {
 std::size_t Tree::estimateFullTreeSize() const {
     assert(isTreeSkeletonBuilt());
 
-    // allStrategySums, allRegretSums, and allStrategies will each have m_trainingDataSize elements
-    std::size_t trainingDataHeapSize = (m_trainingDataSize * 3) * sizeof(float);
+    // allStrategySums and allRegretSums each have m_trainingDataLength elements
+    std::size_t trainingDataHeapSize = (m_trainingDataSize * 2) * sizeof(float);
 
-    std::size_t inputOutputSize = (m_inputOutputSize[Player::P0] + m_inputOutputSize[Player::P1]) * sizeof(float);
-
-    return getTreeSkeletonSize() + trainingDataHeapSize + inputOutputSize;
+    return getTreeSkeletonSize() + trainingDataHeapSize;
 }
 
 std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
@@ -324,10 +316,6 @@ void Tree::buildFullTree() {
 
     allStrategySums.assign(m_trainingDataSize, 0.0f);
     allRegretSums.assign(m_trainingDataSize, 0.0f);
-    allStrategies.assign(m_trainingDataSize, 0.0f);
-
-    allInputOutput[Player::P0].assign(m_inputOutputSize[Player::P0], 0.0f);
-    allInputOutput[Player::P1].assign(m_inputOutputSize[Player::P1], 0.0f);
 }
 
 std::size_t Tree::getRootNodeIndex() const {

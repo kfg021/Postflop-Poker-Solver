@@ -23,7 +23,7 @@ struct CfrResult {
     int iteration;
 };
 
-std::optional<CfrResult> runCfr(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, float startingPot, Tree& tree) {
+std::optional<CfrResult> runCfr(const IGameRules& rules, float targetPercentExploitability, int maxIterations, int exploitabilityCheckFrequency, float startingPot, Tree& tree, StackAllocator<float>& allocator) {
     for (int i = 0; i < maxIterations; ++i) {
         int iteration = i + 1;
 
@@ -36,11 +36,11 @@ std::optional<CfrResult> runCfr(const IGameRules& rules, float targetPercentExpl
             // Proceedings of the AAAI Conference on Artificial Intelligence, 33(01), 1829-1836. 
             // https://doi.org/10.1609/aaai.v33i01.33011829
 
-            discountedCfr(hero, rules, getDiscountParams(1.5f, 0.0f, 2.0f, iteration), tree);
+            discountedCfr(hero, rules, getDiscountParams(1.5f, 0.0f, 2.0f, iteration), tree, allocator);
         }
 
         if ((exploitabilityCheckFrequency > 0) && (iteration % exploitabilityCheckFrequency == 0)) {
-            float exploitability = calculateExploitabilityFast(rules, tree);
+            float exploitability = calculateExploitabilityFast(rules, tree, allocator);
             float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
             std::cout << "Finished iteration " << iteration << ". Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n";
             if (exploitabilityPercent <= targetPercentExploitability) {
@@ -78,6 +78,7 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
 
     #ifdef _OPENMP
     omp_set_num_threads(numThreads);
+    StackAllocator<float> allocator(numThreads);
 
     #pragma omp parallel
     {
@@ -87,15 +88,16 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
                 << std::fixed << std::setprecision(5) << targetPercentExploitability
                 << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
 
-            resultOption = runCfr(rules, targetPercentExploitability, maxIterations, exploitabilityCheckFrequency, startingPot, tree);
+            resultOption = runCfr(rules, targetPercentExploitability, maxIterations, exploitabilityCheckFrequency, startingPot, tree, allocator);
         }
     }
     #else
+    StackAllocator<float> allocator(1);
     std::cout << "Starting training in single-threaded mode. Target exploitability: "
         << std::fixed << std::setprecision(5) << targetPercentExploitability
         << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
 
-    resultOption = runCfr(rules, targetPercentExploitability, maxIterations, exploitabilityCheckFrequency, startingPot, tree);
+    resultOption = runCfr(rules, targetPercentExploitability, maxIterations, exploitabilityCheckFrequency, startingPot, tree, allocator);
     #endif
 
     std::cout << "Finished training.\n";
@@ -108,15 +110,23 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
     }
 
     std::cout << "Calculating expected value of final strategy...\n" << std::flush;
-    float player0ExpectedValue = expectedValue(Player::P0, rules, tree);
-    float player1ExpectedValue = expectedValue(Player::P1, rules, tree);
+    float player0ExpectedValue = expectedValue(Player::P0, rules, tree, allocator);
+    float player1ExpectedValue = expectedValue(Player::P1, rules, tree, allocator);
     std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n";
     std::cout << "Player 1 expected value: " << std::fixed << std::setprecision(5) << player1ExpectedValue << "\n\n";
 
     std::cout << "Calculating exploitability of final strategy...\n" << std::flush;
-    float exploitability = resultOption ? resultOption->exploitability : calculateExploitabilityFast(rules, tree);
+    float exploitability = resultOption ? resultOption->exploitability : calculateExploitabilityFast(rules, tree, allocator);
     float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
     std::cout << "Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n\n";
+
+    std::cout << "Maximum stack allocator memory usage per thread: ";
+    auto stackUsages = allocator.getMaximumStackUsage();
+    for (int i = 0; i < numThreads; ++i) {
+        std::cout << getSizeString(stackUsages[i]);
+        if (i < numThreads - 1) std::cout << ", ";
+    }
+    std::cout << "\n\n";
 
     if (strategyOutputFileOption) {
         std::cout << "Saving strategy to file...\n" << std::flush;

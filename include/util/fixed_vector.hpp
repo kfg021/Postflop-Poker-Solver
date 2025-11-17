@@ -25,23 +25,26 @@ public:
     using iterator = typename std::array<T, Capacity>::iterator;
     using const_iterator = typename std::array<T, Capacity>::const_iterator;
 
-    FixedVector() : m_buffer{}, m_size(0) {}
+    FixedVector() : m_buffer{}, m_size{ 0 } {}
 
-    FixedVector(std::initializer_list<T> initList) : m_buffer{}, m_size(initList.size()) {
-        assert(m_size <= Capacity);
+    FixedVector(std::initializer_list<T> initList) : m_buffer{}, m_size{ static_cast<Size>(initList.size()) } {
+        assert(initList.size() <= Capacity);
         std::copy(initList.begin(), initList.end(), m_buffer.begin());
     }
 
-    FixedVector(const std::array<T, Capacity>& buffer) : m_buffer(buffer), m_size(Capacity) {}
-    FixedVector(std::array<T, Capacity>&& buffer) : m_buffer(std::move(buffer)), m_size(Capacity) {}
+    FixedVector(const std::array<T, Capacity>& buffer) : m_buffer{ buffer }, m_size{ Capacity } {}
+    FixedVector(std::array<T, Capacity>&& buffer) : m_buffer{ std::move(buffer) }, m_size{ Capacity } {}
 
-    FixedVector(std::size_t size, const T& data) : m_buffer{}, m_size(size) {
-        assert(m_size <= Capacity);
+    FixedVector(std::size_t size, const T& data) : m_buffer{}, m_size{ static_cast<Size>(size) } {
+        assert(size <= Capacity);
         std::fill(m_buffer.begin(), m_buffer.begin() + m_size, data);
     }
-    FixedVector(std::size_t size, T&& data) : m_buffer{}, m_size(size) {
-        assert(m_size <= Capacity);
+    FixedVector(std::size_t size, T&& data) : m_buffer{}, m_size{ static_cast<Size>(size) } {
+        assert(size <= Capacity);
         std::fill(m_buffer.begin(), m_buffer.begin() + m_size, std::move(data));
+    }
+    FixedVector(std::size_t size) : m_buffer{}, m_size{ static_cast<Size>(size) } {
+        assert(size <= Capacity);
     }
 
     iterator begin() {

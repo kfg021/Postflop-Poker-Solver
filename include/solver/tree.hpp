@@ -46,11 +46,6 @@ public:
     std::vector<float> allStrategySums;
     std::vector<float> allRegretSums;
 
-    // Temporary space for CFR, reset after every iteration
-    // TODO: Use custom allocator
-    std::vector<float> allStrategies;
-    PlayerArray<std::vector<float>> allInputOutput;
-
 private:
     std::size_t createNode(const IGameRules& rules, const GameState& state);
     std::size_t createChanceNode(const IGameRules& rules, const GameState& state);
@@ -60,7 +55,6 @@ private:
 
     std::size_t m_trainingDataSize;
     std::size_t m_numDecisionNodes;
-    PlayerArray<std::size_t> m_inputOutputSize;
 };
 
 #endif // TREE_HPP

@@ -12,21 +12,34 @@
 template<typename T>
 class StackAllocator {
 public:
-    StackAllocator(int numThreads, std::size_t stackSizePerThread) : m_stackPointers(numThreads, 0), m_stacks(numThreads, std::vector<T>(stackSizePerThread)) {
+    static constexpr int MaxNumThreads = 64;
+
+    StackAllocator(int numThreads) : m_stackPointers(numThreads, 0), m_stacks(numThreads, std::vector<T>(StackBytesPerThread / sizeof(T))), m_maximumStackUsage(numThreads, 0) {
         assert(numThreads <= MaxNumThreads);
     }
-    
+
+    bool isEmpty() const {
+        for (std::size_t stackPointer : m_stackPointers) {
+            if (stackPointer > 0) return false;
+        }
+        return true;
+    }
+
     std::span<T> allocate(int thread, int size) {
+        assert(thread < MaxNumThreads);
         assert(m_stackPointers[thread] + size <= m_stacks[thread].size());
 
         auto start = m_stacks[thread].begin() + m_stackPointers[thread];
         auto end = start + size;
         m_stackPointers[thread] += size;
 
+        m_maximumStackUsage[thread] = std::max(m_maximumStackUsage[thread], m_stackPointers[thread]);
+
         return { start, end };
     }
 
     void deallocate(int thread, std::span<T> data) {
+        assert(thread < MaxNumThreads);
         assert(m_stackPointers[thread] - data.size() >= 0);
 
         T* expectedTopOfStack = std::to_address(data.end());
@@ -36,10 +49,15 @@ public:
         m_stackPointers[thread] -= data.size();
     }
 
+    FixedVector<std::size_t, MaxNumThreads> getMaximumStackUsage() const {
+        return m_maximumStackUsage;
+    }
+
 private:
-    static constexpr int MaxNumThreads = 64;
+    static constexpr int StackBytesPerThread = (1 << 20); // 1 MB
     FixedVector<std::size_t, MaxNumThreads> m_stackPointers;
     FixedVector<std::vector<T>, MaxNumThreads> m_stacks;
+    FixedVector<std::size_t, MaxNumThreads> m_maximumStackUsage;
 };
 
 template <typename T>
@@ -53,12 +71,11 @@ public:
     using pointer = T*;
     using const_pointer = const T*;
     using iterator = typename std::span<T>::iterator;
-    using const_iterator = typename std::span<T>::const_iterator;
 
-    StackVector(StackAllocator<T>* allocator, int thread, std::size_t size) : m_thread{ thread }, m_allocator{ allocator }, m_data{ allocator->allocate(thread, size) } {}
+    StackVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocatingThread{ allocatingThread }, m_allocator{ allocator }, m_data{ allocator.allocate(allocatingThread, size) } {}
 
     ~StackVector() {
-        m_allocator->deallocate(m_thread, m_data);
+        m_allocator.deallocate(m_allocatingThread, m_data);
     }
 
     // StackVectors must be allocated on the stack and they are tied to a specific scope
@@ -68,8 +85,20 @@ public:
     StackVector& operator=(StackVector&&) = delete;
     void* operator new(std::size_t) = delete;
     void* operator new[](std::size_t) = delete;
-    void  operator delete(void*) = delete;
-    void  operator delete[](void*) = delete;
+    void operator delete(void*) = delete;
+    void operator delete[](void*) = delete;
+
+    iterator begin() {
+        return m_data.begin();
+    }
+
+    iterator end() {
+        return m_data.end();
+    }
+
+    std::size_t size() const {
+        return m_data.size();
+    }
 
     const T& operator[](std::size_t index) const {
         assert(index < m_data.size());
@@ -82,8 +111,8 @@ public:
     }
 
 private:
-    StackAllocator<T>* m_allocator;
-    int m_thread;
+    StackAllocator<T>& m_allocator;
+    int m_allocatingThread;
     std::span<T> m_data;
 };
 

@@ -6,6 +6,7 @@
 #include "solver/node.hpp"
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
+#include "util/stack_allocator.hpp"
 
 #include <cstdint>
 
@@ -20,39 +21,44 @@ DiscountParams getDiscountParams(float alpha, float beta, float gamma, int itera
 void vanillaCfr(
     Player hero,
     const IGameRules& rules,
-    Tree& tree
+    Tree& tree,
+    StackAllocator<float>& allocator
 );
 
 void cfrPlus(
     Player hero,
     const IGameRules& rules,
-    Tree& tree
+    Tree& tree,
+    StackAllocator<float>& allocator
 );
 
 void discountedCfr(
     Player hero,
     const IGameRules& rules,
     const DiscountParams& params,
-    Tree& tree
+    Tree& tree,
+    StackAllocator<float>& allocator
 );
 
 float expectedValue(
     Player hero,
     const IGameRules& rules,
-    Tree& tree
+    Tree& tree,
+    StackAllocator<float>& allocator
 );
 
 float bestResponseEV(
     Player hero,
     const IGameRules& rules,
-    Tree& tree
+    Tree& tree,
+    StackAllocator<float>& allocator
 );
 
-float calculateExploitability(const IGameRules& rules, Tree& tree);
+float calculateExploitability(const IGameRules& rules, Tree& tree, StackAllocator<float>& allocator);
 
-float calculateExploitabilityFast(const IGameRules& rules, Tree& tree);
+float calculateExploitabilityFast(const IGameRules& rules, Tree& tree, StackAllocator<float>& allocator);
 
-void writeAverageStrategyToBuffer(const DecisionNode& decisionNode, Tree& tree);
+FixedVector<float, MaxNumActions> getAverageStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree);
 
 std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree);
 
