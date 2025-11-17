@@ -92,7 +92,8 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
         }
     }
     #else
-    StackAllocator<float> allocator(1);
+    numThreads = 1;
+    StackAllocator<float> allocator(numThreads);
     std::cout << "Starting training in single-threaded mode. Target exploitability: "
         << std::fixed << std::setprecision(5) << targetPercentExploitability
         << "% Maximum iterations: " << maxIterations << "\n" << std::flush;
