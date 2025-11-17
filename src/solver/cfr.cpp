@@ -77,13 +77,16 @@ FixedVector<float, MaxNumActions> getCurrentStrategy(int hand, const DecisionNod
         return FixedVector<float, MaxNumActions>(numActions, 1.0f / numActions);
     }
     else {
-        FixedVector<float, MaxNumActions> currentStrategy(numActions, 0.0f);
+        FixedVector<float, MaxNumActions> currentStrategy(numActions);
 
         for (int action = 0; action < numActions; ++action) {
             std::size_t trainingIndex = getTrainingDataIndex(action, hand, decisionNode, tree);
             double regretSum = static_cast<double>(tree.allRegretSums[trainingIndex]);
             if (regretSum > 0.0) {
                 currentStrategy[action] = regretSum / totalPositiveRegret;
+            }
+            else {
+                currentStrategy[action] = 0.0f;
             }
         }
 
@@ -1055,7 +1058,7 @@ FixedVector<float, MaxNumActions> getAverageStrategy(int hand, const DecisionNod
         return FixedVector<float, MaxNumActions>(numActions, 1.0f / numActions);
     }
     else {
-        FixedVector<float, MaxNumActions> averageStrategy(numActions, 0.0f);
+        FixedVector<float, MaxNumActions> averageStrategy(numActions);
 
         for (int action = 0; action < numActions; ++action) {
             std::size_t trainingIndex = getTrainingDataIndex(action, hand, decisionNode, tree);
