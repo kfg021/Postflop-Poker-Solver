@@ -54,7 +54,8 @@ public:
     }
 
 private:
-    static constexpr int StackBytesPerThread = (1 << 20); // 1 MB
+    static constexpr int KB = (1 << 10);
+    static constexpr int StackBytesPerThread = 128 * KB; // TODO: Maybe dynamically choose this based on tree size
     FixedVector<std::size_t, MaxNumThreads> m_stackPointers;
     FixedVector<std::vector<T>, MaxNumThreads> m_stacks;
     FixedVector<std::size_t, MaxNumThreads> m_maximumStackUsage;
