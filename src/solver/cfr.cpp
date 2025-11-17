@@ -95,6 +95,22 @@ FixedVector<float, MaxNumActions> getCurrentStrategy(int hand, const DecisionNod
     }
 }
 
+void addReachProbsToArray(std::array<double, StandardDeckSize>& villainReachProbWithCard, CardSet villainHand, double villainReachProb, const Tree& tree) {
+    switch (tree.gameHandSize) {
+        case 1:
+            villainReachProbWithCard[getLowestCardInSet(villainHand)] += villainReachProb;
+            break;
+        case 2:
+            villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
+            assert(getSetSize(villainHand) == 1);
+            villainReachProbWithCard[getLowestCardInSet(villainHand)] += villainReachProb;
+            break;
+        default:
+            assert(false);
+            break;
+    }
+}
+
 double getValidVillainReachProb(
     int heroHandIndex,
     double villainTotalReachProb,
@@ -636,13 +652,8 @@ void traverseFold(
         if (!areSetsDisjoint(villainHand, foldNode.board)) continue;
 
         double villainReachProb = static_cast<double>(villainReachProbs[hand]);
-
         villainTotalReachProb += villainReachProb;
-
-        for (int i = 0; i < tree.gameHandSize; ++i) {
-            villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
-        }
-        assert(villainHand == 0);
+        addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb, tree);
     }
 
     // Winner wins the folding player's wager and the dead money
@@ -677,22 +688,6 @@ void traverseShowdown(
     StackVector<float>& outputExpectedValues,
     Tree& tree
 ) {
-    auto addReachProbsToArray = [&tree](std::array<double, StandardDeckSize>& villainReachProbWithCard, CardSet villainHand, double villainReachProb) -> void {
-        switch (tree.gameHandSize) {
-            case 1:
-                villainReachProbWithCard[getLowestCardInSet(villainHand)] += villainReachProb;
-                break;
-            case 2:
-                villainReachProbWithCard[popLowestCardFromSet(villainHand)] += villainReachProb;
-                assert(getSetSize(villainHand) == 1);
-                villainReachProbWithCard[getLowestCardInSet(villainHand)] += villainReachProb;
-                break;
-            case 3:
-                assert(false);
-                break;
-        }
-    };
-
     std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
     Player hero = constants.hero;
@@ -734,7 +729,7 @@ void traverseShowdown(
                 if (areSetsDisjoint(villainHand, showdownNode.board)) {
                     double villainReachProb = static_cast<double>(villainReachProbs[villainHandIndex]);
                     villainTotalReachProb += villainReachProb;
-                    addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb);
+                    addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb, tree);
                 }
 
                 ++villainIndexSorted;
@@ -771,7 +766,7 @@ void traverseShowdown(
                 if (areSetsDisjoint(villainHand, showdownNode.board)) {
                     double villainReachProb = static_cast<double>(villainReachProbs[villainHandIndex]);
                     villainTotalReachProb += villainReachProb;
-                    addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb);
+                    addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb, tree);
                 }
 
                 --villainIndexSorted;
@@ -821,7 +816,7 @@ void traverseShowdown(
                     if (areSetsDisjoint(villainHand, showdownNode.board)) {
                         double villainReachProb = static_cast<double>(villainReachProbs[villainHandIndex]);
                         villainTotalReachProb += villainReachProb;
-                        addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb);
+                        addReachProbsToArray(villainReachProbWithCard, villainHand, villainReachProb, tree);
                     }
 
                     ++villainIndexSorted;
