@@ -22,7 +22,7 @@ public:
 
     // Functions for the CFR algorithm
     virtual std::span<const float> getInitialRangeWeights(Player player) const = 0;
-    virtual std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const = 0;
+    virtual std::span<const HandData> getValidSortedHandRanks(Player player, CardSet board) const = 0;
     virtual int getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const = 0;
 
     // Functions for output

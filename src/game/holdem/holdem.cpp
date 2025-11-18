@@ -361,7 +361,7 @@ ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
             assert(getSetSize(previouslyDealtCards) == 1);
             CardID dealtTurn = getLowestCardInSet(previouslyDealtCards);
             int dealtTurnSuitID = static_cast<int>(getCardSuit(dealtTurn));
-            
+
             return {
                 .availableCards = Deck & ~board,
                 .isomorphisms = m_isomorphismsAfterSuitDealt[dealtTurnSuitID]
@@ -390,7 +390,7 @@ std::span<const float> Holdem::getInitialRangeWeights(Player player) const {
     return m_settings.ranges[player].weights;
 }
 
-std::span<const HandData> Holdem::getSortedHandRanks(Player player, CardSet board) const {
+std::span<const HandData> Holdem::getValidSortedHandRanks(Player player, CardSet board) const {
     assert(getSetSize(board) == 5);
 
     CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
@@ -419,6 +419,12 @@ std::span<const HandData> Holdem::getSortedHandRanks(Player player, CardSet boar
 
     auto rangeBegin = m_handRanks[player].begin() + handRankOffset;
     auto rangeEnd = rangeBegin + playerRangeSize;
+
+    // Ignore all hands that have rank 0 (overlap with the board)
+    while (rangeBegin < rangeEnd && rangeBegin->rank == 0) {
+        ++rangeBegin;
+    }
+
     return { rangeBegin, rangeEnd };
 }
 
@@ -623,7 +629,7 @@ void Holdem::buildHandTables() {
             }
         };
 
-        static const FixedVector<SuitEquivalenceClass, 4> IdentityIsomorphism = { 
+        static const FixedVector<SuitEquivalenceClass, 4> IdentityIsomorphism = {
             { Suit::Clubs },
             { Suit::Diamonds },
             { Suit::Hearts },
@@ -678,7 +684,7 @@ void Holdem::buildHandTables() {
                 };
 
                 bool areSuitsCombatibleOnStartingBoard = isStartingBoardSymmetric && areStartingRangesSymmetric();
-                
+
                 if (areSuitsCombatibleOnStartingBoard) {
                     mergeSuitClasses(m_startingIsomorphisms, x, y);
                 }
@@ -697,7 +703,7 @@ void Holdem::buildHandTables() {
                     for (int dealtTurnSuitID = 0; dealtTurnSuitID < 4; ++dealtTurnSuitID) {
                         Suit dealtTurnSuit = static_cast<Suit>(dealtTurnSuitID);
                         bool dealtTurnIsNeitherSuit = (dealtTurnSuit != x) && (dealtTurnSuit != y);
-                        
+
                         if (areSuitsCombatibleOnStartingBoard && dealtTurnIsNeitherSuit) {
                             mergeSuitClasses(m_isomorphismsAfterSuitDealt[dealtTurnSuitID], x, y);
                         }

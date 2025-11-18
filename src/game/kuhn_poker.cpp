@@ -132,7 +132,7 @@ std::span<const float> KuhnPoker::getInitialRangeWeights(Player /*player*/) cons
     return Weights;
 }
 
-std::span<const HandData> KuhnPoker::getSortedHandRanks(Player /*player*/, CardSet /*board*/) const {
+std::span<const HandData> KuhnPoker::getValidSortedHandRanks(Player /*player*/, CardSet /*board*/) const {
     enum KuhnHandID : std::uint8_t {
         Jack,
         Queen,

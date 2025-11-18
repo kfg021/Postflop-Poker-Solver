@@ -18,7 +18,7 @@ public:
     ChanceNodeInfo getChanceNodeInfo(CardSet board) const override;
     std::span<const CardSet> getRangeHands(Player player) const override;
     std::span<const float> getInitialRangeWeights(Player player) const override;
-    std::span<const HandData> getSortedHandRanks(Player player, CardSet board) const override;
+    std::span<const HandData> getValidSortedHandRanks(Player player, CardSet board) const override;
     int getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const override;
     std::string getActionName(ActionID actionID, int betRaiseSize) const override;
 };
