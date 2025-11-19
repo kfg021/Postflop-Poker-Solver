@@ -480,8 +480,8 @@ void traverseDecision(
         &calculateActionEVs
     ]() -> void {
         // Initialize all EVs to lowest possible 
-        static constexpr float Infinity = std::numeric_limits<float>::infinity();
-        std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), -Infinity);
+        static constexpr float Lowest = std::numeric_limits<float>::lowest();
+        std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), Lowest);
 
         int numActions = static_cast<int>(decisionNode.decisionDataSize);
         assert(numActions > 0);
@@ -515,7 +515,7 @@ void traverseDecision(
         }
 
         for (int hand = 0; hand < heroRangeSize; ++hand) {
-            assert(outputExpectedValues[hand] != -Infinity);
+            assert(outputExpectedValues[hand] != Lowest);
         }
     };
 
