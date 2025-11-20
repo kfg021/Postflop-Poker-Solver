@@ -25,7 +25,7 @@ public:
         return true;
     }
 
-    std::span<T> allocate(int thread, int size) {
+    std::span<T> allocate(int thread, std::size_t size) {
         assert(thread < MaxNumThreads);
         assert(m_stackPointers[thread] + size <= m_stacks[thread].size());
 
@@ -33,7 +33,8 @@ public:
         auto end = start + size;
         m_stackPointers[thread] += size;
 
-        m_maximumStackUsage[thread] = std::max(m_maximumStackUsage[thread], m_stackPointers[thread]);
+        std::size_t currentStackUsage = m_stackPointers[thread] * sizeof(T);
+        m_maximumStackUsage[thread] = std::max(m_maximumStackUsage[thread], currentStackUsage);
 
         return { start, end };
     }
