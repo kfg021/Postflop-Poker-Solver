@@ -60,7 +60,7 @@ json buildJSONDecision(const IGameRules& rules, const DecisionNode& decisionNode
     for (int i = 0; i < playerHands.size(); ++i) {
         CardSet hand = playerHands[i];
 
-        if ((hand & board) != 0) {
+        if (!areSetsDisjoint(hand, board)) {
             // Hand is not possible given the board
             continue;
         }
