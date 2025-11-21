@@ -72,7 +72,7 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
         std::string errorString = "Error building range: \"" + rangeString + "\" is not a valid range element.";
 
         if (rangeString.size() < 2) {
-            return rangeString + " (Range string too short)";
+            return errorString + " (Range string too short)";
         }
 
         Result<Value> value0Result = getValueFromChar(rangeString[0]);
