@@ -16,8 +16,8 @@ protected:
 
     static void SetUpTestSuite() {
         PlayerArray<Holdem::Range> testingRanges = {
-            buildRangeFromStrings({ "AA", "KJ", "TT", "AQo:50" }).getValue(),
-            buildRangeFromStrings({ "AA", "KK:25", "QQ", "T9s:33", "27o:99" }).getValue(),
+            buildRangeFromString("AA, KJ, TT, AQo:0.50").getValue(),
+            buildRangeFromString("AA, KK:0.25, QQ, T9s:0.33, 27o:0.99").getValue(),
         };
 
         testSettings = {
@@ -62,7 +62,7 @@ bool containsEquivalence(const FixedVector<SuitEquivalenceClass, 4>& isomorphism
 // TODO: Add tests for uneven porportions of offsuit starting hand combos
 TEST_F(HoldemIsomorphismTest, NoIsomorphismsOnRainbowFlop) {
     Holdem::Settings customSettings = testSettings;
-    customSettings.startingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s" }).getValue();
+    customSettings.startingCommunityCards = buildCommunityCardsFromString("Ah, 7c, 2s").getValue();
     Holdem holdemRules{ customSettings };
 
     ChanceNodeInfo turnCardInfo = holdemRules.getChanceNodeInfo(customSettings.startingCommunityCards);
@@ -77,7 +77,7 @@ TEST_F(HoldemIsomorphismTest, NoIsomorphismsOnRainbowFlop) {
 
 TEST_F(HoldemIsomorphismTest, NoIsomorphismsOnRainbowTurn) {
     Holdem::Settings customSettings = testSettings;
-    customSettings.startingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s", "3d" }).getValue();
+    customSettings.startingCommunityCards = buildCommunityCardsFromString("Ah, 7c, 2s, 3d").getValue();
     Holdem holdemRules{ customSettings };
 
     ChanceNodeInfo riverCardInfo = holdemRules.getChanceNodeInfo(customSettings.startingCommunityCards);
@@ -87,7 +87,7 @@ TEST_F(HoldemIsomorphismTest, NoIsomorphismsOnRainbowTurn) {
 
 TEST_F(HoldemIsomorphismTest, OneIsomorphismOnTwoToneFlop) {
     Holdem::Settings customSettings = testSettings;
-    customSettings.startingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2c" }).getValue();
+    customSettings.startingCommunityCards = buildCommunityCardsFromString("Ah, 7c, 2c").getValue();
     Holdem holdemRules{ customSettings };
 
     // Diamonds and spades don't appear, so they are isomorphic
@@ -95,7 +95,7 @@ TEST_F(HoldemIsomorphismTest, OneIsomorphismOnTwoToneFlop) {
     ASSERT_EQ(getSetSize(turnCardInfo.availableCards), ExpectedNumAvailableTurnCards);
     ASSERT_EQ(getNumberOfNontrivialEquivalences(turnCardInfo.isomorphisms), 1);
     ASSERT_TRUE(containsEquivalence(turnCardInfo.isomorphisms, { Suit::Diamonds, Suit::Spades }));
-    
+
     // After a club or heart turn, isomorphism remains
     CardSet turnClub = cardIDToSet(getCardIDFromValueAndSuit(Value::Ten, Suit::Clubs));
     ChanceNodeInfo riverCardInfoClub = holdemRules.getChanceNodeInfo(customSettings.startingCommunityCards | turnClub);
@@ -112,7 +112,7 @@ TEST_F(HoldemIsomorphismTest, OneIsomorphismOnTwoToneFlop) {
 
 TEST_F(HoldemIsomorphismTest, OneIsomorphismOnMonotoneFlop) {
     Holdem::Settings customSettings = testSettings;
-    customSettings.startingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7h", "2h" }).getValue();
+    customSettings.startingCommunityCards = buildCommunityCardsFromString("Ah, 7h, 2h").getValue();
     Holdem holdemRules{ customSettings };
 
     // All suits except hearts are isomorphic
@@ -138,7 +138,7 @@ TEST_F(HoldemIsomorphismTest, OneIsomorphismOnMonotoneFlop) {
 
 TEST_F(HoldemIsomorphismTest, TwoIsomorphismsOnDoublePairedTurn) {
     Holdem::Settings customSettings = testSettings;
-    customSettings.startingCommunityCards = buildCommunityCardsFromStrings({ "Ks", "2s", "2h", "Kh" }).getValue();
+    customSettings.startingCommunityCards = buildCommunityCardsFromString("Ks, 2s, 2h, Kh").getValue();
     Holdem holdemRules{ customSettings };
 
     // There are two sets of isomorphisms on this board
@@ -151,7 +151,7 @@ TEST_F(HoldemIsomorphismTest, TwoIsomorphismsOnDoublePairedTurn) {
 
 TEST_F(HoldemIsomorphismTest, OneIsomorphismOnDoublePairedDealtTurn) {
     Holdem::Settings customSettings = testSettings;
-    customSettings.startingCommunityCards = buildCommunityCardsFromStrings({ "Ks", "2s", "2h" }).getValue();
+    customSettings.startingCommunityCards = buildCommunityCardsFromString("Ks, 2s, 2h").getValue();
     Holdem holdemRules{ customSettings };
 
     // The last king was dealt, so spades and hearts are not isomorphic

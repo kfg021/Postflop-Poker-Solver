@@ -30,11 +30,11 @@ void trainLeducPoker(int maxIterations, int numThreads, const std::optional<std:
 }
 
 void trainHoldem(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
-    CardSet communityCards = buildCommunityCardsFromStrings({ "9s", "8h", "3s" }).getValue();
+    CardSet communityCards = buildCommunityCardsFromString("9s, 8h, 3s").getValue();
 
     PlayerArray<Holdem::Range> ranges = {
-        buildRangeFromStrings({ "AA", "KK", "QQ", "AK", "AQs", "A5s" }, communityCards).getValue(),
-        buildRangeFromStrings({ "QQ", "JJ", "TT", "99", "AKo", "AQ", "AJs", "ATs", "KQs", "KJs", "KTs", "QJs", "JTs", "T9s" }, communityCards).getValue(),
+        buildRangeFromString("AA, KK, QQ, AK, AQs, A5s", communityCards).getValue(),
+        buildRangeFromString("QQ, JJ, TT, 99, AKo, AQ, AJs, ATs, KQs, KJs, KTs, QJs, JTs, T9s", communityCards).getValue(),
     };
 
     Holdem::Settings holdemSettings = {

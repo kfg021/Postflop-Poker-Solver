@@ -9,7 +9,59 @@
 #include <unordered_set>
 #include <vector>
 
-Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& communityCardStrings) {
+namespace {
+std::string trim(const std::string& input) {
+    int inputSize = input.size();
+
+    int start = 0;
+    while (start < inputSize && std::isspace(input[start])) {
+        ++start;
+    }
+
+    int end = inputSize - 1;
+    while (end >= 0 && std::isspace(input[end])) {
+        --end;
+    }
+
+    if (end < start) {
+        return "";
+    }
+
+    int outputLength = end - start + 1;
+    return input.substr(start, outputLength);
+}
+} // namespace
+
+std::vector<std::string> parseTokens(const std::string& input) {
+    int inputSize = input.size();
+    std::vector<int> delimiterLocations;
+    delimiterLocations.push_back(-1);
+    for (int i = 0; i < inputSize; ++i) {
+        if (input[i] == ',') {
+            delimiterLocations.push_back(i);
+        }
+    }
+    delimiterLocations.push_back(inputSize);
+
+    std::vector<std::string> tokens;
+    for (int i = 0; i + 1 < delimiterLocations.size(); ++i) {
+        int tokenStart = delimiterLocations[i] + 1;
+        int tokenEnd = delimiterLocations[i + 1] - 1;
+        int tokenSize = tokenEnd - tokenStart + 1;
+        if (tokenSize > 0) {
+            std::string trimmed = trim(input.substr(tokenStart, tokenSize));
+            if (!trimmed.empty()) {
+                tokens.push_back(trimmed);
+            }
+        }
+    }
+
+    return tokens;
+}
+
+Result<CardSet> buildCommunityCardsFromString(const std::string& communityCardString) {
+    std::vector<std::string> communityCardStrings = parseTokens(communityCardString);
+
     CardSet communityCards = 0;
     for (const auto& cardString : communityCardStrings) {
         Result<CardID> cardIDResult = getCardIDFromName(cardString);
@@ -33,12 +85,12 @@ Result<CardSet> buildCommunityCardsFromStrings(const std::vector<std::string>& c
     return communityCards;
 }
 
-Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings) {
-    return buildRangeFromStrings(rangeStrings, 0);
+Result<Holdem::Range> buildRangeFromString(const std::string& rangeString) {
+    return buildRangeFromString(rangeString, 0);
 }
 
 // TODO: Add support for specific hand combos
-Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rangeStrings, CardSet communityCards) {
+Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardSet communityCards) {
     auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {
             case '2': case '3': case '4': case '5':
@@ -61,6 +113,8 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
         }
     };
 
+    std::vector<std::string> rangeStrings = parseTokens(rangeString);
+
     if (rangeStrings.empty()) {
         return "Error building range: Range is empty.";
     }
@@ -68,19 +122,19 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
     Holdem::Range range;
     std::unordered_set<CardSet> seenHands;
 
-    for (const std::string& rangeString : rangeStrings) {
-        std::string errorString = "Error building range: \"" + rangeString + "\" is not a valid range element.";
+    for (const std::string& rangeElement : rangeStrings) {
+        std::string errorString = "Error building range: \"" + rangeElement + "\" is not a valid range element.";
 
-        if (rangeString.size() < 2) {
-            return errorString + " (Range string too short)";
+        if (rangeElement.size() < 2) {
+            return errorString + " (Range element too short)";
         }
 
-        Result<Value> value0Result = getValueFromChar(rangeString[0]);
+        Result<Value> value0Result = getValueFromChar(rangeElement[0]);
         if (value0Result.isError()) {
             return errorString + " (Failed to parse first character)";
         }
 
-        Result<Value> value1Result = getValueFromChar(rangeString[1]);
+        Result<Value> value1Result = getValueFromChar(rangeElement[1]);
         if (value1Result.isError()) {
             return errorString + " (Failed to parse second character)";
         }
@@ -97,8 +151,8 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
         };
 
         Combos combos = Combos::Default;
-        if (rangeString.size() >= 3) {
-            switch (rangeString[2]) {
+        if (rangeElement.size() >= 3) {
+            switch (rangeElement[2]) {
                 case 's':
                     combos = Combos::Suited;
                     break;
@@ -106,7 +160,7 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
                     combos = Combos::Offsuit;
                     break;
                 default:
-                    if (rangeString[2] != ':') {
+                    if (rangeElement[2] != ':') {
                         return errorString + " (Expected colon after hand)";
                     }
                     break;
@@ -120,11 +174,11 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
             }
         }
 
-        int frequency = 100;
-        std::size_t colonLoc = rangeString.find(':');
+        float frequency = 1.0f;
+        std::size_t colonLoc = rangeElement.find(':');
         if (colonLoc != std::string::npos) {
-            frequency = std::stoi(rangeString.substr(colonLoc + 1));
-            if (frequency <= 0 || frequency > 100) {
+            frequency = std::stof(rangeElement.substr(colonLoc + 1));
+            if (frequency <= 0.0f || frequency > 1.0f) {
                 return errorString + " (Invalid frequency)";
             }
         }
@@ -147,7 +201,7 @@ Result<Holdem::Range> buildRangeFromStrings(const std::vector<std::string>& rang
                 bool isHandValid = (hand & communityCards) == 0;
                 if (isHandValid) {
                     range.hands.push_back(hand);
-                    range.weights.push_back(frequency / 100.0f);
+                    range.weights.push_back(frequency);
 
                     seenHands.insert(hand);
                 }

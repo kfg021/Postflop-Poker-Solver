@@ -17,11 +17,11 @@ protected:
     static inline Holdem::Settings testSettings;
 
     static void SetUpTestSuite() {
-        CardSet testingCommunityCards = buildCommunityCardsFromStrings({ "Ah", "7c", "2s" }).getValue();
+        CardSet testingCommunityCards = buildCommunityCardsFromString("Ah, 7c, 2s").getValue();
 
         PlayerArray<Holdem::Range> testingRanges = {
-            buildRangeFromStrings({ "AA", "KJ", "TT", "AQo:50" }, testingCommunityCards).getValue(),
-            buildRangeFromStrings({ "AA", "KK:25", "QQ", "T9s:33", "27o:99" }, testingCommunityCards).getValue(),
+            buildRangeFromString("AA, KJ, TT, AQo:0.5", testingCommunityCards).getValue(),
+            buildRangeFromString("AA, KK:0.25, QQ, T9s:0.33, 27o:0.99", testingCommunityCards).getValue(),
         };
 
         testSettings = {
