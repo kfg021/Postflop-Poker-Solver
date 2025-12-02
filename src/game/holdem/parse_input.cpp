@@ -33,28 +33,30 @@ std::string trim(const std::string& input) {
 } // namespace
 
 std::vector<std::string> parseTokens(const std::string& input) {
-    int inputSize = input.size();
-    std::vector<int> delimiterLocations;
-    delimiterLocations.push_back(-1);
-    for (int i = 0; i < inputSize; ++i) {
-        if (input[i] == ',') {
-            delimiterLocations.push_back(i);
-        }
-    }
-    delimiterLocations.push_back(inputSize);
-
+    static constexpr char Delimiter = ',';
     std::vector<std::string> tokens;
-    for (int i = 0; i + 1 < delimiterLocations.size(); ++i) {
-        int tokenStart = delimiterLocations[i] + 1;
-        int tokenEnd = delimiterLocations[i + 1] - 1;
-        int tokenSize = tokenEnd - tokenStart + 1;
+
+    auto insertToken = [&input, &tokens](int start, int end) {
+        int tokenSize = end - start + 1;
         if (tokenSize > 0) {
-            std::string trimmed = trim(input.substr(tokenStart, tokenSize));
+            std::string trimmed = trim(input.substr(start, tokenSize));
             if (!trimmed.empty()) {
                 tokens.push_back(trimmed);
             }
         }
+    };
+
+
+    int inputSize = input.size();
+    int nextTokenStart = 0;
+    for (int i = 0; i < inputSize; ++i) {
+        if (input[i] == Delimiter) {
+            int nextTokenEnd = i - 1;
+            insertToken(nextTokenStart, nextTokenEnd);
+            nextTokenStart = i + 1;
+        }
     }
+    insertToken(nextTokenStart, inputSize - 1);
 
     return tokens;
 }
