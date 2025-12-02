@@ -282,6 +282,6 @@ TEST(RangeParsingTest, ErrorFromEmptyRangeAfterFiltering) {
     CardSet communityCards = communityCardResult.getValue();
 
     // No aces left, so AA and AK are impossible
-    auto rangeResult = buildRangeFromString({ "AKs:0.50", "AA" }, communityCards);
+    auto rangeResult = buildRangeFromString("AKs:0.50, AA", communityCards);
     EXPECT_TRUE(rangeResult.isError());
 }
