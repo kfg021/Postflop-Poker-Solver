@@ -32,7 +32,7 @@ public:
         bool useChanceCardIsomorphism;
 
         // TODO:
-        // Different sizes for each street
+        // Different sizes for each street and player
         // Add all-in threshold
         // Force all-in threshold
         // Merging threshold
