@@ -293,7 +293,7 @@ void traverseDecision(
         &rules,
         &tree,
         &allocator
-    ](std::function<const StackVector<float>& (int)> getVillainReachProbsForAction, std::function<StackVector<float>& (int)> getExpectedValueBufferForAction) -> void {
+    ](const std::function<const StackVector<float>& (int)>& getVillainReachProbsForAction, const std::function<StackVector<float>& (int)>& getExpectedValueBufferForAction) -> void {
         auto calculateActionEV = [
             &decisionNode,
             &constants,
