@@ -21,18 +21,20 @@ public:
         bool operator==(const Range&) const = default;
     };
 
+    using BetSizes = PlayerArray<StreetArray<FixedVector<int, holdem::MaxNumBetSizes>>>;
+    using RaiseSizes = PlayerArray<StreetArray<FixedVector<int, holdem::MaxNumRaiseSizes>>>;
+
     struct Settings {
         PlayerArray<Range> ranges;
         CardSet startingCommunityCards;
-        FixedVector<int, holdem::MaxNumBetSizes> betSizes;
-        FixedVector<int, holdem::MaxNumRaiseSizes> raiseSizes;
+        BetSizes betSizes;
+        RaiseSizes raiseSizes;
         int startingPlayerWagers;
         int effectiveStackRemaining;
         int deadMoney;
         bool useChanceCardIsomorphism;
 
         // TODO:
-        // Different sizes for each street and player
         // Add all-in threshold
         // Force all-in threshold
         // Merging threshold

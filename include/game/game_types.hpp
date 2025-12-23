@@ -88,6 +88,30 @@ private:
     std::array<T, 2> m_array;
 };
 
+template <typename T>
+class StreetArray {
+public:
+    constexpr StreetArray() = default;
+    constexpr StreetArray(const T& flopValue, const T& turnValue, const T& riverValue) : m_array{ flopValue, turnValue, riverValue } {};
+
+    constexpr const T& operator[](Street street) const {
+        return m_array[getStreetID(street)];
+    }
+
+    constexpr T& operator[](Street street) {
+        return m_array[getStreetID(street)];
+    }
+
+private:
+    constexpr int getStreetID(Street street) const {
+        int streetID = static_cast<int>(street);
+        assert(streetID >= 0 && streetID <= 2);
+        return streetID;
+    }
+
+    std::array<T, 3> m_array;
+};
+
 struct GameState {
     CardSet currentBoard;
     PlayerArray<int> totalWagers;

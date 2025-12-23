@@ -189,12 +189,13 @@ NodeType Holdem::getNodeType(const GameState& state) const {
 
 FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& state) const {
     auto addAllValidBetSizes = [this, &state](FixedVector<ActionID, MaxNumActions>& validActions) -> void {
-        for (int i = 0; i < m_settings.betSizes.size(); ++i) {
+        const auto& currentBetSizes = m_settings.betSizes[state.playerToAct][state.currentStreet];
+        for (int i = 0; i < currentBetSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterBet(
                 state.totalWagers,
                 m_settings.deadMoney,
                 state.playerToAct,
-                m_settings.betSizes[i],
+                currentBetSizes[i],
                 getTotalEffectiveStack()
             );
             if (newWagersOption) {
@@ -205,12 +206,13 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
     };
 
     auto addAllValidRaiseSizes = [this, &state](FixedVector<ActionID, MaxNumActions>& validActions) -> void {
-        for (int i = 0; i < m_settings.raiseSizes.size(); ++i) {
+        const auto& currentRaiseSizes = m_settings.raiseSizes[state.playerToAct][state.currentStreet];
+        for (int i = 0; i < currentRaiseSizes.size(); ++i) {
             auto newWagersOption = tryGetWagersAfterRaise(
                 state.totalWagers,
                 m_settings.deadMoney,
                 state.playerToAct,
-                m_settings.raiseSizes[i],
+                currentRaiseSizes[i],
                 getTotalEffectiveStack()
             );
             if (newWagersOption) {
@@ -303,14 +305,15 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
         case Action::BetSize0:
         case Action::BetSize1:
         case Action::BetSize2: {
+            const auto& currentBetSizes = m_settings.betSizes[state.playerToAct][state.currentStreet];
             int betIndex = actionID - static_cast<int>(Action::BetSize0);
-            assert(betIndex >= 0 && betIndex < m_settings.betSizes.size());
+            assert(betIndex >= 0 && betIndex < currentBetSizes.size());
 
             auto newWagersOption = tryGetWagersAfterBet(
                 state.totalWagers,
                 m_settings.deadMoney,
                 state.playerToAct,
-                m_settings.betSizes[betIndex],
+                currentBetSizes[betIndex],
                 getTotalEffectiveStack()
             );
             assert(newWagersOption);
@@ -322,14 +325,15 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
         case Action::RaiseSize0:
         case Action::RaiseSize1:
         case Action::RaiseSize2: {
+            const auto& currentRaiseSizes = m_settings.raiseSizes[state.playerToAct][state.currentStreet];
             int raiseIndex = actionID - static_cast<int>(Action::RaiseSize0);
-            assert(raiseIndex >= 0 && raiseIndex < m_settings.raiseSizes.size());
+            assert(raiseIndex >= 0 && raiseIndex < currentRaiseSizes.size());
 
             auto newWagersOption = tryGetWagersAfterRaise(
                 state.totalWagers,
                 m_settings.deadMoney,
                 state.playerToAct,
-                m_settings.raiseSizes[raiseIndex],
+                currentRaiseSizes[raiseIndex],
                 getTotalEffectiveStack()
             );
             assert(newWagersOption);
