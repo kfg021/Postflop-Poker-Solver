@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 
 #include "game/game_utils.hpp"
-#include "game/holdem/parse_input.hpp"
+#include "game/holdem/holdem_parser.hpp"
 #include "util/result.hpp"
-#include "util/user_input.hpp"
+#include "util/string_utils.hpp"
 
 #include <cmath>
 #include <string>

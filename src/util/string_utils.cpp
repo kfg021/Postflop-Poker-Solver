@@ -1,12 +1,14 @@
-#include "util/user_input.hpp"
+#include "util/string_utils.hpp"
 
 #include <cctype>
+#include <cstddef>
 #include <exception>
+#include <iomanip>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
-namespace {
 std::string trim(const std::string& input) {
     int inputSize = input.size();
 
@@ -27,7 +29,6 @@ std::string trim(const std::string& input) {
     int outputLength = end - start + 1;
     return input.substr(start, outputLength);
 }
-} // namespace
 
 std::vector<std::string> parseTokens(const std::string& input, char delimiter) {
     std::vector<std::string> tokens;
@@ -72,5 +73,32 @@ std::optional<float> parseFloat(const std::string& input) {
     }
     catch (const std::exception&) {
         return std::nullopt;
+    }
+}
+
+std::string formatBytes(std::size_t bytes) {
+    auto getFormattedString = [](float count, const std::string& unit) -> std::string {
+        std::stringstream ss;
+        ss << std::fixed << std::setprecision(2) << count << " " << unit;
+        return ss.str();
+    };
+
+    static constexpr std::size_t GB = (1 << 30);
+    static constexpr std::size_t MB = (1 << 20);
+    static constexpr std::size_t KB = (1 << 10);
+
+    float bytesFloat = static_cast<float>(bytes);
+
+    if (bytes >= GB) {
+        return getFormattedString(bytesFloat / GB, "GB");
+    }
+    else if (bytes >= MB) {
+        return getFormattedString(bytesFloat / MB, "MB");
+    }
+    else if (bytes >= KB) {
+        return getFormattedString(bytesFloat / KB, "KB");
+    }
+    else {
+        return getFormattedString(bytesFloat, "bytes");
     }
 }

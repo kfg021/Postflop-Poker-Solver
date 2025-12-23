@@ -1,6 +1,6 @@
 #include "cli/cli_dispatcher.hpp"
 
-#include "util/user_input.hpp"
+#include "util/string_utils.hpp"
 
 #include <cctype>
 #include <iostream>

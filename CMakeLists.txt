@@ -22,17 +22,16 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(yaml-cpp)
 
-# TODO: Decide what files belong in core
 add_library(postflop_solver_core STATIC
     src/game/game_utils.cpp
     src/game/kuhn_poker.cpp
     src/game/leduc_poker.cpp
     src/game/holdem/hand_evaluation.cpp
+    src/game/holdem/holdem_parser.cpp
     src/game/holdem/holdem.cpp
-    src/game/holdem/parse_input.cpp
     src/solver/cfr.cpp
     src/solver/tree.cpp
-    src/util/user_input.cpp
+    src/util/string_utils.cpp
 )
 
 if(OpenMP_FOUND)
@@ -49,7 +48,6 @@ target_include_directories(postflop_solver_core PUBLIC include)
 add_executable(${PROJECT_NAME}
     src/cli/cli_dispatcher.cpp
     src/cli/solver_commands.cpp
-    src/util/size_string.cpp
     src/main.cpp
 )
 

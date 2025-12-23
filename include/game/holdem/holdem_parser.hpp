@@ -1,5 +1,5 @@
-#ifndef PARSE_INPUT_HPP
-#define PARSE_INPUT_HPP
+#ifndef HOLDEM_PARSER_HPP
+#define HOLDEM_PARSER_HPP
 
 #include "game/game_types.hpp"
 #include "game/holdem/holdem.hpp"
@@ -12,4 +12,4 @@ Result<CardSet> buildCommunityCardsFromString(const std::string& communityCardSt
 Result<Holdem::Range> buildRangeFromString(const std::string& rangeString);
 Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardSet communityCards);
 
-#endif // PARSE_INPUT_HPP
+#endif // HOLDEM_PARSER_HPP

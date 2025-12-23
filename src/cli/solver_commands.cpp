@@ -7,9 +7,8 @@
 #include "game/leduc_poker.hpp"
 #include "solver/cfr.hpp"
 #include "solver/tree.hpp"
-#include "util/size_string.hpp"
 #include "util/stack_allocator.hpp"
-#include "util/user_input.hpp"
+#include "util/string_utils.hpp"
 
 #include <cassert>
 #include <iomanip>
@@ -91,7 +90,7 @@ bool handleEstimateTreeSize(SolverContext& context) {
     buildTreeSkeletonIfNeeded(context);
 
     std::size_t treeSize = context.tree->estimateFullTreeSize();
-    std::cout << "Expected full tree size: " << getSizeString(treeSize) << "\n";
+    std::cout << "Expected full tree size: " << formatBytes(treeSize) << "\n";
     return true;
 }
 
@@ -218,7 +217,7 @@ bool handleSolve(SolverContext& context) {
     std::cout << "Maximum stack allocator memory usage per thread: ";
     auto stackUsages = allocator.getMaximumStackUsage();
     for (int i = 0; i < context.numThreads; ++i) {
-        std::cout << getSizeString(stackUsages[i]);
+        std::cout << formatBytes(stackUsages[i]);
         if (i < context.numThreads - 1) std::cout << ", ";
     }
     std::cout << "\n";
