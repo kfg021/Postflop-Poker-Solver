@@ -1,0 +1,22 @@
+ranges:
+  oop: "AA, KK, QQ, AK, AQs, A5s"
+  ip: "QQ, JJ, TT, 99, AKo, AQ, AJs, ATs, KQs, KJs, KTs, QJs, JTs, T9s"
+board: "9s, 8h, 3s"
+starting-wager-per-player: 50
+effective-stack-remaining: 100
+use-isomorphism: true
+actions:
+  oop:
+    flop:
+      bet_sizes: [50]
+    turn:
+      bet_sizes: [50]
+    river:
+      bet_sizes: [50]
+  ip:
+    flop:
+      bet_sizes: [50]
+    turn:
+      bet_sizes: [50]
+    river:
+      bet_sizes: [50]

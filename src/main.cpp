@@ -1,71 +1,7 @@
-// #include "game/kuhn_poker.hpp"
-// #include "game/leduc_poker.hpp"
-// #include "game/holdem/hand_evaluation.hpp"
-// #include "game/holdem/holdem.hpp"
-// #include "game/holdem/parse_input.hpp"
-// #include "trainer/train.hpp"
 #include "cli/cli_dispatcher.hpp"
 #include "cli/solver_commands.hpp"
 
-// #include <iostream>
-// #include <optional>
-// #include <string>
-// #include <vector>
-
-// namespace {
-// void trainKuhnPoker(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
-//     const KuhnPoker kuhnPokerRules;
-
-//     static constexpr float TargetExploitabilityPercent = 0.3f;
-//     static constexpr int ExploitabilityCheckFrequency = 10000;
-
-//     train(kuhnPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, numThreads, strategyOutputFileOption);
-// }
-
-// void trainLeducPoker(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
-//     const LeducPoker leducPokerRules(true);
-
-//     static constexpr float TargetExploitabilityPercent = 0.3f;
-//     static constexpr int ExploitabilityCheckFrequency = 1000;
-
-//     train(leducPokerRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, numThreads, strategyOutputFileOption);
-// }
-
-// void trainHoldem(int maxIterations, int numThreads, const std::optional<std::string>& strategyOutputFileOption) {
-//     CardSet communityCards = buildCommunityCardsFromString("9s, 8h, 3s").getValue();
-
-//     PlayerArray<Holdem::Range> ranges = {
-//         buildRangeFromString("AA, KK, QQ, AK, AQs, A5s", communityCards).getValue(),
-//         buildRangeFromString("QQ, JJ, TT, 99, AKo, AQ, AJs, ATs, KQs, KJs, KTs, QJs, JTs, T9s", communityCards).getValue(),
-//     };
-
-//     Holdem::Settings holdemSettings = {
-//         .ranges = ranges,
-//         .startingCommunityCards = communityCards,
-//         .betSizes = FixedVector<int, holdem::MaxNumBetSizes>{ 50 },
-//         .raiseSizes = FixedVector<int, holdem::MaxNumRaiseSizes>{},
-//         .startingPlayerWagers = 50,
-//         .effectiveStackRemaining = 100,
-//         .deadMoney = 0,
-//         .useChanceCardIsomorphism = true
-//     };
-
-//     static constexpr float TargetExploitabilityPercent = 0.3f;
-//     static constexpr int ExploitabilityCheckFrequency = 10;
-
-//     std::cout << "Building Holdem lookup tables...\n" << std::flush;
-//     const Holdem holdemRules{ holdemSettings };
-//     std::cout << "Finished building lookup tables.\n\n";
-
-//     train(holdemRules, TargetExploitabilityPercent, maxIterations, ExploitabilityCheckFrequency, numThreads, strategyOutputFileOption);
-// }
-// } // namespace
-
 int main() {
-    // trainKuhnPoker(100000, 1, "kuhn_strategy.json");
-    // trainLeducPoker(10000, 1, "leduc_strategy.json");
-    // trainHoldem(100, 6, std::nullopt);
-
     CliDispatcher dispatcher("PostflopSolver", Version{ .major = 1, .minor = 0, .patch = 0 });
     SolverContext context;
     registerAllCommands(dispatcher, context);

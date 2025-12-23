@@ -5,7 +5,6 @@
 #include "game/leduc_poker.hpp"
 #include "solver/cfr.hpp"
 #include "solver/tree.hpp"
-#include "trainer/output.hpp"
 #include "util/stack_allocator.hpp"
 
 #ifdef _OPENMP
