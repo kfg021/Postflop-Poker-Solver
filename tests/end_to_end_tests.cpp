@@ -21,7 +21,7 @@ TEST(EndToEndTest, Kuhn) {
     ASSERT_EQ(tree.allNodes.size(), 9);
     ASSERT_EQ(tree.getNumberOfDecisionNodes(), 4);
 
-    tree.buildFullTree();
+    tree.initCfrVectors();
 
     StackAllocator<float> allocator(1);
 
@@ -107,7 +107,7 @@ TEST(EndToEndTest, LeducWithoutIsomorphism) {
     ASSERT_EQ(tree.allNodes.size(), 465);
     ASSERT_EQ(tree.getNumberOfDecisionNodes(), 186);
 
-    tree.buildFullTree();
+    tree.initCfrVectors();
 
     StackAllocator<float> allocator(1);
 
@@ -144,7 +144,7 @@ TEST(EndToEndTest, LeducWithIsomorphism) {
     ASSERT_EQ(tree.allNodes.size(), 240);
     ASSERT_EQ(tree.getNumberOfDecisionNodes(), 96);
 
-    tree.buildFullTree();
+    tree.initCfrVectors();
 
     StackAllocator<float> allocator(1);
 
@@ -182,7 +182,7 @@ TEST(EndToEndTest, LeducWithIsomorphismParallel) {
     ASSERT_EQ(tree.allNodes.size(), 240);
     ASSERT_EQ(tree.getNumberOfDecisionNodes(), 96);
 
-    tree.buildFullTree();
+    tree.initCfrVectors();
 
     static constexpr int NumThreads = 6;
     StackAllocator<float> allocator(NumThreads);
@@ -238,7 +238,7 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
         LeducPoker leducPokerRules(true);
         Tree tree;
         tree.buildTreeSkeleton(leducPokerRules);
-        tree.buildFullTree();
+        tree.initCfrVectors();
 
         StackAllocator<float> allocator(1);
 
@@ -261,7 +261,7 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
         LeducPoker leducPokerRules(true);
         Tree tree;
         tree.buildTreeSkeleton(leducPokerRules);
-        tree.buildFullTree();
+        tree.initCfrVectors();
 
         static constexpr int NumThreads = 6;
         StackAllocator<float> allocator(NumThreads);

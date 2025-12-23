@@ -84,18 +84,22 @@ bool Tree::isTreeSkeletonBuilt() const {
     return !allNodes.empty();
 }
 
-bool Tree::isFullTreeBuilt() const {
+bool Tree::areCfrVectorsInitialized() const {
     return !allStrategySums.empty();
 }
 
 void Tree::buildTreeSkeleton(const IGameRules& rules) {
+    if (isTreeSkeletonBuilt()) {
+        return;
+    };
+
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
-    rangeHands = {
-        rules.getRangeHands(Player::P0),
-        rules.getRangeHands(Player::P1)
-    };
+    for (Player player : { Player::P0, Player::P1 }) {
+        std::span<const CardSet> playerRangeHands = rules.getRangeHands(player);
+        rangeHands[player] = std::vector<CardSet>(playerRangeHands.begin(), playerRangeHands.end());
+    }
 
     rangeSize = {
         static_cast<int>(rangeHands[Player::P0].size()),
@@ -311,14 +315,14 @@ std::size_t Tree::createShowdownNode(const GameState& state) {
     return allNodes.size() - 1;
 }
 
-void Tree::buildFullTree() {
-    assert(isTreeSkeletonBuilt() && !isFullTreeBuilt());
+void Tree::initCfrVectors() {
+    assert(isTreeSkeletonBuilt());
 
     allStrategySums.assign(m_trainingDataSize, 0.0f);
     allRegretSums.assign(m_trainingDataSize, 0.0f);
 }
 
 std::size_t Tree::getRootNodeIndex() const {
-    assert(isTreeSkeletonBuilt() && isFullTreeBuilt());
+    assert(isTreeSkeletonBuilt() && areCfrVectorsInitialized());
     return allNodes.size() - 1;
 }

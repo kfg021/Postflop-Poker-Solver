@@ -16,16 +16,16 @@ public:
     Tree();
 
     bool isTreeSkeletonBuilt() const;
-    bool isFullTreeBuilt() const;
+    bool areCfrVectorsInitialized() const;
     void buildTreeSkeleton(const IGameRules& rules);
     std::size_t getNumberOfDecisionNodes() const;
     std::size_t getTreeSkeletonSize() const;
     std::size_t estimateFullTreeSize() const;
-    void buildFullTree();
+    void initCfrVectors();
     std::size_t getRootNodeIndex() const;
 
     // Game data
-    PlayerArray<std::span<const CardSet>> rangeHands; // TODO: Probably should copy data into tree
+    PlayerArray<std::vector<CardSet>> rangeHands;
     PlayerArray<int> rangeSize;
     PlayerArray<std::vector<int>> sameHandIndexTable;
     int gameHandSize;

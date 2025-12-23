@@ -3,6 +3,7 @@
 #include "game/game_utils.hpp"
 #include "game/holdem/parse_input.hpp"
 #include "util/result.hpp"
+#include "util/user_input.hpp"
 
 #include <cmath>
 #include <string>
@@ -24,19 +25,19 @@ TEST(CardNameParsingTest, CorrectCardNameParsing) {
 }
 
 TEST(TokenParsingTest, NoTokensFromEmptyString) {
-    EXPECT_TRUE(parseTokens("").empty());
+    EXPECT_TRUE(parseTokens("", ',').empty());
 }
 
 TEST(TokenParsingTest, NoTokensFromWhitespace) {
-    EXPECT_TRUE(parseTokens(" \t\t\t\t \n\n\n\n    ").empty());
+    EXPECT_TRUE(parseTokens(" \t\t\t\t \n\n\n\n    ", ',').empty());
 }
 
 TEST(TokenParsingTest, NoTokensFromWhitespaceWithCommas) {
-    EXPECT_TRUE(parseTokens(", \t,,,,,,,\t\t\t \n\n,\n\n    , ").empty());
+    EXPECT_TRUE(parseTokens(", \t,,,,,,,\t\t\t \n\n,\n\n    , ", ',').empty());
 }
 
 TEST(TokenParsingTest, CorrectTokens) {
-    std::vector<std::string> tokens = parseTokens("abc, 123, defg, 4567, ");
+    std::vector<std::string> tokens = parseTokens("abc, 123, defg, 4567, ", ',');
     EXPECT_EQ(tokens.size(), 4);
     EXPECT_EQ(tokens[0], "abc");
     EXPECT_EQ(tokens[1], "123");
@@ -45,7 +46,7 @@ TEST(TokenParsingTest, CorrectTokens) {
 }
 
 TEST(TokenParsingTest, CorrectTokensWithWhitesapce) {
-    std::vector<std::string> tokens = parseTokens("\n\n\n\n abc, \t\t\t\t123, defg,   4567, \n\n");
+    std::vector<std::string> tokens = parseTokens("\n\n\n\n abc, \t\t\t\t123, defg,   4567, \n\n", ',');
     EXPECT_EQ(tokens.size(), 4);
     EXPECT_EQ(tokens[0], "abc");
     EXPECT_EQ(tokens[1], "123");
@@ -54,7 +55,7 @@ TEST(TokenParsingTest, CorrectTokensWithWhitesapce) {
 }
 
 TEST(TokenParsingTest, ParseTokenWithSpaces) {
-    std::vector<std::string> tokens = parseTokens("abc, def, 1 2 3 4 5 6");
+    std::vector<std::string> tokens = parseTokens("abc, def, 1 2 3 4 5 6", ',');
     EXPECT_EQ(tokens.size(), 3);
     EXPECT_EQ(tokens[0], "abc");
     EXPECT_EQ(tokens[1], "def");

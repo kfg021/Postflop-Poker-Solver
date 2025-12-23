@@ -22,6 +22,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+# TODO: Decide what files belong in core
 add_library(postflop_solver_core STATIC
     src/game/game_utils.cpp
     src/game/kuhn_poker.cpp
@@ -31,6 +32,7 @@ add_library(postflop_solver_core STATIC
     src/game/holdem/parse_input.cpp
     src/solver/cfr.cpp
     src/solver/tree.cpp
+    src/util/user_input.cpp
 )
 
 if(OpenMP_FOUND)
@@ -45,6 +47,8 @@ endif()
 target_include_directories(postflop_solver_core PUBLIC include)
 
 add_executable(${PROJECT_NAME}
+    src/cli/cli_dispatcher.cpp
+    src/cli/solver_commands.cpp
     src/trainer/output.cpp
     src/trainer/train.cpp
     src/util/size_string.cpp

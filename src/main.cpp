@@ -4,6 +4,8 @@
 #include "game/holdem/holdem.hpp"
 #include "game/holdem/parse_input.hpp"
 #include "trainer/train.hpp"
+#include "cli/cli_dispatcher.hpp"
+#include "cli/solver_commands.hpp"
 
 #include <iostream>
 #include <optional>
@@ -62,6 +64,13 @@ void trainHoldem(int maxIterations, int numThreads, const std::optional<std::str
 int main() {
     // trainKuhnPoker(100000, 1, "kuhn_strategy.json");
     // trainLeducPoker(10000, 1, "leduc_strategy.json");
-    trainHoldem(100, 6, std::nullopt);
+    // trainHoldem(100, 6, std::nullopt);
+
+    CliDispatcher dispatcher("PostflopSolver", Version{ .major = 1, .minor = 0, .patch = 0 });
+    SolverContext context;
+    registerAllCommands(dispatcher, context);
+
+    dispatcher.run();
+
     return 0;
 }

@@ -69,7 +69,7 @@ void train(const IGameRules& rules, float targetPercentExploitability, int maxIt
     std::cout << "Expected full tree size: " << getSizeString(tree.estimateFullTreeSize()) << "\n\n";
 
     std::cout << "Initializing tree...\n" << std::flush;
-    tree.buildFullTree();
+    tree.initCfrVectors();
     std::cout << "Finished initializing tree.\n\n";
 
     GameState initialState = rules.getInitialGameState();

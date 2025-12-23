@@ -2,6 +2,7 @@
 
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
+#include "util/user_input.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -9,60 +10,8 @@
 #include <unordered_set>
 #include <vector>
 
-namespace {
-std::string trim(const std::string& input) {
-    int inputSize = input.size();
-
-    int start = 0;
-    while (start < inputSize && std::isspace(input[start])) {
-        ++start;
-    }
-
-    int end = inputSize - 1;
-    while (end >= 0 && std::isspace(input[end])) {
-        --end;
-    }
-
-    if (end < start) {
-        return "";
-    }
-
-    int outputLength = end - start + 1;
-    return input.substr(start, outputLength);
-}
-} // namespace
-
-std::vector<std::string> parseTokens(const std::string& input) {
-    static constexpr char Delimiter = ',';
-    std::vector<std::string> tokens;
-
-    auto insertToken = [&input, &tokens](int start, int end) {
-        int tokenSize = end - start + 1;
-        if (tokenSize > 0) {
-            std::string trimmed = trim(input.substr(start, tokenSize));
-            if (!trimmed.empty()) {
-                tokens.push_back(trimmed);
-            }
-        }
-    };
-
-
-    int inputSize = input.size();
-    int nextTokenStart = 0;
-    for (int i = 0; i < inputSize; ++i) {
-        if (input[i] == Delimiter) {
-            int nextTokenEnd = i - 1;
-            insertToken(nextTokenStart, nextTokenEnd);
-            nextTokenStart = i + 1;
-        }
-    }
-    insertToken(nextTokenStart, inputSize - 1);
-
-    return tokens;
-}
-
 Result<CardSet> buildCommunityCardsFromString(const std::string& communityCardString) {
-    std::vector<std::string> communityCardStrings = parseTokens(communityCardString);
+    std::vector<std::string> communityCardStrings = parseTokens(communityCardString, ',');
 
     CardSet communityCards = 0;
     for (const auto& cardString : communityCardStrings) {
@@ -115,7 +64,7 @@ Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardS
         }
     };
 
-    std::vector<std::string> rangeStrings = parseTokens(rangeString);
+    std::vector<std::string> rangeStrings = parseTokens(rangeString, ',');
 
     if (rangeStrings.empty()) {
         return "Error building range: Range is empty.";
@@ -179,9 +128,14 @@ Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardS
         float frequency = 1.0f;
         std::size_t colonLoc = rangeElement.find(':');
         if (colonLoc != std::string::npos) {
-            frequency = std::stof(rangeElement.substr(colonLoc + 1));
+            std::optional<float> frequencyOption = parseFloat(rangeElement.substr(colonLoc + 1));
+            if (!frequencyOption) {
+                return errorString + " (Frequency is not a valid float)";
+            }
+
+            frequency = *frequencyOption;
             if (frequency <= 0.0f || frequency > 1.0f) {
-                return errorString + " (Invalid frequency)";
+                return errorString + " (Frequency must be > 0 and <= 1)";
             }
         }
 
