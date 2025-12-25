@@ -866,7 +866,7 @@ void traverseTree(
     Tree& tree,
     StackAllocator<float>& allocator
 ) {
-    assert(tree.isTreeSkeletonBuilt() && tree.isFullTreeBuilt());
+    assert(tree.isTreeSkeletonBuilt() && tree.areCfrVectorsInitialized());
 
     switch (node.getNodeType()) {
         case NodeType::Chance:
