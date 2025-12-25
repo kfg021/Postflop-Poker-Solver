@@ -192,7 +192,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
     // Load use isomorphism
     loadFieldOptional(settings.useChanceCardIsomorphism, input, { "use-isomorphism" }, true);
-    
+
     std::cout << "Successfully loaded Holdem settings.\n\n";
 
     std::cout << "Building Holdem lookup tables...\n";
@@ -264,8 +264,10 @@ bool handleEstimateTreeSize(SolverContext& context) {
 
     buildTreeSkeletonIfNeeded(context);
 
-    std::size_t treeSize = context.tree->estimateFullTreeSize();
-    std::cout << "Expected full tree size: " << formatBytes(treeSize) << "\n";
+    std::cout << "Total number of nodes: " << context.tree->allNodes.size() << "\n";
+    std::cout << "Number of decision nodes: " << context.tree->getNumberOfDecisionNodes() << "\n";
+    std::cout << "Tree skeleton size: " << formatBytes(context.tree->getTreeSkeletonSize()) << "\n";
+    std::cout << "Expected full tree size: " << formatBytes(context.tree->estimateFullTreeSize()) << "\n";
     return true;
 }
 
