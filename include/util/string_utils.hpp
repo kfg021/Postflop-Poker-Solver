@@ -7,6 +7,7 @@
 #include <vector>
 
 std::string trim(const std::string& input);
+std::string join(const std::vector<std::string>& inputs, const std::string& connector);
 std::vector<std::string> parseTokens(const std::string& input, char delimiter);
 std::optional<int> parseInt(const std::string& input);
 std::optional<float> parseFloat(const std::string& input);

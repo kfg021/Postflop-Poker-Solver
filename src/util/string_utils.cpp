@@ -30,6 +30,18 @@ std::string trim(const std::string& input) {
     return input.substr(start, outputLength);
 }
 
+std::string join(const std::vector<std::string>& inputs, const std::string& connector) {
+    int inputSize = inputs.size();
+    std::string output;
+    for (int i = 0; i < inputSize; ++i) {
+        output += inputs[i];
+        if (i != inputSize - 1) {
+            output += connector;
+        }
+    }
+    return output;
+}
+
 std::vector<std::string> parseTokens(const std::string& input, char delimiter) {
     std::vector<std::string> tokens;
 

@@ -3,6 +3,8 @@
 #include "cli/cli_dispatcher.hpp"
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
+#include "game/holdem/holdem_parser.hpp"
+#include "game/holdem/holdem.hpp"
 #include "game/kuhn_poker.hpp"
 #include "game/leduc_poker.hpp"
 #include "solver/cfr.hpp"
@@ -17,6 +19,8 @@
 #include <memory>
 #include <optional>
 #include <string>
+
+#include <yaml-cpp/yaml.h>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -41,12 +45,165 @@ void buildTreeSkeletonIfNeeded(SolverContext& context) {
     }
 }
 
-bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
-    // TODO: Implement
-    return false;
+template <typename T>
+bool loadField(T& field, const YAML::Node& node, const std::vector<std::string>& indices, int depth) {
+    if (!node.IsDefined() || node.IsNull()) {
+        return false;
+    }
+
+    if (depth == indices.size()) {
+        try {
+            field = node.as<T>();
+            return true;
+        }
+        catch (const YAML::Exception& e) {
+            return false;
+        }
+    }
+
+    return loadField(field, node[indices[depth]], indices, depth + 1);
 }
 
-// TODO: Print out default settings
+
+
+template <typename T>
+bool loadFieldRequired(T& field, const YAML::Node& root, const std::vector<std::string>& indices) {
+    bool success = loadField(field, root, indices, 0);
+    if (!success) {
+
+        return false;
+    }
+
+    return true;
+}
+
+template <typename T>
+void loadFieldOptional(T& field, const YAML::Node& root, const std::vector<std::string>& indices, const T& defaultValue) {
+    bool success = loadField(field, root, indices, 0);
+    if (!success) {
+        field = defaultValue;
+    }
+}
+
+template <typename T, std::size_t Capacity>
+bool fillFixedVector(FixedVector<T, Capacity>& fixedVec, const std::vector<T>& vec) {
+    if (vec.size() > Capacity) {
+        return false;
+    }
+
+    for (const T& elem : vec) {
+        fixedVec.pushBack(elem);
+    }
+    return true;
+}
+
+bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
+    YAML::Node input;
+
+    try {
+        input = YAML::LoadFile(argument);
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: Could not load settings file. " << e.what() << "\n";
+        return false;
+    }
+
+    static constexpr PlayerArray<std::string> playerNames = { "oop", "ip" };
+    static constexpr StreetArray<std::string> streetNames = { "flop", "turn", "river" };
+
+    Holdem::Settings settings;
+
+    // Load ranges
+    for (Player player : {Player::P0, Player::P1}) {
+        std::string rangeString;
+        if (!loadFieldRequired(rangeString, input, { "ranges", playerNames[player] })) {
+            return false;
+        }
+        Result<Holdem::Range> rangeResult = buildRangeFromString(rangeString);
+        if (rangeResult.isError()) {
+            std::cerr << rangeResult.getError() << "\n";
+            return false;
+        }
+        settings.ranges[player] = rangeResult.getValue();
+    }
+
+    // Load board
+    std::string boardString;
+    if (!loadFieldRequired(boardString, input, { "board" })) {
+        return false;
+    }
+    Result<CardSet> boardResult = buildCommunityCardsFromString(boardString);
+    if (boardResult.isError()) {
+        std::cerr << boardResult.getError() << "\n";
+        return false;
+    }
+    settings.startingCommunityCards = boardResult.getValue();
+
+    // Load bet and raise sizes
+    for (Player player : { Player::P0, Player::P1 }) {
+        for (Street street : { Street::Flop, Street::Turn, Street::River }) {
+            {
+                std::vector<int> betSizesVector;
+                loadFieldOptional(betSizesVector, input, { "actions", playerNames[player], streetNames[street], "bet-sizes" }, {});
+                if (!fillFixedVector(settings.betSizes[player][street], betSizesVector)) {
+                    std::cerr << "Error: Too many bet sizes provided for " << playerNames[player] << " " << streetNames[street] << ", maximum is " << holdem::MaxNumBetSizes << "\n.";
+                    return false;
+                }
+            }
+
+            {
+                std::vector<int> raiseSizesVector;
+                loadFieldOptional(raiseSizesVector, input, { "actions", playerNames[player], streetNames[street], "raise-sizes" }, {});
+                if (!fillFixedVector(settings.raiseSizes[player][street], raiseSizesVector)) {
+                    std::cerr << "Error: Too many raise sizes provided for " << playerNames[player] << " " << streetNames[street] << ", maximum is " << holdem::MaxNumRaiseSizes << "\n.";
+                    return false;
+                }
+            }
+        }
+    }
+
+    // Load starting wager
+    if (!loadFieldRequired(settings.startingPlayerWagers, input, { "starting-wager-per-player" })) {
+        return false;
+    }
+    if (settings.startingPlayerWagers < 0) {
+        std::cerr << "Error: Starting wager per player must be positive.\n";
+        return false;
+    }
+
+    // Load effective stack
+    if (!loadFieldRequired(settings.effectiveStackRemaining, input, { "effective-stack-remaining" })) {
+        return false;
+    }
+    if (settings.effectiveStackRemaining < 0) {
+        std::cerr << "Error: Effective stack must be positive.\n";
+        return false;
+    }
+
+
+    // Load dead money
+    loadFieldOptional(settings.deadMoney, input, { "dead-money-in-pot" }, 0);
+    if (settings.deadMoney < 0) {
+        settings.deadMoney = 0;
+    }
+
+    // Load use isomorphism
+    loadFieldOptional(settings.useChanceCardIsomorphism, input, { "use-isomorphism" }, true);
+
+    context = {
+        .rules = std::make_unique<Holdem>(settings),
+        .tree = std::make_unique<Tree>(),
+        .targetPercentExploitability = 0.3f,
+        .maxIterations = 1000,
+        .exploitabilityCheckFrequency = 10,
+        .numThreads = 1
+    };
+
+    // TODO: Print out settings
+    std::cout << "Successfully loaded Holdem settings.\n";
+    return true;
+}
+
 bool handleSetupKuhn(SolverContext& context) {
     context = {
         .rules = std::make_unique<KuhnPoker>(),
@@ -54,9 +211,14 @@ bool handleSetupKuhn(SolverContext& context) {
         .targetPercentExploitability = 0.3f,
         .maxIterations = 100000,
         .exploitabilityCheckFrequency = 10000,
+        #ifdef _OPENMP
+        .numThreads = 6
+        #else
         .numThreads = 1
+        #endif
     };
 
+    // TODO: Print out default settings
     std::cout << "Successfully loaded Kuhn poker.\n";
     return true;
 }
@@ -77,6 +239,7 @@ bool handleSetupLeduc(SolverContext& context) {
         #endif
     };
 
+    // TODO: Print out default settings
     std::cout << "Successfully loaded Leduc poker.\n";
     return true;
 }

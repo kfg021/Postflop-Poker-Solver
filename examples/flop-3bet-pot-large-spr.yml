@@ -4,6 +4,7 @@ ranges:
 board: "Qs, Jh, 2h"
 starting-wager-per-player: 5
 effective-stack-remaining: 95
+dead-money-in-pot: 0
 use-isomorphism: true
 actions:
   oop:

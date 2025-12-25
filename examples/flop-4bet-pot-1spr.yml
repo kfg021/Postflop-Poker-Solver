@@ -4,6 +4,7 @@ ranges:
 board: "9s, 8h, 3s"
 starting-wager-per-player: 50
 effective-stack-remaining: 100
+dead-money-in-pot: 0
 use-isomorphism: true
 actions:
   oop:
