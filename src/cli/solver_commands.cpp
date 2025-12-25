@@ -99,18 +99,33 @@ bool fillFixedVector(FixedVector<T, Capacity>& fixedVec, const std::vector<T>& v
     return true;
 }
 
-bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
-    YAML::Node input;
+std::string removeOuterQuotes(const std::string& input) {
+    int inputSize = input.size();
+    if (inputSize < 2) {
+        return input;
+    }
 
+    if ((input.front() == '\'' || input.front() == '\"') && input.front() == input.back()) {
+        return input.substr(1, inputSize - 2);
+    }
+    else {
+        return input;
+    }
+}
+
+bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
+    std::string filePath = removeOuterQuotes(argument);
+
+    YAML::Node input;
     try {
-        input = YAML::LoadFile(argument);
+        input = YAML::LoadFile(filePath);
     }
     catch (const YAML::Exception& e) {
         std::cerr << "Error: Could not load settings file. " << e.what() << "\n";
         return false;
     }
 
-    std::cout << "Loading Holdem settings from " << argument << ":\n";
+    std::cout << "Loading Holdem settings from " << filePath << ":\n";
 
     static constexpr PlayerArray<std::string> playerNames = { "oop", "ip" };
     static constexpr StreetArray<std::string> streetNames = { "flop", "turn", "river" };
