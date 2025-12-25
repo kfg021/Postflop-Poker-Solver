@@ -117,20 +117,6 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
     Holdem::Settings settings;
 
-    // Load ranges
-    for (Player player : {Player::P0, Player::P1}) {
-        std::string rangeString;
-        if (!loadFieldRequired(rangeString, input, { "ranges", playerNames[player] })) {
-            return false;
-        }
-        Result<Holdem::Range> rangeResult = buildRangeFromString(rangeString);
-        if (rangeResult.isError()) {
-            std::cerr << rangeResult.getError() << "\n";
-            return false;
-        }
-        settings.ranges[player] = rangeResult.getValue();
-    }
-
     // Load board
     std::string boardString;
     if (!loadFieldRequired(boardString, input, { "board" })) {
@@ -142,6 +128,20 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
         return false;
     }
     settings.startingCommunityCards = boardResult.getValue();
+
+    // Load ranges
+    for (Player player : {Player::P0, Player::P1}) {
+        std::string rangeString;
+        if (!loadFieldRequired(rangeString, input, { "ranges", playerNames[player] })) {
+            return false;
+        }
+        Result<Holdem::Range> rangeResult = buildRangeFromString(rangeString, settings.startingCommunityCards);
+        if (rangeResult.isError()) {
+            std::cerr << rangeResult.getError() << "\n";
+            return false;
+        }
+        settings.ranges[player] = rangeResult.getValue();
+    }
 
     // Load bet and raise sizes
     for (Player player : { Player::P0, Player::P1 }) {
