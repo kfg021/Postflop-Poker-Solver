@@ -184,7 +184,6 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
         return false;
     }
 
-
     // Load dead money
     loadFieldOptional(settings.deadMoney, input, { "dead-money-in-pot" }, 0);
     if (settings.deadMoney < 0) {
@@ -193,6 +192,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
     // Load use isomorphism
     loadFieldOptional(settings.useChanceCardIsomorphism, input, { "use-isomorphism" }, true);
+    
     std::cout << "Successfully loaded Holdem settings.\n\n";
 
     std::cout << "Building Holdem lookup tables...\n";
@@ -205,7 +205,11 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
         .targetPercentExploitability = 0.3f,
         .maxIterations = 1000,
         .exploitabilityCheckFrequency = 10,
+        #ifdef _OPENMP
+        .numThreads = 6
+        #else
         .numThreads = 1
+        #endif
     };
 
     // TODO: Print out settings
