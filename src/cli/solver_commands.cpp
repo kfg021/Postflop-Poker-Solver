@@ -105,7 +105,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     try {
         input = YAML::LoadFile(argument);
     }
-    catch (const std::exception& e) {
+    catch (const YAML::Exception& e) {
         std::cerr << "Error: Could not load settings file. " << e.what() << "\n";
         return false;
     }
