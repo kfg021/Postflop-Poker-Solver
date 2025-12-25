@@ -170,7 +170,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     if (!loadFieldRequired(settings.startingPlayerWagers, input, { "starting-wager-per-player" })) {
         return false;
     }
-    if (settings.startingPlayerWagers < 0) {
+    if (settings.startingPlayerWagers <= 0) {
         std::cerr << "Error: Starting wager per player must be positive.\n";
         return false;
     }
@@ -179,7 +179,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     if (!loadFieldRequired(settings.effectiveStackRemaining, input, { "effective-stack-remaining" })) {
         return false;
     }
-    if (settings.effectiveStackRemaining < 0) {
+    if (settings.effectiveStackRemaining <= 0) {
         std::cerr << "Error: Effective stack must be positive.\n";
         return false;
     }
