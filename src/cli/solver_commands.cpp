@@ -445,5 +445,7 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
         [&context]() { return handleSolve(context); }
     );
 
+    // TODO: Add node exploring
+
     return allSuccess;
 }
