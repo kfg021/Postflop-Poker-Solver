@@ -54,6 +54,7 @@ bool loadField(T& field, const YAML::Node& node, const std::vector<std::string>&
     if (depth == indices.size()) {
         try {
             field = node.as<T>();
+            std::cout << "Successfully loaded field " << join(indices, "::") << ".\n";
             return true;
         }
         catch (const YAML::Exception& e) {
@@ -70,7 +71,7 @@ template <typename T>
 bool loadFieldRequired(T& field, const YAML::Node& root, const std::vector<std::string>& indices) {
     bool success = loadField(field, root, indices, 0);
     if (!success) {
-
+        std::cerr << "Error: Could not load field " << join(indices, "::") << ".\n";
         return false;
     }
 
@@ -81,6 +82,7 @@ template <typename T>
 void loadFieldOptional(T& field, const YAML::Node& root, const std::vector<std::string>& indices, const T& defaultValue) {
     bool success = loadField(field, root, indices, 0);
     if (!success) {
+        std::cout << "Could not load field " << join(indices, "::") << ", using default.\n";
         field = defaultValue;
     }
 }
@@ -107,6 +109,8 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
         std::cerr << "Error: Could not load settings file. " << e.what() << "\n";
         return false;
     }
+
+    std::cout << "Loading Holdem settings from " << argument << ":\n";
 
     static constexpr PlayerArray<std::string> playerNames = { "oop", "ip" };
     static constexpr StreetArray<std::string> streetNames = { "flop", "turn", "river" };
@@ -189,9 +193,14 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
     // Load use isomorphism
     loadFieldOptional(settings.useChanceCardIsomorphism, input, { "use-isomorphism" }, true);
+    std::cout << "Successfully loaded Holdem settings.\n\n";
+
+    std::cout << "Building Holdem lookup tables...\n";
+    std::unique_ptr<Holdem> holdemGame = std::make_unique<Holdem>(settings);
+    std::cout << "Successfully built lookup tables.\n";
 
     context = {
-        .rules = std::make_unique<Holdem>(settings),
+        .rules = std::move(holdemGame),
         .tree = std::make_unique<Tree>(),
         .targetPercentExploitability = 0.3f,
         .maxIterations = 1000,
@@ -200,7 +209,6 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     };
 
     // TODO: Print out settings
-    std::cout << "Successfully loaded Holdem settings.\n";
     return true;
 }
 

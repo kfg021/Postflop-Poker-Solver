@@ -9,15 +9,15 @@ use-isomorphism: true
 actions:
   oop:
     flop:
-      bet_sizes: [50]
+      bet-sizes: [50]
     turn:
-      bet_sizes: [50]
+      bet-sizes: [50]
     river:
-      bet_sizes: [50]
+      bet-sizes: [50]
   ip:
     flop:
-      bet_sizes: [50]
+      bet-sizes: [50]
     turn:
-      bet_sizes: [50]
+      bet-sizes: [50]
     river:
-      bet_sizes: [50]
+      bet-sizes: [50]
