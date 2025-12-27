@@ -450,7 +450,7 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
     allSuccess &= dispatcher.registerCommand(
         "threads",
         "count",
-        "Sets the number of threads to use for the solve. One thread is used by default. Calls to this command will be ignored if OpenMP is not enabled.",
+        "Sets the number of threads to use for the solve. Calls to this command will be ignored if OpenMP is not enabled.",
         [&context](const std::string& argument) { return handleSetNumThreads(context, argument); }
     );
 
