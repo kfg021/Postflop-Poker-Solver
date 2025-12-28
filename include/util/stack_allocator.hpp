@@ -63,7 +63,7 @@ private:
 };
 
 template <typename T>
-class StackVector {
+class ScopedVector {
 public:
     using value_type = T;
     using size_type = std::size_t;
@@ -74,17 +74,17 @@ public:
     using const_pointer = const T*;
     using iterator = typename std::span<T>::iterator;
 
-    StackVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocatingThread{ allocatingThread }, m_allocator{ allocator }, m_data{ allocator.allocate(allocatingThread, size) } {}
+    ScopedVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocatingThread{ allocatingThread }, m_allocator{ allocator }, m_data{ allocator.allocate(allocatingThread, size) } {}
 
-    ~StackVector() {
+    ~ScopedVector() {
         m_allocator.deallocate(m_allocatingThread, m_data);
     }
 
-    // StackVectors must be allocated on the stack and they are tied to a specific scope
-    StackVector(const StackVector&) = delete;
-    StackVector& operator=(const StackVector&) = delete;
-    StackVector(StackVector&&) = delete;
-    StackVector& operator=(StackVector&&) = delete;
+    // ScopedVectors must be allocated on the stack and they are tied to a specific scope
+    ScopedVector(const ScopedVector&) = delete;
+    ScopedVector& operator=(const ScopedVector&) = delete;
+    ScopedVector(ScopedVector&&) = delete;
+    ScopedVector& operator=(ScopedVector&&) = delete;
     void* operator new(std::size_t) = delete;
     void* operator new[](std::size_t) = delete;
     void operator delete(void*) = delete;
