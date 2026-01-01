@@ -65,10 +65,8 @@ bool loadField(T& field, const YAML::Node& node, const std::vector<std::string>&
     return loadField(field, node[indices[depth]], indices, depth + 1);
 }
 
-
-
 template <typename T>
-bool loadFieldRequired(T& field, const YAML::Node& root, const std::vector<std::string>& indices) {
+bool loadRequiredField(T& field, const YAML::Node& root, const std::vector<std::string>& indices) {
     bool success = loadField(field, root, indices, 0);
     if (!success) {
         std::cerr << "Error: Could not load field " << join(indices, "::") << ".\n";
@@ -79,11 +77,38 @@ bool loadFieldRequired(T& field, const YAML::Node& root, const std::vector<std::
 }
 
 template <typename T>
-void loadFieldOptional(T& field, const YAML::Node& root, const std::vector<std::string>& indices, const T& defaultValue) {
+void loadOptionalField(T& field, const YAML::Node& root, const std::vector<std::string>& indices, const T& defaultValue) {
     bool success = loadField(field, root, indices, 0);
     if (!success) {
         std::cout << "Could not load field " << join(indices, "::") << ", using default.\n";
         field = defaultValue;
+    }
+}
+
+void loadOptionalIntWithBounds(int& field, const YAML::Node& root, const std::vector<std::string>& indices, int defaultValue, std::optional<int> lowerBound, std::optional<int> upperBound) {
+    if (lowerBound) {
+        assert(defaultValue >= *lowerBound);
+    }
+    if (upperBound) {
+        assert(defaultValue <= *upperBound);
+    }
+
+    loadOptionalField<int>(field, root, indices, defaultValue);
+
+    bool belowLowerBound = lowerBound && (field < *lowerBound);
+    bool aboveUpperBound = upperBound && (field > *upperBound);
+
+    if (belowLowerBound || aboveUpperBound) {
+        field = defaultValue;
+
+        std::cout << "Value provided for field " << join(indices, "::") << " was ";
+        if (belowLowerBound) {
+            std::cout << "below the minimum value of " << *lowerBound << ",";
+        }
+        else {
+            std::cout << "above the maximum value of " << *upperBound << ",";
+        }
+        std::cout << " using default.\n";
     }
 }
 
@@ -134,7 +159,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
     // Load board
     std::string boardString;
-    if (!loadFieldRequired(boardString, input, { "board" })) {
+    if (!loadRequiredField(boardString, input, { "board" })) {
         return false;
     }
     Result<CardSet> boardResult = buildCommunityCardsFromString(boardString);
@@ -147,7 +172,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     // Load ranges
     for (Player player : {Player::P0, Player::P1}) {
         std::string rangeString;
-        if (!loadFieldRequired(rangeString, input, { "ranges", playerNames[player] })) {
+        if (!loadRequiredField(rangeString, input, { "ranges", playerNames[player] })) {
             return false;
         }
         Result<Holdem::Range> rangeResult = buildRangeFromString(rangeString, settings.startingCommunityCards);
@@ -158,12 +183,13 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
         settings.ranges[player] = rangeResult.getValue();
     }
 
+    // Tree settings
     // Load bet and raise sizes
     for (Player player : { Player::P0, Player::P1 }) {
         for (Street street : { Street::Flop, Street::Turn, Street::River }) {
             {
                 std::vector<int> betSizesVector;
-                loadFieldOptional(betSizesVector, input, { "actions", playerNames[player], streetNames[street], "bet-sizes" }, {});
+                loadOptionalField(betSizesVector, input, { "tree", "actions", playerNames[player], streetNames[street], "bet-sizes" }, {});
                 if (!fillFixedVector(settings.betSizes[player][street], betSizesVector)) {
                     std::cerr << "Error: Too many bet sizes provided for " << playerNames[player] << " " << streetNames[street] << ", maximum is " << holdem::MaxNumBetSizes << "\n.";
                     return false;
@@ -172,7 +198,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
             {
                 std::vector<int> raiseSizesVector;
-                loadFieldOptional(raiseSizesVector, input, { "actions", playerNames[player], streetNames[street], "raise-sizes" }, {});
+                loadOptionalField(raiseSizesVector, input, { "tree", "actions", playerNames[player], streetNames[street], "raise-sizes" }, {});
                 if (!fillFixedVector(settings.raiseSizes[player][street], raiseSizesVector)) {
                     std::cerr << "Error: Too many raise sizes provided for " << playerNames[player] << " " << streetNames[street] << ", maximum is " << holdem::MaxNumRaiseSizes << "\n.";
                     return false;
@@ -182,7 +208,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     }
 
     // Load starting wager
-    if (!loadFieldRequired(settings.startingPlayerWagers, input, { "starting-wager-per-player" })) {
+    if (!loadRequiredField(settings.startingPlayerWagers, input, { "tree", "starting-wager-per-player" })) {
         return false;
     }
     if (settings.startingPlayerWagers <= 0) {
@@ -191,7 +217,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     }
 
     // Load effective stack
-    if (!loadFieldRequired(settings.effectiveStackRemaining, input, { "effective-stack-remaining" })) {
+    if (!loadRequiredField(settings.effectiveStackRemaining, input, { "tree", "effective-stack-remaining" })) {
         return false;
     }
     if (settings.effectiveStackRemaining <= 0) {
@@ -200,34 +226,37 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     }
 
     // Load dead money
-    loadFieldOptional(settings.deadMoney, input, { "dead-money-in-pot" }, 0);
-    if (settings.deadMoney < 0) {
-        settings.deadMoney = 0;
-    }
+    loadOptionalIntWithBounds(settings.deadMoney, input, { "tree", "dead-money-in-pot" }, 0, 0, std::nullopt);
 
     // Load use isomorphism
-    loadFieldOptional(settings.useChanceCardIsomorphism, input, { "use-isomorphism" }, true);
+    loadOptionalField(settings.useChanceCardIsomorphism, input, { "tree", "use-isomorphism" }, true);
+
+    // Solver settings
+    // Load num threads
+    #ifdef _OPENMP
+    static constexpr int DefaultNumThreads = 6;
+    #else
+    static constexpr int DefaultNumThreads = 1;
+    #endif
+    loadOptionalIntWithBounds(context.numThreads, input, { "solver", "threads" }, DefaultNumThreads, 1, 64);
+
+    // Load target exploitability
+    loadOptionalField(context.targetPercentExploitability, input, { "solver", "target-exploitability" }, 0.3f);
+
+    // Load max iterations
+    loadOptionalIntWithBounds(context.maxIterations, input, { "solver", "max-iterations" }, 1000, 1, std::nullopt);
+
+    // Load exploitability check frequency
+    loadOptionalIntWithBounds(context.exploitabilityCheckFrequency, input, { "solver", "exploitability-check-frequency" }, 10, 1, std::nullopt);
 
     std::cout << "Successfully loaded Holdem settings.\n\n";
 
     std::cout << "Building Holdem lookup tables...\n";
-    std::unique_ptr<Holdem> holdemGame = std::make_unique<Holdem>(settings);
+    context.rules = std::make_unique<Holdem>(settings);
     std::cout << "Successfully built lookup tables.\n";
 
-    context = {
-        .rules = std::move(holdemGame),
-        .tree = std::make_unique<Tree>(),
-        .targetPercentExploitability = 0.3f,
-        .maxIterations = 1000,
-        .exploitabilityCheckFrequency = 10,
-        #ifdef _OPENMP
-        .numThreads = 6
-        #else
-        .numThreads = 1
-        #endif
-    };
+    context.tree = std::make_unique<Tree>();
 
-    // TODO: Print out settings
     return true;
 }
 
@@ -238,11 +267,7 @@ bool handleSetupKuhn(SolverContext& context) {
         .targetPercentExploitability = 0.3f,
         .maxIterations = 100000,
         .exploitabilityCheckFrequency = 10000,
-        #ifdef _OPENMP
-        .numThreads = 6
-        #else
         .numThreads = 1
-        #endif
     };
 
     // TODO: Print out default settings
@@ -284,30 +309,6 @@ bool handleEstimateTreeSize(SolverContext& context) {
     std::cout << "Tree skeleton size: " << formatBytes(context.tree->getTreeSkeletonSize()) << "\n";
     std::cout << "Expected full tree size: " << formatBytes(context.tree->estimateFullTreeSize()) << "\n";
     return true;
-}
-
-bool handleSetNumThreads(SolverContext& context, const std::string& argument) {
-    #ifdef _OPENMP
-    std::optional<int> numThreadsOption = parseInt(argument);
-    if (!numThreadsOption) {
-        std::cerr << "Error: Thread count must be an integer.\n";
-        return false;
-    }
-
-    int numThreads = *numThreadsOption;
-    if (numThreads < 1 || numThreads > 64) {
-        std::cerr << "Error: Thread count must be between 1 and 64.\n";
-        return false;
-    }
-
-    context.numThreads = numThreads;
-    std::cout << "Successfully set number of threads to " << numThreads << ".\n";
-    return true;
-    #else
-    context.numThreads = 1;
-    std::cerr << "Error: OpenMP is not enabled, ignoring. Only single-threaded mode is supported.\n";
-    return false;
-    #endif
 }
 
 bool handleSolve(SolverContext& context) {
@@ -445,13 +446,6 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
         "tree-size",
         "Provides an estimate of the size of the tree. Game settings must be loaded first.",
         [&context]() { return handleEstimateTreeSize(context); }
-    );
-
-    allSuccess &= dispatcher.registerCommand(
-        "threads",
-        "count",
-        "Sets the number of threads to use for the solve. Calls to this command will be ignored if OpenMP is not enabled.",
-        [&context](const std::string& argument) { return handleSetNumThreads(context, argument); }
     );
 
     allSuccess &= dispatcher.registerCommand(

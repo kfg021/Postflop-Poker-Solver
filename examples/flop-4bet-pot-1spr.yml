@@ -1,23 +1,32 @@
 ranges:
   oop: "AA, KK, QQ, AK, AQs, A5s"
   ip: "QQ, JJ, TT, 99, AKo, AQ, AJs, ATs, KQs, KJs, KTs, QJs, JTs, T9s"
+
 board: "9s, 8h, 3s"
-starting-wager-per-player: 50
-effective-stack-remaining: 100
-dead-money-in-pot: 0
-use-isomorphism: true
-actions:
-  oop:
-    flop:
-      bet-sizes: [50]
-    turn:
-      bet-sizes: [50]
-    river:
-      bet-sizes: [50]
-  ip:
-    flop:
-      bet-sizes: [50]
-    turn:
-      bet-sizes: [50]
-    river:
-      bet-sizes: [50]
+
+tree:
+  starting-wager-per-player: 50
+  effective-stack-remaining: 100
+  dead-money-in-pot: 0
+  use-isomorphism: true
+  actions:
+    oop:
+      flop:
+        bet-sizes: [50]
+      turn:
+        bet-sizes: [50]
+      river:
+        bet-sizes: [50]
+    ip:
+      flop:
+        bet-sizes: [50]
+      turn:
+        bet-sizes: [50]
+      river:
+        bet-sizes: [50]
+
+solver:
+  threads: 6
+  target-exploitability: 0.3
+  max-iterations: 1000
+  exploitability-check-frequency: 10
