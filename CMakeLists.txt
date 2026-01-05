@@ -15,12 +15,20 @@ else()
 endif()
 
 include(FetchContent)
+
+FetchContent_Declare(
+    replxx
+    GIT_REPOSITORY https://github.com/AmokHuginnsson/replxx.git
+    GIT_TAG release-0.0.4
+)
+
 FetchContent_Declare(
     yaml-cpp
     GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG        0.8.0
+    GIT_TAG 0.8.0
 )
-FetchContent_MakeAvailable(yaml-cpp)
+
+FetchContent_MakeAvailable(replxx yaml-cpp)
 
 add_library(postflop_solver_core STATIC
     src/game/game_utils.cpp
@@ -53,6 +61,7 @@ add_executable(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     postflop_solver_core
+    replxx::replxx
     yaml-cpp::yaml-cpp
 )
 

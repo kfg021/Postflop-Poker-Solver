@@ -6,6 +6,8 @@
 #include <map>
 #include <vector>
 
+#include <replxx.hxx>
+
 using HandlerWithoutArgument = std::function<bool()>;
 using HandlerWithArgument = std::function<bool(const std::string&)>;
 
@@ -29,6 +31,7 @@ private:
     bool handleHelp() const;
     bool handleExit();
 
+    replxx::Replxx m_rx;
     std::string m_programName;
     Version m_version;
     bool m_isRunning;

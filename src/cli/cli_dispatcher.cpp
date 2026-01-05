@@ -7,7 +7,9 @@
 #include <map>
 #include <string>
 
-CliDispatcher::CliDispatcher(const std::string& programName, const Version& version) : m_programName{ programName }, m_version{ version }, m_isRunning{ false } {
+#include <replxx.hxx>
+
+CliDispatcher::CliDispatcher(const std::string& programName, const Version& version) : m_rx{}, m_programName{ programName }, m_version{ version }, m_isRunning{ false } {
     // Register help and exit by default
     registerCommand("help", "Prints this help page.", [this]() { return handleHelp(); });
     registerCommand("exit", "Exits the program.", [this]() { return handleExit(); });
@@ -63,14 +65,17 @@ void CliDispatcher::run() {
 }
 
 bool CliDispatcher::doIteration() {
-    std::cout << "> ";
-    std::string userInput;
-    std::getline(std::cin, userInput);
-    std::vector<std::string> tokens = parseTokens(userInput, ' ');
-    if (tokens.empty()) {
-        return false;
+    const char* userInput = m_rx.input("> ");
+    if (userInput == nullptr) {
+        return handleExit();
     }
 
+    std::vector<std::string> tokens = parseTokens(userInput, ' ');
+    if (tokens.empty()) {
+        return true;
+    }
+
+    m_rx.history_add(userInput);
     const std::string& commandName = tokens[0];
     int numArguments = static_cast<int>(tokens.size()) - 1;
 
