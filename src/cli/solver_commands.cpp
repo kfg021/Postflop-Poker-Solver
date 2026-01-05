@@ -234,11 +234,11 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     // Solver settings
     // Load num threads
     #ifdef _OPENMP
-    static constexpr int DefaultNumThreads = 6;
+    loadOptionalIntWithBounds(context.numThreads, input, { "solver", "threads" }, 6, 1, 64);
     #else
-    static constexpr int DefaultNumThreads = 1;
+    context.numThreads = 1;
+    std::cout << "OpenMP was not found, using one thread.\n";
     #endif
-    loadOptionalIntWithBounds(context.numThreads, input, { "solver", "threads" }, DefaultNumThreads, 1, 64);
 
     // Load target exploitability
     loadOptionalField(context.targetPercentExploitability, input, { "solver", "target-exploitability" }, 0.3f);
