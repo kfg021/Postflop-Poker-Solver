@@ -311,6 +311,7 @@ void traverseDecision(
 
         int numActions = decisionNode.decisionDataSize;
 
+        // TODO: Should we be parallelizing action nodes?
         #ifdef _OPENMP
         // Not worth trying to parallelize the river because of overhead
         bool shouldParallelize = (decisionNode.street != Street::River);
