@@ -13,6 +13,7 @@
 #include "util/string_utils.hpp"
 
 #include <cassert>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -170,7 +171,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     settings.startingCommunityCards = boardResult.getValue();
 
     // Load ranges
-    for (Player player : {Player::P0, Player::P1}) {
+    for (Player player : { Player::P0, Player::P1 }) {
         std::string rangeString;
         if (!loadRequiredField(rangeString, input, { "ranges", playerNames[player] })) {
             return false;
@@ -323,6 +324,8 @@ bool handleSolve(SolverContext& context) {
     };
 
     auto runCfr = [&context, &getStartingPot](StackAllocator<float>& allocator) -> std::optional<CfrResult> {
+        auto start = std::chrono::steady_clock::now();
+        std::optional<CfrResult> resultOption;
         float startingPot = static_cast<float>(getStartingPot());
 
         for (int i = 0; i < context.maxIterations; ++i) {
@@ -345,12 +348,18 @@ bool handleSolve(SolverContext& context) {
                 float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
                 std::cout << "Finished iteration " << iteration << ". Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n";
                 if (exploitabilityPercent <= context.targetPercentExploitability) {
-                    return CfrResult{ exploitability, iteration };
+                    resultOption = CfrResult{ exploitability, iteration };
+                    break;
                 }
             }
         }
 
-        return std::nullopt;
+        auto end = std::chrono::steady_clock::now();
+        auto msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        float secondsElapsed = msElapsed.count() / 1000.0f;
+        std::cout << "Training completed in " << std::fixed << std::setprecision(3) << secondsElapsed << "s.\n";
+
+        return resultOption;
     };
 
     if (!isContextValid(context)) {
@@ -386,8 +395,6 @@ bool handleSolve(SolverContext& context) {
 
     resultOption = runCfr(allocator);
     #endif
-
-    std::cout << "Finished training.\n";
 
     if (resultOption) {
         std::cout << "Target exploitability percentage reached after iteration " << resultOption->iteration << ".\n\n";
