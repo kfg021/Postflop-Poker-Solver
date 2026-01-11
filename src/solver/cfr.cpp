@@ -763,6 +763,7 @@ void traverseShowdown(
 
     // Third pass: Calculate tie hands
     // Can ignore ties in zero-sum game, 0 EV for both players
+    // TODO: Make sure this is implemented correctly
     if (tree.deadMoney > 0) {
         double villainTotalReachProb = 0.0;
         std::array<double, StandardDeckSize> villainReachProbWithCard = {};
