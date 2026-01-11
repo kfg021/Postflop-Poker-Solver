@@ -268,7 +268,7 @@ void traverseDecision(
         &villainReachProbs,
         &tree,
         &allocator
-    ](ScopedVector<float>& newOutputExpectedValues, const ScopedVector<float>& strategy) -> void {
+    ](ScopedVector<float>& newOutputExpectedValues, const ScopedVector<float>* strategy) -> void {
         auto calculateActionEVHero = [
             &decisionNode,
             &constants,
@@ -300,6 +300,8 @@ void traverseDecision(
             &newOutputExpectedValues,
             &strategy
         ](int action) -> void {
+            assert(strategy);
+
             std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
             assert(nextNodeIndex < tree.allNodes.size());
             const Node& nextNode = tree.allNodes[nextNodeIndex];
@@ -312,7 +314,7 @@ void traverseDecision(
             // For the villain we need to modify the villain reach probs
             ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), villainRangeSize);
             for (int hand = 0; hand < villainRangeSize; ++hand) {
-                newVillainReachProbs[hand] = villainReachProbs[hand] * strategy[action * villainRangeSize + hand];
+                newVillainReachProbs[hand] = villainReachProbs[hand] * (*strategy)[action * villainRangeSize + hand];
             }
 
             auto evActionRangeBegin = newOutputExpectedValues.begin() + action * heroRangeSize;
@@ -409,7 +411,7 @@ void traverseDecision(
         }
 
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
-        calculateActionEVs(newOutputExpectedValues, {});
+        calculateActionEVs(newOutputExpectedValues, nullptr);
 
         // Calculate expected value of strategy
         for (int action = 0; action < numActions; ++action) {
@@ -474,7 +476,7 @@ void traverseDecision(
         }
 
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
-        calculateActionEVs(newOutputExpectedValues, {});
+        calculateActionEVs(newOutputExpectedValues, nullptr);
 
         // Calculate expected value of strategy
         for (int action = 0; action < numActions; ++action) {
@@ -504,7 +506,7 @@ void traverseDecision(
         int heroRangeSize = tree.rangeSize[constants.hero];
 
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
-        calculateActionEVs(newOutputExpectedValues, {});
+        calculateActionEVs(newOutputExpectedValues, nullptr);
 
         // To calculate best response, hero plays the maximally exploitative pure strategy
         for (int action = 0; action < numActions; ++action) {
@@ -574,7 +576,7 @@ void traverseDecision(
         }
 
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
-        calculateActionEVs(newOutputExpectedValues, strategy);
+        calculateActionEVs(newOutputExpectedValues, &strategy);
 
         /// Calculate expected value of strategy
         // Not the hero's turn; no strategy or regret updates

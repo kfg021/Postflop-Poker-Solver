@@ -74,13 +74,10 @@ public:
     using const_pointer = const T*;
     using iterator = typename std::span<T>::iterator;
 
-    ScopedVector() : m_allocatingThread{ -1 }, m_allocator{ nullptr }, m_data{} {}
-    ScopedVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocatingThread{ allocatingThread }, m_allocator{ &allocator }, m_data{ allocator.allocate(allocatingThread, size) } {}
+    ScopedVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocatingThread{ allocatingThread }, m_allocator{ allocator }, m_data{ allocator.allocate(allocatingThread, size) } {}
 
     ~ScopedVector() {
-        if (m_allocator) {
-            m_allocator->deallocate(m_allocatingThread, m_data);
-        }
+        m_allocator.deallocate(m_allocatingThread, m_data);
     }
 
     // ScopedVectors must be allocated on the stack and they are tied to a specific scope
@@ -94,44 +91,37 @@ public:
     void operator delete[](void*) = delete;
 
     iterator begin() const {
-        assert(m_data.data());
         return m_data.begin();
     }
 
     iterator end() const {
-        assert(m_data.data());
         return m_data.end();
     }
 
     std::size_t size() const {
-        assert(m_data.data());
         return m_data.size();
     }
 
     const T& operator[](std::size_t index) const {
-        assert(m_data.data());
         assert(index < m_data.size());
         return m_data[index];
     }
 
     T& operator[](std::size_t index) {
-        assert(m_data.data());
         assert(index < m_data.size());
         return m_data[index];
     }
 
     std::span<const T> getData() const {
-        assert(m_data.data());
         return m_data;
     }
 
     std::span<T> getData() {
-        assert(m_data.data());
         return m_data;
     }
 
 private:
-    StackAllocator<T>* m_allocator;
+    StackAllocator<T>& m_allocator;
     int m_allocatingThread;
     std::span<T> m_data;
 };
