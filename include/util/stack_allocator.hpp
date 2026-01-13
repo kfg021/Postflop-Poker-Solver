@@ -7,10 +7,13 @@
 #include <cstdint>
 #include <memory>
 #include <span>
+#include <type_traits>
 #include <vector>
 
+// TODO: Remove template and allow all trivally copyable types at once
 template<typename T>
 class StackAllocator {
+static_assert(std::is_trivially_copyable_v<T>);
 public:
     static constexpr int MaxNumThreads = 64;
 
