@@ -111,7 +111,7 @@ bool areHandAndSetDisjoint(Player player, int hand, CardSet cardSet, const Tree&
     }
 }
 
-void addReachProbsToArray(std::array<double, StandardDeckSize>& villainReachProbWithCard, int villainHandIndex, double villainReachProb, const TraversalConstants& constants, const Tree& tree) {
+void addReachProbsToArray(std::array<float, StandardDeckSize>& villainReachProbWithCard, int villainHandIndex, float villainReachProb, const TraversalConstants& constants, const Tree& tree) {
     Player villain = getOpposingPlayer(constants.hero);
     assert(villainHandIndex < tree.rangeSize[villain]);
     const auto& rangeHandCards = tree.rangeHandCards[villain];
@@ -129,16 +129,16 @@ void addReachProbsToArray(std::array<double, StandardDeckSize>& villainReachProb
     }
 }
 
-double getValidVillainReachProb(
+float getValidVillainReachProb(
     int heroHandIndex,
-    double villainTotalReachProb,
-    const std::array<double, StandardDeckSize>& villainReachProbWithCard,
+    float villainTotalReachProb,
+    const std::array<float, StandardDeckSize>& villainReachProbWithCard,
     const TraversalConstants& constants,
     std::span<const float> villainReachProbs,
     const Tree& tree
 ) {
     const auto& rangeHandCards = tree.rangeHandCards[constants.hero];
-    double villainValidReachProb = villainTotalReachProb;
+    float villainValidReachProb = villainTotalReachProb;
 
     switch (tree.gameHandSize) {
         case 1:
@@ -647,28 +647,28 @@ void traverseFold(
     int heroRangeSize = tree.rangeSize[constants.hero];
     int villainRangeSize = tree.rangeSize[villain];
 
-    double villainTotalReachProb = 0.0;
-    std::array<double, StandardDeckSize> villainReachProbWithCard = {};
+    float villainTotalReachProb = 0.0f;
+    std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
     for (int hand = 0; hand < villainRangeSize; ++hand) {
         if (!areHandAndSetDisjoint(villain, hand, foldNode.board, tree)) continue;
 
-        double villainReachProb = static_cast<double>(villainReachProbs[hand]);
+        float villainReachProb = villainReachProbs[hand];
         villainTotalReachProb += villainReachProb;
         addReachProbsToArray(villainReachProbWithCard, hand, villainReachProb, constants, tree);
     }
 
     // Winner wins the folding player's wager and the dead money
     // Loser loses their wager
-    double winPayoff = static_cast<double>(foldNode.foldingPlayerWager + tree.deadMoney);
-    double losePayoff = static_cast<double>(-foldNode.foldingPlayerWager);
+    float winPayoff = static_cast<float>(foldNode.foldingPlayerWager + tree.deadMoney);
+    float losePayoff = static_cast<float>(-foldNode.foldingPlayerWager);
 
-    double heroPayoff = (foldNode.foldingPlayer == villain) ? winPayoff : losePayoff;
+    float heroPayoff = (foldNode.foldingPlayer == villain) ? winPayoff : losePayoff;
 
     for (int hand = 0; hand < heroRangeSize; ++hand) {
         if (!areHandAndSetDisjoint(constants.hero, hand, foldNode.board, tree)) continue;
 
-        double villainValidReachProb = getValidVillainReachProb(
+        float villainValidReachProb = getValidVillainReachProb(
             hand,
             villainTotalReachProb,
             villainReachProbWithCard,
@@ -677,7 +677,7 @@ void traverseFold(
             tree
         );
 
-        outputExpectedValues[hand] += static_cast<float>(heroPayoff * villainValidReachProb);
+        outputExpectedValues[hand] += heroPayoff * villainValidReachProb;
     }
 }
 
@@ -705,14 +705,14 @@ void traverseShowdown(
     // Winner wins the other player's wager and the dead money
     // Loser loses their wager
     // If the players tie, they split the dead money
-    double winPayoff = static_cast<double>(showdownNode.playerWagers + tree.deadMoney);
-    double losePayoff = static_cast<double>(-showdownNode.playerWagers);
-    double tiePayoff = static_cast<double>(tree.deadMoney) / 2.0;
+    float winPayoff = static_cast<float>(showdownNode.playerWagers + tree.deadMoney);
+    float losePayoff = static_cast<float>(-showdownNode.playerWagers);
+    float tiePayoff = static_cast<float>(tree.deadMoney) / 2.0;
 
     // First pass: Calculate hero winning hands
     {
-        double villainTotalReachProb = 0.0;
-        std::array<double, StandardDeckSize> villainReachProbWithCard = {};
+        float villainTotalReachProb = 0.0f;
+        std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
         int villainIndexSorted = 0;
 
@@ -723,14 +723,14 @@ void traverseShowdown(
                 int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
                 assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.board, tree));
 
-                double villainReachProb = static_cast<double>(villainReachProbs[villainHandIndex]);
+                float villainReachProb = villainReachProbs[villainHandIndex];
                 villainTotalReachProb += villainReachProb;
                 addReachProbsToArray(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
 
                 ++villainIndexSorted;
             }
 
-            double villainValidReachProb = getValidVillainReachProb(
+            float villainValidReachProb = getValidVillainReachProb(
                 heroHandData.index,
                 villainTotalReachProb,
                 villainReachProbWithCard,
@@ -739,14 +739,14 @@ void traverseShowdown(
                 tree
             );
 
-            outputExpectedValues[heroHandData.index] += static_cast<float>(winPayoff * villainValidReachProb);
+            outputExpectedValues[heroHandData.index] += winPayoff * villainValidReachProb;
         }
     }
 
     // Second pass: Calculate hero losing hands
     {
-        double villainTotalReachProb = 0.0;
-        std::array<double, StandardDeckSize> villainReachProbWithCard = {};
+        float villainTotalReachProb = 0.0f;
+        std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
         int villainIndexSorted = villainFilteredRangeSize - 1;
 
@@ -757,14 +757,14 @@ void traverseShowdown(
                 int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
                 assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.board, tree));
 
-                double villainReachProb = static_cast<double>(villainReachProbs[villainHandIndex]);
+                float villainReachProb = villainReachProbs[villainHandIndex];
                 villainTotalReachProb += villainReachProb;
                 addReachProbsToArray(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
 
                 --villainIndexSorted;
             }
 
-            double villainValidReachProb = getValidVillainReachProb(
+            float villainValidReachProb = getValidVillainReachProb(
                 heroHandData.index,
                 villainTotalReachProb,
                 villainReachProbWithCard,
@@ -773,7 +773,7 @@ void traverseShowdown(
                 tree
             );
 
-            outputExpectedValues[heroHandData.index] += static_cast<float>(losePayoff * villainValidReachProb);
+            outputExpectedValues[heroHandData.index] += losePayoff * villainValidReachProb;
         }
     }
 
@@ -781,8 +781,8 @@ void traverseShowdown(
     // Can ignore ties in zero-sum game, 0 EV for both players
     // TODO: Make sure this is implemented correctly
     if (tree.deadMoney > 0) {
-        double villainTotalReachProb = 0.0;
-        std::array<double, StandardDeckSize> villainReachProbWithCard = {};
+        float villainTotalReachProb = 0.0f;
+        std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
         int villainIndexSorted = 0;
 
@@ -805,7 +805,7 @@ void traverseShowdown(
                     int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
                     assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.board, tree));
 
-                    double villainReachProb = static_cast<double>(villainReachProbs[villainHandIndex]);
+                    float villainReachProb = villainReachProbs[villainHandIndex];
                     villainTotalReachProb += villainReachProb;
                     addReachProbsToArray(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
 
@@ -813,7 +813,7 @@ void traverseShowdown(
                 }
             }
 
-            double villainValidReachProb = getValidVillainReachProb(
+            float villainValidReachProb = getValidVillainReachProb(
                 heroHandData.index,
                 villainTotalReachProb,
                 villainReachProbWithCard,
@@ -822,7 +822,7 @@ void traverseShowdown(
                 tree
             );
 
-            outputExpectedValues[heroHandData.index] += static_cast<float>(tiePayoff * villainValidReachProb);
+            outputExpectedValues[heroHandData.index] += tiePayoff * villainValidReachProb;
         }
     }
 }
