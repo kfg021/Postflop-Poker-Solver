@@ -28,7 +28,7 @@ public:
     int gameHandSize;
     PlayerArray<std::vector<CardID>> rangeHandCards;
     PlayerArray<int> rangeSize;
-    PlayerArray<std::vector<int>> sameHandIndexTable;
+    PlayerArray<std::vector<std::int16_t>> sameHandIndexTable;
     int deadMoney;
     double totalRangeWeight;
 

@@ -14,23 +14,23 @@ namespace {
 // sameHandIndexTable[p][i] = j iff the ith entry in player p's range is equal to the jth entry in the other player's range
 // (or -1 if no such index exists)
 // Used to calculate showdown and fold equity
-PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
+PlayerArray<std::vector<std::int16_t>> buildSameHandIndexTable(const IGameRules& rules) {
     const auto& player0Hands = rules.getRangeHands(Player::P0);
     const auto& player1Hands = rules.getRangeHands(Player::P1);
 
     int player0RangeSize = player0Hands.size();
     int player1RangeSize = player1Hands.size();
 
-    PlayerArray<std::vector<int>> sameHandIndexTable = {
-        std::vector<int>(player0RangeSize, -1),
-        std::vector<int>(player1RangeSize, -1)
+    PlayerArray<std::vector<std::int16_t>> sameHandIndexTable = {
+        std::vector<std::int16_t>(player0RangeSize, -1),
+        std::vector<std::int16_t>(player1RangeSize, -1)
     };
 
     for (int i = 0; i < player0RangeSize; ++i) {
         for (int j = i; j < player1RangeSize; ++j) {
             if (player0Hands[i] == player1Hands[j]) {
-                sameHandIndexTable[Player::P0][i] = j;
-                sameHandIndexTable[Player::P1][j] = i;
+                sameHandIndexTable[Player::P0][i] = static_cast<std::int16_t>(j);
+                sameHandIndexTable[Player::P1][j] = static_cast<std::int16_t>(i);
             }
         }
     }
@@ -160,7 +160,7 @@ std::size_t Tree::getTreeSkeletonSize() const {
         + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t))
         + (allDecisionBetRaiseSizes.capacity() * sizeof(int));
     std::size_t rangeHandCardsHeapSize = (rangeHandCards[Player::P0].capacity() + rangeHandCards[Player::P1].capacity()) * sizeof(CardID);
-    std::size_t sameHandIndexTableHeapSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(int);
+    std::size_t sameHandIndexTableHeapSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(std::int16_t);
     return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize;
 }
 

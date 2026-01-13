@@ -149,7 +149,7 @@ double getValidVillainReachProb(
             villainValidReachProb -= villainReachProbWithCard[rangeHandCards[2 * heroHandIndex + 1]];
 
             // Inclusion-Exclusion: Add back the portion of the villain's range that was double subtracted by the above
-            int sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
+            std::int16_t sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
             if (sameHandIndex != -1) {
                 villainValidReachProb += villainReachProbs[sameHandIndex];
             }
