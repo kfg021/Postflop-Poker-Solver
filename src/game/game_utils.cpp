@@ -77,12 +77,8 @@ int getSetSize(CardSet cardSet) {
     return std::popcount(cardSet);
 }
 
-bool areSetsDisjoint(CardSet x, CardSet y) {
-    return (x & y) == 0;
-}
-
 bool setContainsCard(CardSet cardSet, CardID cardID) {
-    return !areSetsDisjoint(cardSet, cardIDToSet(cardID));
+    return (cardSet >> cardID) & 1;
 }
 
 CardID getLowestCardInSet(CardSet cardSet) {

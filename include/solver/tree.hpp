@@ -25,10 +25,10 @@ public:
     std::size_t getRootNodeIndex() const;
 
     // Game data
-    PlayerArray<std::vector<CardSet>> rangeHands;
+    int gameHandSize;
+    PlayerArray<std::vector<CardID>> rangeHandCards;
     PlayerArray<int> rangeSize;
     PlayerArray<std::vector<int>> sameHandIndexTable;
-    int gameHandSize;
     int deadMoney;
     double totalRangeWeight;
 

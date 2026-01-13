@@ -39,6 +39,10 @@ PlayerArray<std::vector<int>> buildSameHandIndexTable(const IGameRules& rules) {
 }
 
 double getTotalRangeWeight(const IGameRules& rules) {
+    auto doSetsOverlap = [](CardSet x, CardSet y) -> bool {
+        return (x & y) != 0;
+    };
+
     const auto& player0RangeWeights = rules.getInitialRangeWeights(Player::P0);
     const auto& player1RangeWeights = rules.getInitialRangeWeights(Player::P1);
 
@@ -53,10 +57,10 @@ double getTotalRangeWeight(const IGameRules& rules) {
     double totalRangeWeight = 0.0;
 
     for (int i = 0; i < player0RangeSize; ++i) {
-        if (!areSetsDisjoint(player0Hands[i], startingBoard)) continue;
+        if (doSetsOverlap(player0Hands[i], startingBoard)) continue;
 
         for (int j = 0; j < player1RangeSize; ++j) {
-            if (!areSetsDisjoint(player0Hands[i] | startingBoard, player1Hands[j])) continue;
+            if (doSetsOverlap(player0Hands[i] | startingBoard, player1Hands[j])) continue;
 
             totalRangeWeight += static_cast<double>(player0RangeWeights[i]) * static_cast<double>(player1RangeWeights[j]);
         }
@@ -72,8 +76,8 @@ int getLastBetSize(const GameState& state) {
 } // namespace
 
 Tree::Tree() :
-    rangeSize{ 0, 0 },
     gameHandSize{ 0 },
+    rangeSize{ 0, 0 },
     deadMoney{ 0 },
     totalRangeWeight{ 0.0 },
     m_trainingDataSize{ 0 },
@@ -96,23 +100,34 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     std::size_t root = createNode(rules, rules.getInitialGameState());
     assert(root == allNodes.size() - 1);
 
-    for (Player player : { Player::P0, Player::P1 }) {
-        std::span<const CardSet> playerRangeHands = rules.getRangeHands(player);
-        rangeHands[player] = std::vector<CardSet>(playerRangeHands.begin(), playerRangeHands.end());
-    }
-
-    rangeSize = {
-        static_cast<int>(rangeHands[Player::P0].size()),
-        static_cast<int>(rangeHands[Player::P1].size()),
+    PlayerArray<std::span<const CardSet>> rangeHands = {
+        rules.getRangeHands(Player::P0),
+        rules.getRangeHands(Player::P1)
     };
-
-    sameHandIndexTable = buildSameHandIndexTable(rules);
 
     // For now only games with 1 or 2 card hands are supported
     assert(!rangeHands[Player::P0].empty());
     assert(!rangeHands[Player::P1].empty());
     gameHandSize = getSetSize(rangeHands[Player::P0][0]);
     assert(gameHandSize == 1 || gameHandSize == 2);
+
+    rangeSize = {
+        static_cast<int>(rangeHands[Player::P0].size()),
+        static_cast<int>(rangeHands[Player::P1].size()),
+    };
+
+    for (Player player : { Player::P0, Player::P1 }) {
+        rangeHandCards[player].resize(rangeSize[player] * gameHandSize);
+        for (int i = 0; i < rangeSize[player]; ++i) {
+            CardSet hand = rangeHands[player][i];
+            for (int j = 0; j < gameHandSize; ++j) {
+                rangeHandCards[player][i * gameHandSize + j] = popLowestCardFromSet(hand);
+            }
+            assert(hand == 0);
+        }
+    }
+
+    sameHandIndexTable = buildSameHandIndexTable(rules);
 
     deadMoney = rules.getDeadMoney();
 
@@ -144,9 +159,9 @@ std::size_t Tree::getTreeSkeletonSize() const {
     std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID))
         + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t))
         + (allDecisionBetRaiseSizes.capacity() * sizeof(int));
-    std::size_t rangeHandsHeapSize = (rangeHands[Player::P0].capacity() + rangeHands[Player::P1].capacity()) * sizeof(CardSet);
+    std::size_t rangeHandCardsHeapSize = (rangeHandCards[Player::P0].capacity() + rangeHandCards[Player::P1].capacity()) * sizeof(CardID);
     std::size_t sameHandIndexTableHeapSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(int);
-    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + sameHandIndexTableHeapSize;
+    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
