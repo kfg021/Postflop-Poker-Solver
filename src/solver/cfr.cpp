@@ -183,6 +183,7 @@ float getValidVillainReachProb(
             villainValidReachProb -= villainReachProbWithCard[rangeHandCards[2 * heroHandIndex + 1]];
 
             // Inclusion-Exclusion: Add back the portion of the villain's range that was double subtracted by the above
+            // TODO: We don't need this in the first 2 passes of traverseShowdown, because we only considering wins and losses only, not ties
             std::int16_t sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
             if (sameHandIndex != -1) {
                 villainValidReachProb += villainReachProbs[sameHandIndex];
