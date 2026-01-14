@@ -58,8 +58,6 @@ float calculateExploitability(const IGameRules& rules, Tree& tree, StackAllocato
 
 float calculateExploitabilityFast(const IGameRules& rules, Tree& tree, StackAllocator<float>& allocator);
 
-FixedVector<float, MaxNumActions> getAverageStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree);
-
-std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree);
+FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree);
 
 #endif // CFR_HPP

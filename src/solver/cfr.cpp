@@ -8,6 +8,7 @@
 #include "util/fixed_vector.hpp"
 #include "util/stack_allocator.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -23,6 +24,7 @@
 #endif
 
 // TODO: Fix rounding errors causing isomorphic and non-isomorphic solutions to differ
+// TODO: Add back intermediate calculation with doubles
 
 namespace {
 enum class TraversalMode : std::uint8_t {
@@ -47,39 +49,71 @@ int getThreadIndex() {
     #endif
 }
 
-FixedVector<float, MaxNumActions> getCurrentStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree) {
-    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
-    int numActions = decisionNode.decisionDataSize;
-    assert(numActions > 0);
+std::size_t getTrainingDataActionOffset(int action, const DecisionNode& decisionNode, const Tree& tree) {
+    assert(action >= 0 && action < decisionNode.decisionDataSize);
+    return decisionNode.trainingDataOffset + (action * tree.rangeSize[decisionNode.playerToAct]);
+}
 
-    double totalPositiveRegret = 0.0;
+void writeCurrentStrategyToBuffer(std::span<float> currentStrategyBuffer, const DecisionNode& decisionNode, const Tree& tree, StackAllocator<float>& allocator) {
+    int numActions = decisionNode.decisionDataSize;
+    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
+    assert(numActions > 0);
+    assert(currentStrategyBuffer.size() == numActions * playerToActRangeSize);
+
+    ScopedVector<float> totalPositiveRegrets(allocator, getThreadIndex(), playerToActRangeSize);
+    std::fill(totalPositiveRegrets.begin(), totalPositiveRegrets.end(), 0.0f);
 
     for (int action = 0; action < numActions; ++action) {
-        double regretSum = static_cast<double>(tree.allRegretSums[getTrainingDataIndex(action, hand, decisionNode, tree)]);
-        if (regretSum > 0.0) {
-            totalPositiveRegret += regretSum;
+        std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
+        for (int hand = 0; hand < playerToActRangeSize; ++hand) {
+            totalPositiveRegrets[hand] += std::max(tree.allRegretSums[trainingActionOffset + hand], 0.0f);
         }
     }
 
-    if (totalPositiveRegret == 0.0) {
-        // Uniform strategy
-        return FixedVector<float, MaxNumActions>(numActions, 1.0f / numActions);
-    }
-    else {
-        FixedVector<float, MaxNumActions> currentStrategy(numActions);
-
-        for (int action = 0; action < numActions; ++action) {
-            std::size_t trainingIndex = getTrainingDataIndex(action, hand, decisionNode, tree);
-            double regretSum = static_cast<double>(tree.allRegretSums[trainingIndex]);
-            if (regretSum > 0.0) {
-                currentStrategy[action] = regretSum / totalPositiveRegret;
+    for (int action = 0; action < numActions; ++action) {
+        std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
+        for (int hand = 0; hand < playerToActRangeSize; ++hand) {
+            if (totalPositiveRegrets[hand] > 0.0f) {
+                currentStrategyBuffer[action * playerToActRangeSize + hand] = std::max(tree.allRegretSums[trainingActionOffset + hand], 0.0f) / totalPositiveRegrets[hand];
             }
             else {
-                currentStrategy[action] = 0.0f;
+                // Play a uniform strategy if no action has positive regret
+                assert(totalPositiveRegrets[hand] == 0.0f);
+                currentStrategyBuffer[action * playerToActRangeSize + hand] = 1.0f / static_cast<float>(numActions);
             }
         }
+    }
+}
 
-        return currentStrategy;
+void writeAverageStrategyToBuffer(std::span<float> averageStrategyBuffer, const DecisionNode& decisionNode, const Tree& tree, StackAllocator<float>& allocator) {
+    int numActions = decisionNode.decisionDataSize;
+    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
+    assert(numActions > 0);
+    assert(averageStrategyBuffer.size() == numActions * playerToActRangeSize);
+
+    ScopedVector<float> totalStrategy(allocator, getThreadIndex(), playerToActRangeSize);
+    std::fill(totalStrategy.begin(), totalStrategy.end(), 0.0f);
+
+    for (int action = 0; action < numActions; ++action) {
+        std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
+        for (int hand = 0; hand < playerToActRangeSize; ++hand) {
+            assert(tree.allStrategySums[trainingActionOffset + hand] >= 0.0f);
+            totalStrategy[hand] += tree.allStrategySums[trainingActionOffset + hand];
+        }
+    }
+
+    for (int action = 0; action < numActions; ++action) {
+        std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
+        for (int hand = 0; hand < playerToActRangeSize; ++hand) {
+            if (totalStrategy[hand] > 0.0f) {
+                averageStrategyBuffer[action * playerToActRangeSize + hand] = tree.allStrategySums[trainingActionOffset + hand] / totalStrategy[hand];
+            }
+            else {
+                // Play a uniform strategy if we don't have a strategy yet
+                assert(totalStrategy[hand] == 0.0f);
+                averageStrategyBuffer[action * playerToActRangeSize + hand] = 1.0f / static_cast<float>(numActions);
+            }
+        }
     }
 }
 
@@ -275,6 +309,7 @@ void traverseChance(
     }
 }
 
+// TODO: Consider making this a template
 void traverseDecision(
     const DecisionNode& decisionNode,
     const TraversalConstants& constants,
@@ -404,32 +439,22 @@ void traverseDecision(
 
         // Calculate current strategy
         ScopedVector<float> currentStrategy(allocator, getThreadIndex(), numActions * heroRangeSize);
-
-        for (int hand = 0; hand < heroRangeSize; ++hand) {
-            FixedVector<float, MaxNumActions> currentStrategyForHand = getCurrentStrategy(hand, decisionNode, tree);
-            assert(currentStrategyForHand.size() == numActions);
-
-            for (int action = 0; action < numActions; ++action) {
-                currentStrategy[action * heroRangeSize + hand] = currentStrategyForHand[action];
-            }
-        }
+        writeCurrentStrategyToBuffer(currentStrategy.getData(), decisionNode, tree, allocator);
 
         // Regret and strategy discounting for DCFR
         if (constants.mode == TraversalMode::DiscountedCfr) {
+            float alpha = static_cast<float>(constants.params.alphaT);
+            float beta = static_cast<float>(constants.params.betaT);
+            float gamma = static_cast<float>(constants.params.gammaT);
+
             for (int action = 0; action < numActions; ++action) {
+                std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
                 for (int hand = 0; hand < heroRangeSize; ++hand) {
-                    std::size_t trainingIndex = getTrainingDataIndex(action, hand, decisionNode, tree);
-                    float& regretSum = tree.allRegretSums[trainingIndex];
-                    float& strategySum = tree.allStrategySums[trainingIndex];
+                    float& regretSum = tree.allRegretSums[trainingActionOffset + hand];
+                    float& strategySum = tree.allStrategySums[trainingActionOffset + hand];
 
-                    if (regretSum > 0.0f) {
-                        regretSum *= static_cast<float>(constants.params.alphaT);
-                    }
-                    else {
-                        regretSum *= static_cast<float>(constants.params.betaT);
-                    }
-
-                    strategySum *= static_cast<float>(constants.params.gammaT);
+                    regretSum *= (regretSum > 0.0f) ? alpha : beta;
+                    strategySum *= gamma;
                 }
             }
         }
@@ -446,11 +471,10 @@ void traverseDecision(
 
         // Regret and strategy updates
         for (int action = 0; action < numActions; ++action) {
+            std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
             for (int hand = 0; hand < heroRangeSize; ++hand) {
-                std::size_t trainingIndex = getTrainingDataIndex(action, hand, decisionNode, tree);
-
-                float& regretSum = tree.allRegretSums[trainingIndex];
-                float& strategySum = tree.allStrategySums[trainingIndex];
+                float& regretSum = tree.allRegretSums[trainingActionOffset + hand];
+                float& strategySum = tree.allStrategySums[trainingActionOffset + hand];
 
                 float strategyExpectedValue = outputExpectedValues[hand];
                 float actionExpectedValue = newOutputExpectedValues[action * heroRangeSize + hand];
@@ -461,9 +485,7 @@ void traverseDecision(
 
                 // In CFR+, we erase negative regrets for faster convergence
                 if (constants.mode == TraversalMode::CfrPlus) {
-                    if (regretSum < 0.0f) {
-                        regretSum = 0.0f;
-                    }
+                    regretSum = std::max(regretSum, 0.0f);
                 }
             }
         }
@@ -489,15 +511,7 @@ void traverseDecision(
 
         // Calculate average strategy
         ScopedVector<float> averageStrategy(allocator, getThreadIndex(), numActions * heroRangeSize);
-
-        for (int hand = 0; hand < heroRangeSize; ++hand) {
-            FixedVector<float, MaxNumActions> currentStrategyForHand = getAverageStrategy(hand, decisionNode, tree);
-            assert(currentStrategyForHand.size() == numActions);
-
-            for (int action = 0; action < numActions; ++action) {
-                averageStrategy[action * heroRangeSize + hand] = currentStrategyForHand[action];
-            }
-        }
+        writeAverageStrategyToBuffer(averageStrategy.getData(), decisionNode, tree, allocator);
 
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
         calculateActionEVs(newOutputExpectedValues.getData(), {});
@@ -536,7 +550,7 @@ void traverseDecision(
         for (int action = 0; action < numActions; ++action) {
             for (int hand = 0; hand < heroRangeSize; ++hand) {
                 // For each action, play the action that leads to highest EV
-                outputExpectedValues[hand] = std::max(newOutputExpectedValues[action * heroRangeSize + hand], outputExpectedValues[hand]);
+                outputExpectedValues[hand] = std::max(outputExpectedValues[hand], newOutputExpectedValues[action * heroRangeSize + hand]);
             }
         }
 
@@ -567,32 +581,22 @@ void traverseDecision(
 
         // Calculate strategy
         ScopedVector<float> strategy(allocator, getThreadIndex(), numActions * villainRangeSize);
-
-        for (int hand = 0; hand < villainRangeSize; ++hand) {
-            FixedVector<float, MaxNumActions> strategyForHand;
-            switch (constants.mode) {
-                case TraversalMode::VanillaCfr:
-                case TraversalMode::CfrPlus:
-                case TraversalMode::DiscountedCfr:
-                    strategyForHand = getCurrentStrategy(hand, decisionNode, tree);
-                    break;
-                case TraversalMode::ExpectedValue:
-                case TraversalMode::BestResponse:
-                    strategyForHand = getAverageStrategy(hand, decisionNode, tree);
-                    break;
-                default:
-                    assert(false);
-                    break;
-            }
-            assert(strategyForHand.size() == numActions);
-
-            for (int action = 0; action < numActions; ++action) {
-                strategy[action * villainRangeSize + hand] = strategyForHand[action];
-            }
+        switch (constants.mode) {
+            case TraversalMode::VanillaCfr:
+            case TraversalMode::CfrPlus:
+            case TraversalMode::DiscountedCfr:
+                writeCurrentStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
+                break;
+            case TraversalMode::ExpectedValue:
+            case TraversalMode::BestResponse:
+                writeAverageStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
+                break;
+            default:
+                assert(false);
+                break;
         }
 
         ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), numActions * villainRangeSize);
-
         for (int action = 0; action < numActions; ++action) {
             for (int hand = 0; hand < villainRangeSize; ++hand) {
                 newVillainReachProbs[action * villainRangeSize + hand] = villainReachProbs[hand] * strategy[action * villainRangeSize + hand];
@@ -1029,38 +1033,27 @@ float calculateExploitabilityFast(const IGameRules& rules, Tree& tree, StackAllo
     return exploitability;
 }
 
-FixedVector<float, MaxNumActions> getAverageStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree) {
+// TODO: This is basically the same as writeAverageStrategyToBuffer
+FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree) {
     int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
     int numActions = decisionNode.decisionDataSize;
     assert(numActions > 0);
 
-    double total = 0.0;
+    float total = 0.0f;
     for (int action = 0; action < numActions; ++action) {
-        double strategySum = static_cast<double>(tree.allStrategySums[getTrainingDataIndex(action, hand, decisionNode, tree)]);
-        total += strategySum;
+        total += tree.allStrategySums[getTrainingDataActionOffset(action, decisionNode, tree) + hand];
     }
 
-    if (total == 0.0) {
-        // Uniform strategy
-        return FixedVector<float, MaxNumActions>(numActions, 1.0f / numActions);
+    if (total > 0.0f) {
+        FixedVector<float, MaxNumActions> finalStrategy(numActions);
+        for (int action = 0; action < numActions; ++action) {
+            finalStrategy[action] = tree.allStrategySums[getTrainingDataActionOffset(action, decisionNode, tree) + hand] / total;
+        }
+        return finalStrategy;
     }
     else {
-        FixedVector<float, MaxNumActions> averageStrategy(numActions);
-
-        for (int action = 0; action < numActions; ++action) {
-            std::size_t trainingIndex = getTrainingDataIndex(action, hand, decisionNode, tree);
-            averageStrategy[action] = tree.allStrategySums[trainingIndex] / total;
-        }
-
-        return averageStrategy;
+        // Play a uniform strategy if we don't have a strategy yet
+        assert(total == 0.0f);
+        return FixedVector<float, MaxNumActions>(numActions, 1.0f / static_cast<float>(numActions));
     }
-}
-
-std::size_t getTrainingDataIndex(int action, int hand, const DecisionNode& decisionNode, const Tree& tree) {
-    assert(action >= 0 && action < decisionNode.decisionDataSize);
-
-    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
-    assert(hand >= 0 && hand < playerToActRangeSize);
-
-    return decisionNode.trainingDataOffset + (action * playerToActRangeSize) + hand;
 }
