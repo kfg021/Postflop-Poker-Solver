@@ -368,7 +368,11 @@ bool handleSolve(SolverContext& context) {
     }
 
     buildTreeSkeletonIfNeeded(context);
+    
+    std::cout << "Allocating memory...\n" << std::flush;
     context.tree->initCfrVectors();
+    std::cout << "Finished allocating memory.\n\n";
+    
     std::optional<CfrResult> resultOption;
 
     #ifdef _OPENMP
