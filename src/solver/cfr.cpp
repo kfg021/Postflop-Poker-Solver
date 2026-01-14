@@ -163,40 +163,44 @@ void addReachProbsToArray(std::array<float, StandardDeckSize>& villainReachProbW
     }
 }
 
-float getValidVillainReachProb(
+float getReachProbBlockedByHeroHand(
     int heroHandIndex,
-    float villainTotalReachProb,
     const std::array<float, StandardDeckSize>& villainReachProbWithCard,
     const TraversalConstants& constants,
     std::span<const float> villainReachProbs,
     const Tree& tree
 ) {
     const auto& rangeHandCards = tree.rangeHandCards[constants.hero];
-    float villainValidReachProb = villainTotalReachProb;
-
     switch (tree.gameHandSize) {
         case 1:
-            villainValidReachProb -= villainReachProbWithCard[rangeHandCards[heroHandIndex]];
-            break;
-        case 2: {
-            villainValidReachProb -= villainReachProbWithCard[rangeHandCards[2 * heroHandIndex]];
-            villainValidReachProb -= villainReachProbWithCard[rangeHandCards[2 * heroHandIndex + 1]];
+            return villainReachProbWithCard[rangeHandCards[heroHandIndex]];
+        case 2:
+            return villainReachProbWithCard[rangeHandCards[2 * heroHandIndex]] + villainReachProbWithCard[rangeHandCards[2 * heroHandIndex + 1]];
+        default:
+            assert(false);
+            return 0.0f;
+    }
+}
 
-            // Inclusion-Exclusion: Add back the portion of the villain's range that was double subtracted by the above
-            // TODO: We don't need this in the first 2 passes of traverseShowdown, because we only considering wins and losses only, not ties
+// Returns the portion of the villain's range that was double-counted in the above function
+float getInclusionExculsionCorrection(
+    int heroHandIndex,
+    const TraversalConstants& constants,
+    std::span<const float> villainReachProbs,
+    const Tree& tree
+) {
+    switch (tree.gameHandSize) {
+        case 1:
+            return 0.0f;
+        case 2: {
             std::int16_t sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
-            if (sameHandIndex != -1) {
-                villainValidReachProb += villainReachProbs[sameHandIndex];
-            }
-            break;
+            return (sameHandIndex != -1) ? villainReachProbs[sameHandIndex] : 0.0f;
         }
         default:
             // For hand size > 2, logic is more complicated
             assert(false);
-            break;
+            return 0.0f;
     }
-
-    return villainValidReachProb;
 }
 
 void traverseTree(
@@ -664,6 +668,10 @@ void traverseFold(
         addReachProbsToArray(villainReachProbWithCard, hand, villainReachProb, constants, tree);
     }
 
+    if (villainTotalReachProb == 0.0f) {
+        return;
+    }
+
     // Winner wins the folding player's wager and the dead money
     // Loser loses their wager
     float winPayoff = static_cast<float>(foldNode.foldingPlayerWager + tree.deadMoney);
@@ -674,14 +682,9 @@ void traverseFold(
     for (int hand = 0; hand < heroRangeSize; ++hand) {
         if (!areHandAndSetDisjoint(constants.hero, hand, foldNode.board, tree)) continue;
 
-        float villainValidReachProb = getValidVillainReachProb(
-            hand,
-            villainTotalReachProb,
-            villainReachProbWithCard,
-            constants,
-            villainReachProbs,
-            tree
-        );
+        float villainValidReachProb = villainTotalReachProb
+            - getReachProbBlockedByHeroHand(hand, villainReachProbWithCard, constants, villainReachProbs, tree)
+            + getInclusionExculsionCorrection(hand, constants, villainReachProbs, tree);
 
         outputExpectedValues[hand] += heroPayoff * villainValidReachProb;
     }
@@ -736,14 +739,15 @@ void traverseShowdown(
                 ++villainIndexSorted;
             }
 
-            float villainValidReachProb = getValidVillainReachProb(
-                heroHandData.index,
-                villainTotalReachProb,
-                villainReachProbWithCard,
-                constants,
-                villainReachProbs,
-                tree
-            );
+            if (villainTotalReachProb == 0.0f) {
+                continue;
+            }
+
+            float villainValidReachProb = villainTotalReachProb
+                - getReachProbBlockedByHeroHand(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree);
+            // We don't need to call getInclusionExculsionCorrection because this pass only includes cases where the hero wins
+            // If the hero and villain hands were identical, then it would be a tie
+            // Thus getReachProbBlockedByHeroHand will not have any contribution from identical hero and villain hands
 
             outputExpectedValues[heroHandData.index] += winPayoff * villainValidReachProb;
         }
@@ -770,14 +774,15 @@ void traverseShowdown(
                 --villainIndexSorted;
             }
 
-            float villainValidReachProb = getValidVillainReachProb(
-                heroHandData.index,
-                villainTotalReachProb,
-                villainReachProbWithCard,
-                constants,
-                villainReachProbs,
-                tree
-            );
+            if (villainTotalReachProb == 0.0f) {
+                continue;
+            }
+
+            float villainValidReachProb = villainTotalReachProb
+                - getReachProbBlockedByHeroHand(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree);
+            // We don't need to call getInclusionExculsionCorrection because this pass only includes cases where the hero loses
+            // If the hero and villain hands were identical, then it would be a tie
+            // Thus getReachProbBlockedByHeroHand will not have any contribution from identical hero and villain hands
 
             outputExpectedValues[heroHandData.index] += losePayoff * villainValidReachProb;
         }
@@ -819,14 +824,13 @@ void traverseShowdown(
                 }
             }
 
-            float villainValidReachProb = getValidVillainReachProb(
-                heroHandData.index,
-                villainTotalReachProb,
-                villainReachProbWithCard,
-                constants,
-                villainReachProbs,
-                tree
-            );
+            if (villainTotalReachProb == 0.0f) {
+                continue;
+            }
+
+            float villainValidReachProb = villainTotalReachProb
+                - getReachProbBlockedByHeroHand(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree)
+                + getInclusionExculsionCorrection(heroHandData.index, constants, villainReachProbs, tree);
 
             outputExpectedValues[heroHandData.index] += tiePayoff * villainValidReachProb;
         }
