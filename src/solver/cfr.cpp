@@ -716,7 +716,7 @@ void traverseShowdown(
     // If the players tie, they split the dead money
     float winPayoff = static_cast<float>(showdownNode.playerWagers + tree.deadMoney);
     float losePayoff = static_cast<float>(-showdownNode.playerWagers);
-    float tiePayoff = static_cast<float>(tree.deadMoney) / 2.0;
+    float tiePayoff = static_cast<float>(tree.deadMoney) / 2.0f;
 
     // First pass: Calculate hero winning hands
     {
@@ -790,7 +790,6 @@ void traverseShowdown(
 
     // Third pass: Calculate tie hands
     // Can ignore ties in zero-sum game, 0 EV for both players
-    // TODO: Make sure this is implemented correctly
     if (tree.deadMoney > 0) {
         float villainTotalReachProb = 0.0f;
         std::array<float, StandardDeckSize> villainReachProbWithCard = {};
