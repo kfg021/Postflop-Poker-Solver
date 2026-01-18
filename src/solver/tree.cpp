@@ -147,6 +147,7 @@ Tree::Tree() :
     rangeSize{ 0, 0 },
     deadMoney{ 0 },
     totalRangeWeight{ 0.0 },
+    startingStreet{ Street::Flop },
     m_trainingDataSize{ 0 },
     m_numDecisionNodes{ 0 } {
 }
@@ -200,6 +201,8 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     // Range weight of 0 means that there are no valid combos of hands
     totalRangeWeight = getTotalRangeWeight(rules);
     assert(totalRangeWeight > 0.0);
+
+    startingStreet = rules.getInitialGameState().currentStreet;
 }
 
 std::size_t Tree::getNumberOfDecisionNodes() const {

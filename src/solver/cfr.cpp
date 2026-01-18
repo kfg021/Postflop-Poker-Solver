@@ -48,6 +48,10 @@ int getThreadIndex() {
     #endif
 }
 
+bool shouldParallelize(Street currentStreet, Street startingStreet) {
+    return (currentStreet == startingStreet) && (startingStreet != Street::River);
+}
+
 std::size_t getTrainingDataActionOffset(int action, const Node& decisionNode, const Tree& tree) {
     assert(decisionNode.nodeType == NodeType::Decision);
     assert(action >= 0 && action < decisionNode.numChildren);
@@ -271,15 +275,21 @@ void traverseChance(
     std::span<float> newOutputExpectedValuesData = newOutputExpectedValues.getData();
 
     #ifdef _OPENMP
-    for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
-        #pragma omp task default(none) firstprivate(calculateCardEV, cardIndex, newOutputExpectedValuesData)
-        {
+    if (shouldParallelize(chanceNode.state.currentStreet, tree.startingStreet)) {
+        for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
+            #pragma omp task default(none) firstprivate(calculateCardEV, cardIndex, newOutputExpectedValuesData)
+            {
+                calculateCardEV(cardIndex, newOutputExpectedValuesData);
+            }
+        }
+
+        #pragma omp taskwait
+    }
+    else {
+        for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
             calculateCardEV(cardIndex, newOutputExpectedValuesData);
         }
     }
-
-    #pragma omp taskwait
-
     #else
     // Run on single thread if no OpenMP
     for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
@@ -395,11 +405,8 @@ void traverseDecision(
 
         int numActions = decisionNode.numChildren;
 
-        // TODO: Should we be parallelizing action nodes?
         #ifdef _OPENMP
-        // Not worth trying to parallelize the river because of overhead
-        bool shouldParallelize = (decisionNode.state.currentStreet != Street::River);
-        if (shouldParallelize) {
+        if (shouldParallelize(decisionNode.state.currentStreet, tree.startingStreet)) {
             for (int action = 0; action < numActions; ++action) {
                 #pragma omp task default(none) firstprivate(calculateActionEV, action)
                 {

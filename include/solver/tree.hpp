@@ -49,6 +49,7 @@ public:
     PlayerArray<std::vector<std::int16_t>> sameHandIndexTable;
     int deadMoney;
     double totalRangeWeight;
+    Street startingStreet;
 
     // Node data
     std::vector<Node> allNodes;
