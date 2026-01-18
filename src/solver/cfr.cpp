@@ -245,6 +245,7 @@ void traverseChance(
 
         const Node& nextNode = tree.allNodes[chanceNode.childrenOffset + cardIndex];
         CardID chanceCard = nextNode.state.lastDealtCard;
+        assert(chanceCard != InvalidCard);
 
         // Normalize expected values by the number of total chance cards possible
         // Hero and villain both have a hand
