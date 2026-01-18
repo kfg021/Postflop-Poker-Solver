@@ -3,7 +3,6 @@
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
-#include "solver/node.hpp"
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 #include "util/stack_allocator.hpp"
@@ -49,14 +48,17 @@ int getThreadIndex() {
     #endif
 }
 
-std::size_t getTrainingDataActionOffset(int action, const DecisionNode& decisionNode, const Tree& tree) {
-    assert(action >= 0 && action < decisionNode.decisionDataSize);
-    return decisionNode.trainingDataOffset + (action * tree.rangeSize[decisionNode.playerToAct]);
+std::size_t getTrainingDataActionOffset(int action, const Node& decisionNode, const Tree& tree) {
+    assert(decisionNode.nodeType == NodeType::Decision);
+    assert(action >= 0 && action < decisionNode.numChildren);
+    return decisionNode.trainingDataOffset + (action * tree.rangeSize[decisionNode.state.playerToAct]);
 }
 
-void writeCurrentStrategyToBuffer(std::span<float> currentStrategyBuffer, const DecisionNode& decisionNode, const Tree& tree, StackAllocator<float>& allocator) {
-    int numActions = decisionNode.decisionDataSize;
-    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
+void writeCurrentStrategyToBuffer(std::span<float> currentStrategyBuffer, const Node& decisionNode, const Tree& tree, StackAllocator<float>& allocator) {
+    assert(decisionNode.nodeType == NodeType::Decision);
+
+    int numActions = decisionNode.numChildren;
+    int playerToActRangeSize = tree.rangeSize[decisionNode.state.playerToAct];
     assert(numActions > 0);
     assert(currentStrategyBuffer.size() == numActions * playerToActRangeSize);
 
@@ -85,9 +87,11 @@ void writeCurrentStrategyToBuffer(std::span<float> currentStrategyBuffer, const 
     }
 }
 
-void writeAverageStrategyToBuffer(std::span<float> averageStrategyBuffer, const DecisionNode& decisionNode, const Tree& tree, StackAllocator<float>& allocator) {
-    int numActions = decisionNode.decisionDataSize;
-    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
+void writeAverageStrategyToBuffer(std::span<float> averageStrategyBuffer, const Node& decisionNode, const Tree& tree, StackAllocator<float>& allocator) {
+    assert(decisionNode.nodeType == NodeType::Decision);
+
+    int numActions = decisionNode.numChildren;
+    int playerToActRangeSize = tree.rangeSize[decisionNode.state.playerToAct];
     assert(numActions > 0);
     assert(averageStrategyBuffer.size() == numActions * playerToActRangeSize);
 
@@ -214,7 +218,7 @@ void traverseTree(
 );
 
 void traverseChance(
-    const ChanceNode& chanceNode,
+    const Node& chanceNode,
     const TraversalConstants& constants,
     const IGameRules& rules,
     std::span<const float> villainReachProbs,
@@ -235,10 +239,8 @@ void traverseChance(
         int heroRangeSize = tree.rangeSize[constants.hero];
         int villainRangeSize = tree.rangeSize[villain];
 
-        CardID chanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + cardIndex];
-        std::size_t nextNodeIndex = tree.allChanceNextNodeIndices[chanceNode.chanceDataOffset + cardIndex];
-        assert(nextNodeIndex < tree.allNodes.size());
-        const Node& nextNode = tree.allNodes[nextNodeIndex];
+        const Node& nextNode = tree.allNodes[chanceNode.childrenOffset + cardIndex];
+        CardID chanceCard = nextNode.state.lastDealtCard;
 
         // Normalize expected values by the number of total chance cards possible
         // Hero and villain both have a hand
@@ -259,15 +261,17 @@ void traverseChance(
         traverseTree(nextNode, constants, rules, newVillainReachProbs.getData(), { evCardRangeBegin, evCardRangeEnd }, tree, allocator);
     };
 
+    assert(chanceNode.nodeType == NodeType::Chance);
+
     std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
     int heroRangeSize = tree.rangeSize[constants.hero];
 
-    ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), chanceNode.chanceDataSize * heroRangeSize);
+    ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), chanceNode.numChildren * heroRangeSize);
     std::span<float> newOutputExpectedValuesData = newOutputExpectedValues.getData();
 
     #ifdef _OPENMP
-    for (int cardIndex = 0; cardIndex < chanceNode.chanceDataSize; ++cardIndex) {
+    for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
         #pragma omp task default(none) firstprivate(calculateCardEV, cardIndex, newOutputExpectedValuesData)
         {
             calculateCardEV(cardIndex, newOutputExpectedValuesData);
@@ -278,13 +282,13 @@ void traverseChance(
 
     #else
     // Run on single thread if no OpenMP
-    for (int cardIndex = 0; cardIndex < chanceNode.chanceDataSize; ++cardIndex) {
+    for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
         calculateCardEV(cardIndex, newOutputExpectedValuesData);
     }
     #endif
 
-    for (int cardIndex = 0; cardIndex < chanceNode.chanceDataSize; ++cardIndex) {
-        CardID chanceCard = tree.allChanceCards[chanceNode.chanceDataOffset + cardIndex];
+    for (int cardIndex = 0; cardIndex < chanceNode.numChildren; ++cardIndex) {
+        CardID chanceCard = tree.allNodes[chanceNode.childrenOffset + cardIndex].state.lastDealtCard;
 
         for (int hand = 0; hand < heroRangeSize; ++hand) {
             if (areHandAndCardDisjoint(constants.hero, hand, chanceCard, tree)) {
@@ -316,7 +320,7 @@ void traverseChance(
 
 // TODO: Consider making this a template
 void traverseDecision(
-    const DecisionNode& decisionNode,
+    const Node& decisionNode,
     const TraversalConstants& constants,
     const IGameRules& rules,
     std::span<const float> villainReachProbs,
@@ -342,16 +346,12 @@ void traverseDecision(
             &allocator,
             &newOutputExpectedValues
         ](int action) -> void {
-            std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
-            assert(nextNodeIndex < tree.allNodes.size());
-            const Node& nextNode = tree.allNodes[nextNodeIndex];
-
             int heroRangeSize = tree.rangeSize[constants.hero];
             auto evActionRangeBegin = newOutputExpectedValues.begin() + action * heroRangeSize;
             auto evActionRangeEnd = evActionRangeBegin + heroRangeSize;
 
             // For the hero we copy the villain reach probs from the previous level
-            traverseTree(nextNode, constants, rules, villainReachProbs, { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
+            traverseTree(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, villainReachProbs, { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
         };
 
         auto calculateActionEVVillain = [
@@ -366,10 +366,6 @@ void traverseDecision(
         ](int action) -> void {
             assert(!strategy.empty());
 
-            std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
-            assert(nextNodeIndex < tree.allNodes.size());
-            const Node& nextNode = tree.allNodes[nextNodeIndex];
-
             Player villain = getOpposingPlayer(constants.hero);
 
             int heroRangeSize = tree.rangeSize[constants.hero];
@@ -383,7 +379,7 @@ void traverseDecision(
 
             auto evActionRangeBegin = newOutputExpectedValues.begin() + action * heroRangeSize;
             auto evActionRangeEnd = evActionRangeBegin + heroRangeSize;
-            traverseTree(nextNode, constants, rules, newVillainReachProbs.getData(), { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
+            traverseTree(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, newVillainReachProbs.getData(), { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
         };
 
         auto calculateActionEV = [
@@ -392,15 +388,17 @@ void traverseDecision(
             &calculateActionEVHero,
             &calculateActionEVVillain
         ](int action) -> void {
-            return (decisionNode.playerToAct == constants.hero) ? calculateActionEVHero(action) : calculateActionEVVillain(action);
+            return (decisionNode.state.playerToAct == constants.hero) ? calculateActionEVHero(action) : calculateActionEVVillain(action);
         };
 
-        int numActions = decisionNode.decisionDataSize;
+        assert(decisionNode.nodeType == NodeType::Decision);
+
+        int numActions = decisionNode.numChildren;
 
         // TODO: Should we be parallelizing action nodes?
         #ifdef _OPENMP
         // Not worth trying to parallelize the river because of overhead
-        bool shouldParallelize = (decisionNode.street != Street::River);
+        bool shouldParallelize = (decisionNode.state.currentStreet != Street::River);
         if (shouldParallelize) {
             for (int action = 0; action < numActions; ++action) {
                 #pragma omp task default(none) firstprivate(calculateActionEV, action)
@@ -436,7 +434,7 @@ void traverseDecision(
     ]() {
         std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
-        int numActions = static_cast<int>(decisionNode.decisionDataSize);
+        int numActions = static_cast<int>(decisionNode.numChildren);
         assert(numActions > 0);
 
         int heroRangeSize = tree.rangeSize[constants.hero];
@@ -508,7 +506,7 @@ void traverseDecision(
     ]() {
         std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
-        int numActions = static_cast<int>(decisionNode.decisionDataSize);
+        int numActions = static_cast<int>(decisionNode.numChildren);
         assert(numActions > 0);
 
         int heroRangeSize = tree.rangeSize[constants.hero];
@@ -543,7 +541,7 @@ void traverseDecision(
         static constexpr float Lowest = std::numeric_limits<float>::lowest();
         std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), Lowest);
 
-        int numActions = static_cast<int>(decisionNode.decisionDataSize);
+        int numActions = static_cast<int>(decisionNode.numChildren);
         assert(numActions > 0);
 
         int heroRangeSize = tree.rangeSize[constants.hero];
@@ -576,7 +574,7 @@ void traverseDecision(
     ]() -> void {
         std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
-        int numActions = static_cast<int>(decisionNode.decisionDataSize);
+        int numActions = static_cast<int>(decisionNode.numChildren);
         assert(numActions > 0);
 
         Player villain = getOpposingPlayer(constants.hero);
@@ -620,7 +618,7 @@ void traverseDecision(
         }
     };
 
-    if (constants.hero == decisionNode.playerToAct) {
+    if (constants.hero == decisionNode.state.playerToAct) {
         switch (constants.mode) {
             case TraversalMode::VanillaCfr:
             case TraversalMode::CfrPlus:
@@ -644,12 +642,14 @@ void traverseDecision(
 }
 
 void traverseFold(
-    const FoldNode& foldNode,
+    const Node& foldNode,
     const TraversalConstants& constants,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree
 ) {
+    assert(foldNode.nodeType == NodeType::Fold);
+
     std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
     Player villain = getOpposingPlayer(constants.hero);
@@ -661,7 +661,7 @@ void traverseFold(
     std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
     for (int hand = 0; hand < villainRangeSize; ++hand) {
-        if (!areHandAndSetDisjoint(villain, hand, foldNode.board, tree)) continue;
+        if (!areHandAndSetDisjoint(villain, hand, foldNode.state.currentBoard, tree)) continue;
 
         float villainReachProb = villainReachProbs[hand];
         villainTotalReachProb += villainReachProb;
@@ -672,15 +672,19 @@ void traverseFold(
         return;
     }
 
+    // The folding player acted last turn
+    Player foldingPlayer = getOpposingPlayer(foldNode.state.playerToAct);
+    int foldingPlayerWager = foldNode.state.totalWagers[foldingPlayer];
+
     // Winner wins the folding player's wager and the dead money
     // Loser loses their wager
-    float winPayoff = static_cast<float>(foldNode.foldingPlayerWager + tree.deadMoney);
-    float losePayoff = static_cast<float>(-foldNode.foldingPlayerWager);
+    float winPayoff = static_cast<float>(foldingPlayerWager + tree.deadMoney);
+    float losePayoff = static_cast<float>(-foldingPlayerWager);
 
-    float heroPayoff = (foldNode.foldingPlayer == villain) ? winPayoff : losePayoff;
+    float heroPayoff = (foldingPlayer == villain) ? winPayoff : losePayoff;
 
     for (int hand = 0; hand < heroRangeSize; ++hand) {
-        if (!areHandAndSetDisjoint(constants.hero, hand, foldNode.board, tree)) continue;
+        if (!areHandAndSetDisjoint(constants.hero, hand, foldNode.state.currentBoard, tree)) continue;
 
         float villainValidReachProb = villainTotalReachProb
             - getReachProbBlockedByHeroHand(hand, villainReachProbWithCard, constants, villainReachProbs, tree)
@@ -691,13 +695,15 @@ void traverseFold(
 }
 
 void traverseShowdown(
-    const ShowdownNode& showdownNode,
+    const Node& showdownNode,
     const TraversalConstants& constants,
     const IGameRules& rules,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree
 ) {
+    assert(showdownNode.nodeType == NodeType::Showdown);
+
     std::fill(outputExpectedValues.begin(), outputExpectedValues.end(), 0.0f);
 
     Player hero = constants.hero;
@@ -705,17 +711,20 @@ void traverseShowdown(
 
     PlayerArray<std::span<const HandData>> sortedHandRanks;
     for (Player player : { hero, villain }) {
-        sortedHandRanks[player] = rules.getValidSortedHandRanks(player, showdownNode.board);
+        sortedHandRanks[player] = rules.getValidSortedHandRanks(player, showdownNode.state.currentBoard);
     }
 
     int heroFilteredRangeSize = sortedHandRanks[hero].size();
     int villainFilteredRangeSize = sortedHandRanks[villain].size();
 
+    assert(showdownNode.state.totalWagers[Player::P0] == showdownNode.state.totalWagers[Player::P1]);
+    int playerWagers = showdownNode.state.totalWagers[Player::P0];
+
     // Winner wins the other player's wager and the dead money
     // Loser loses their wager
     // If the players tie, they split the dead money
-    float winPayoff = static_cast<float>(showdownNode.playerWagers + tree.deadMoney);
-    float losePayoff = static_cast<float>(-showdownNode.playerWagers);
+    float winPayoff = static_cast<float>(playerWagers + tree.deadMoney);
+    float losePayoff = static_cast<float>(-playerWagers);
     float tiePayoff = static_cast<float>(tree.deadMoney) / 2.0f;
 
     // First pass: Calculate hero winning hands
@@ -726,11 +735,11 @@ void traverseShowdown(
         int villainIndexSorted = 0;
 
         for (HandData heroHandData : sortedHandRanks[hero]) {
-            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.board, tree));
+            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
 
             while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank < heroHandData.rank) {
                 int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
-                assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.board, tree));
+                assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
 
                 float villainReachProb = villainReachProbs[villainHandIndex];
                 villainTotalReachProb += villainReachProb;
@@ -761,11 +770,11 @@ void traverseShowdown(
         int villainIndexSorted = villainFilteredRangeSize - 1;
 
         for (HandData heroHandData : std::views::reverse(sortedHandRanks[hero])) {
-            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.board, tree));
+            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
 
             while (villainIndexSorted >= 0 && sortedHandRanks[villain][villainIndexSorted].rank > heroHandData.rank) {
                 int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
-                assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.board, tree));
+                assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
 
                 float villainReachProb = villainReachProbs[villainHandIndex];
                 villainTotalReachProb += villainReachProb;
@@ -798,7 +807,7 @@ void traverseShowdown(
 
         for (int heroIndexSorted = 0; heroIndexSorted < heroFilteredRangeSize; ++heroIndexSorted) {
             HandData heroHandData = sortedHandRanks[hero][heroIndexSorted];
-            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.board, tree));
+            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
 
             bool heroRankIncreased = (heroIndexSorted == 0) || (heroHandData.rank > sortedHandRanks[hero][heroIndexSorted - 1].rank);
             if (heroRankIncreased) {
@@ -813,7 +822,7 @@ void traverseShowdown(
 
                 while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank == heroHandData.rank) {
                     int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
-                    assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.board, tree));
+                    assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
 
                     float villainReachProb = villainReachProbs[villainHandIndex];
                     villainTotalReachProb += villainReachProb;
@@ -847,18 +856,18 @@ void traverseTree(
 ) {
     assert(tree.isTreeSkeletonBuilt() && tree.areCfrVectorsInitialized());
 
-    switch (node.getNodeType()) {
+    switch (node.nodeType) {
         case NodeType::Chance:
-            traverseChance(node.chanceNode, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
+            traverseChance(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Decision:
-            traverseDecision(node.decisionNode, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
+            traverseDecision(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Fold:
-            traverseFold(node.foldNode, constants, villainReachProbs, outputExpectedValues, tree);
+            traverseFold(node, constants, villainReachProbs, outputExpectedValues, tree);
             break;
         case NodeType::Showdown:
-            traverseShowdown(node.showdownNode, constants, rules, villainReachProbs, outputExpectedValues, tree);
+            traverseShowdown(node, constants, rules, villainReachProbs, outputExpectedValues, tree);
             break;
         default:
             assert(false);
@@ -1038,9 +1047,11 @@ float calculateExploitabilityFast(const IGameRules& rules, Tree& tree, StackAllo
 }
 
 // TODO: This is basically the same as writeAverageStrategyToBuffer
-FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree) {
-    int playerToActRangeSize = tree.rangeSize[decisionNode.playerToAct];
-    int numActions = decisionNode.decisionDataSize;
+FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const Node& decisionNode, const Tree& tree) {
+    assert(decisionNode.nodeType == NodeType::Decision);
+
+    int playerToActRangeSize = tree.rangeSize[decisionNode.state.playerToAct];
+    int numActions = static_cast<int>(decisionNode.numChildren);
     assert(numActions > 0);
 
     float total = 0.0f;

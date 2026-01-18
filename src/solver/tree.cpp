@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <queue>
 #include <vector>
 
 namespace {
@@ -69,9 +70,75 @@ double getTotalRangeWeight(const IGameRules& rules) {
     return totalRangeWeight;
 }
 
-int getLastBetSize(const GameState& state) {
-    int lastBetTotal = std::max(state.totalWagers[Player::P0], state.totalWagers[Player::P1]);
-    return lastBetTotal - state.previousStreetsWager;
+void createChanceNode(const IGameRules& rules, const GameState& state, std::vector<Node>& allNodes, std::queue<GameState>& queue) {
+    auto getParentSuit = [](Suit suit, const FixedVector<SuitEquivalenceClass, 4>& isomorphisms) -> Suit {
+        for (SuitEquivalenceClass isomorphism : isomorphisms) {
+            if (isomorphism.contains(suit)) {
+                // Choose the first node to be the representative for this equivalence class
+                return isomorphism[0];
+            }
+        }
+
+        // Assume that nodes not present in the list are their own equivalence class
+        return suit;
+    };
+
+    std::uint32_t childrenOffset = allNodes.size() + queue.size() + 1;
+
+    // Process child nodes
+    FixedVector<SuitMapping, 3> suitMappings;
+    ChanceNodeInfo chanceNodeInfo = rules.getChanceNodeInfo(state.currentBoard);
+    int numTotalChanceCards = getSetSize(chanceNodeInfo.availableCards);
+    int numCanonicalChanceCards = 0;
+
+    CardSet temp = chanceNodeInfo.availableCards;
+    for (int i = 0; i < numTotalChanceCards; ++i) {
+        CardID nextCard = popLowestCardFromSet(temp);
+
+        Suit suit = getCardSuit(nextCard);
+        Suit parentSuit = getParentSuit(suit, chanceNodeInfo.isomorphisms);
+
+        if (suit == parentSuit) {
+            // At a chance node both players should have wagered same amount
+            assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+
+            ActionID streetStart = rules.getInitialGameState().lastAction;
+
+            GameState nextState = {
+                .currentBoard = state.currentBoard | cardIDToSet(nextCard), // Add next card to board
+                .totalWagers = state.totalWagers,
+                .previousStreetsWager = state.totalWagers[Player::P0],
+                .playerToAct = Player::P0, // Player 0 always starts a new betting round
+                .lastAction = streetStart,
+                .lastDealtCard = nextCard,
+                .currentStreet = getNextStreet(state.currentStreet), // Advance to the next street after a chance node
+            };
+
+            ++numCanonicalChanceCards;
+            queue.push(nextState);
+        }
+        else {
+            // This card would be equivalent to a card with the same value and the parent suit
+            // We can save space by not storing it
+
+            SuitMapping mapping = { .child = suit, .parent = parentSuit };
+            if (!suitMappings.contains(mapping)) {
+                suitMappings.pushBack(mapping);
+            }
+        }
+    }
+    assert(temp == 0);
+
+    // Fill in current node information
+    Node chanceNode = {
+        .state = state,
+        .childrenOffset = childrenOffset,
+        .numChildren = static_cast<std::uint8_t>(numCanonicalChanceCards),
+        .nodeType = NodeType::Chance,
+        .availableCards = chanceNodeInfo.availableCards,
+        .suitMappings = suitMappings
+    };
+    allNodes.push_back(chanceNode);
 }
 } // namespace
 
@@ -97,8 +164,7 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
         return;
     };
 
-    std::size_t root = createNode(rules, rules.getInitialGameState());
-    assert(root == allNodes.size() - 1);
+    buildAllNodes(rules);
 
     PlayerArray<std::span<const CardSet>> rangeHands = {
         rules.getRangeHands(Player::P0),
@@ -134,14 +200,6 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
     // Range weight of 0 means that there are no valid combos of hands
     totalRangeWeight = getTotalRangeWeight(rules);
     assert(totalRangeWeight > 0.0);
-
-    // Free unnecessary memory - vectors are done growing
-    allNodes.shrink_to_fit();
-    allChanceCards.shrink_to_fit();
-    allChanceNextNodeIndices.shrink_to_fit();
-    allDecisions.shrink_to_fit();
-    allDecisionNextNodeIndices.shrink_to_fit();
-    allDecisionBetRaiseSizes.shrink_to_fit();
 }
 
 std::size_t Tree::getNumberOfDecisionNodes() const {
@@ -154,14 +212,9 @@ std::size_t Tree::getTreeSkeletonSize() const {
 
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
-    std::size_t chanceHeapSize = (allChanceCards.capacity() * sizeof(CardID))
-        + (allChanceNextNodeIndices.capacity() * sizeof(std::size_t));
-    std::size_t decisionHeapSize = (allDecisions.capacity() * sizeof(ActionID))
-        + (allDecisionNextNodeIndices.capacity() * sizeof(std::size_t))
-        + (allDecisionBetRaiseSizes.capacity() * sizeof(int));
     std::size_t rangeHandCardsHeapSize = (rangeHandCards[Player::P0].capacity() + rangeHandCards[Player::P1].capacity()) * sizeof(CardID);
     std::size_t sameHandIndexTableHeapSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(std::int16_t);
-    return treeStackSize + nodesHeapSize + chanceHeapSize + decisionHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize;
+    return treeStackSize + nodesHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {
@@ -173,162 +226,80 @@ std::size_t Tree::estimateFullTreeSize() const {
     return getTreeSkeletonSize() + trainingDataHeapSize;
 }
 
-std::size_t Tree::createNode(const IGameRules& rules, const GameState& state) {
-    switch (rules.getNodeType(state)) {
-        case NodeType::Chance:
-            return createChanceNode(rules, state);
-        case NodeType::Decision:
-            return createDecisionNode(rules, state);
-        case NodeType::Fold:
-            return createFoldNode(state);
-        case NodeType::Showdown:
-            return createShowdownNode(state);
-        default:
-            assert(false);
-            return 0;
-    }
-}
+void Tree::buildAllNodes(const IGameRules& rules) {
+    // We build the tree using BFS so that the children of a node are adjacent in memory
+    std::queue<GameState> queue;
+    queue.push(rules.getInitialGameState());
 
-std::size_t Tree::createChanceNode(const IGameRules& rules, const GameState& state) {
-    auto getParentSuit = [](Suit suit, const FixedVector<SuitEquivalenceClass, 4>& isomorphisms) -> Suit {
-        for (SuitEquivalenceClass isomorphism : isomorphisms) {
-            if (isomorphism.contains(suit)) {
-                // Choose the first node to be the representative for this equivalence class
-                return isomorphism[0];
+    while (!queue.empty()) {
+        GameState state = queue.front();
+        queue.pop();
+
+        switch (rules.getNodeType(state)) {
+            case NodeType::Chance:
+                createChanceNode(rules, state, allNodes, queue);
+                break;
+
+            case NodeType::Decision: {
+                std::uint32_t childrenOffset = allNodes.size() + queue.size() + 1;
+
+                // Process child nodes
+                FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
+                for (ActionID actionID : validActions) {
+                    queue.push(rules.getNewStateAfterDecision(state, actionID));
+                }
+
+                // Fill in current node information
+                Node decisionNode = {
+                    .state = state,
+                    .childrenOffset = childrenOffset,
+                    .numChildren = static_cast<std::uint8_t>(validActions.size()),
+                    .nodeType = NodeType::Decision,
+                    .trainingDataOffset = m_trainingDataSize,
+                };
+
+                // Update tree
+                allNodes.push_back(decisionNode);
+                ++m_numDecisionNodes;
+                m_trainingDataSize += rules.getInitialRangeWeights(state.playerToAct).size() * decisionNode.numChildren;
+
+                break;
             }
-        }
 
-        // Assume that nodes not present in the list are their own equivalence class
-        return suit;
-    };
+            case NodeType::Fold: {
+                Node foldNode = {
+                    .state = state,
+                    .nodeType = NodeType::Fold
+                };
+                allNodes.push_back(foldNode);
 
-    // Recurse to child nodes
-    FixedVector<CardID, MaxNumDealCards> nextCards;
-    FixedVector<std::size_t, MaxNumDealCards> nextNodeIndices;
-    FixedVector<SuitMapping, 3> suitMappings;
-
-    ChanceNodeInfo chanceNodeInfo = rules.getChanceNodeInfo(state.currentBoard);
-    int numChanceCards = getSetSize(chanceNodeInfo.availableCards);
-
-    CardSet temp = chanceNodeInfo.availableCards;
-    for (int i = 0; i < numChanceCards; ++i) {
-        CardID nextCard = popLowestCardFromSet(temp);
-
-        Suit suit = getCardSuit(nextCard);
-        Suit parentSuit = getParentSuit(suit, chanceNodeInfo.isomorphisms);
-
-        if (suit == parentSuit) {
-            // At a chance node both players should have wagered same amount
-            assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
-
-            ActionID streetStart = rules.getInitialGameState().lastAction;
-
-            GameState nextState = {
-                .currentBoard = state.currentBoard | cardIDToSet(nextCard), // Add next card to board
-                .totalWagers = state.totalWagers,
-                .previousStreetsWager = state.totalWagers[Player::P0],
-                .playerToAct = Player::P0, // Player 0 always starts a new betting round
-                .lastAction = streetStart,
-                .currentStreet = getNextStreet(state.currentStreet), // Advance to the next street after a chance node
-            };
-
-            nextCards.pushBack(nextCard);
-            nextNodeIndices.pushBack(createNode(rules, nextState));
-        }
-        else {
-            // This card would be equivalent to a card with the same value and the parent suit
-            // We can save space by not storing it
-
-            SuitMapping mapping = { .child = suit, .parent = parentSuit };
-            if (!suitMappings.contains(mapping)) {
-                suitMappings.pushBack(mapping);
+                break;
             }
+
+            case NodeType::Showdown: {
+                // At showdown players should have wagered same amount
+                assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
+
+                // Showdowns can only happen on the river
+                assert(state.currentStreet == Street::River);
+
+                Node showdownNode = {
+                    .state = state,
+                    .nodeType = NodeType::Showdown
+                };
+                allNodes.push_back(showdownNode);
+
+                break;
+            }
+
+            default:
+                assert(false);
+                break;
         }
     }
-    assert(temp == 0);
-    assert(nextCards.size() == nextNodeIndices.size());
 
-    // Fill in current node information
-    ChanceNode chanceNode = {
-        .availableCards = chanceNodeInfo.availableCards,
-        .chanceDataOffset = allChanceCards.size(),
-        .suitMappings = suitMappings,
-        .chanceDataSize = static_cast<std::uint8_t>(nextCards.size())
-    };
-
-    // Update tree information
-    allChanceCards.insert(allChanceCards.end(), nextCards.begin(), nextCards.end());
-    allChanceNextNodeIndices.insert(allChanceNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
-    assert(allChanceCards.size() == allChanceNextNodeIndices.size());
-
-    allNodes.emplace_back(chanceNode);
-    return allNodes.size() - 1;
-}
-
-std::size_t Tree::createDecisionNode(const IGameRules& rules, const GameState& state) {
-    // Recurse to child nodes
-    FixedVector<ActionID, MaxNumActions> validActions = rules.getValidActions(state);
-    FixedVector<std::size_t, MaxNumActions> nextNodeIndices;
-    FixedVector<int, MaxNumActions> betRaiseSizes;
-    for (ActionID actionID : validActions) {
-        GameState newState = rules.getNewStateAfterDecision(state, actionID);
-        nextNodeIndices.pushBack(createNode(rules, newState));
-        betRaiseSizes.pushBack(getLastBetSize(newState));
-    }
-    assert(nextNodeIndices.size() == validActions.size());
-
-    // Fill in current node information
-    DecisionNode decisionNode = {
-        .trainingDataOffset = m_trainingDataSize,
-        .decisionDataOffset = allDecisions.size(),
-        .decisionDataSize = static_cast<std::uint8_t>(validActions.size()),
-        .playerToAct = state.playerToAct,
-        .street = state.currentStreet
-    };
-
-    // Update tree information
-    int playerToActRangeSize = rules.getInitialRangeWeights(state.playerToAct).size();
-    std::size_t nodeTrainingDataSize = static_cast<std::size_t>(playerToActRangeSize) * decisionNode.decisionDataSize;
-    m_trainingDataSize += nodeTrainingDataSize;
-    allDecisions.insert(allDecisions.end(), validActions.begin(), validActions.end());
-    allDecisionNextNodeIndices.insert(allDecisionNextNodeIndices.end(), nextNodeIndices.begin(), nextNodeIndices.end());
-    allDecisionBetRaiseSizes.insert(allDecisionBetRaiseSizes.end(), betRaiseSizes.begin(), betRaiseSizes.end());
-    assert(allDecisions.size() == allDecisionNextNodeIndices.size());
-    assert(allDecisions.size() == allDecisionBetRaiseSizes.size());
-    ++m_numDecisionNodes;
-
-    allNodes.emplace_back(decisionNode);
-    return allNodes.size() - 1;
-}
-
-std::size_t Tree::createFoldNode(const GameState& state) {
-    // The folding player acted last turn
-    Player foldingPlayer = getOpposingPlayer(state.playerToAct);
-
-    FoldNode foldNode = {
-        .board = state.currentBoard,
-        .foldingPlayerWager = state.totalWagers[foldingPlayer],
-        .foldingPlayer = foldingPlayer
-    };
-
-    allNodes.emplace_back(foldNode);
-    return allNodes.size() - 1;
-}
-
-std::size_t Tree::createShowdownNode(const GameState& state) {
-    // At showdown players should have wagered same amount
-    assert(state.totalWagers[Player::P0] == state.totalWagers[Player::P1]);
-
-    // Showdowns can only happen on the river
-    assert(state.currentStreet == Street::River);
-
-    ShowdownNode showdownNode = {
-        .board = state.currentBoard,
-        .playerWagers = state.totalWagers[Player::P0],
-    };
-
-    allNodes.emplace_back(showdownNode);
-    return allNodes.size() - 1;
+    // Free unnecessary memory - vector is done growing
+    allNodes.shrink_to_fit();
 }
 
 void Tree::initCfrVectors() {
@@ -340,5 +311,5 @@ void Tree::initCfrVectors() {
 
 std::size_t Tree::getRootNodeIndex() const {
     assert(isTreeSkeletonBuilt() && areCfrVectorsInitialized());
-    return allNodes.size() - 1;
+    return 0;
 }

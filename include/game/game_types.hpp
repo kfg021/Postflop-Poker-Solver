@@ -16,6 +16,8 @@ using CardID = std::uint8_t;
 using CardSet = std::uint64_t;
 using HandRank = std::uint32_t;
 
+static constexpr CardID InvalidCard = 0xFF;
+
 enum class Player : std::uint8_t {
     P0,
     P1
@@ -118,6 +120,7 @@ struct GameState {
     int previousStreetsWager;
     Player playerToAct;
     ActionID lastAction;
+    CardID lastDealtCard;
     Street currentStreet;
 };
 

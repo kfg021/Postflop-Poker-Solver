@@ -3,13 +3,31 @@
 
 #include "game/game_types.hpp"
 #include "game/game_rules.hpp"
-#include "solver/node.hpp"
 #include "util/fixed_vector.hpp"
 
 #include <cstddef>
 #include <cstdint>
 #include <span>
 #include <vector>
+
+struct Node {
+    // Used by all nodes
+    GameState state;
+
+    // Used by chance nodes and decision nodes
+    std::uint32_t childrenOffset;
+    std::uint8_t numChildren;
+
+    // Used by all nodes
+    NodeType nodeType;
+
+    // Used by decision nodes only
+    std::size_t trainingDataOffset;
+
+    // Used by chance nodes only
+    CardSet availableCards;
+    FixedVector<SuitMapping, 3> suitMappings;
+};
 
 class Tree {
 public:
@@ -32,26 +50,13 @@ public:
     int deadMoney;
     double totalRangeWeight;
 
-    // Vector containing all nodes
+    // Node data
     std::vector<Node> allNodes;
-
-    // Data for chance nodes
-    std::vector<CardID> allChanceCards;
-    std::vector<std::size_t> allChanceNextNodeIndices;
-
-    // Data for decision nodes
-    std::vector<ActionID> allDecisions;
-    std::vector<std::size_t> allDecisionNextNodeIndices;
-    std::vector<int> allDecisionBetRaiseSizes;
     std::vector<float> allStrategySums;
     std::vector<float> allRegretSums;
 
 private:
-    std::size_t createNode(const IGameRules& rules, const GameState& state);
-    std::size_t createChanceNode(const IGameRules& rules, const GameState& state);
-    std::size_t createDecisionNode(const IGameRules& rules, const GameState& state);
-    std::size_t createFoldNode(const GameState& state);
-    std::size_t createShowdownNode(const GameState& state);
+    void buildAllNodes(const IGameRules& rules);
 
     std::size_t m_trainingDataSize;
     std::size_t m_numDecisionNodes;

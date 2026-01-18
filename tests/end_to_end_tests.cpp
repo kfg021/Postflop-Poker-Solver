@@ -60,38 +60,32 @@ TEST(EndToEndTest, Kuhn) {
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
 
-    auto getNextDecisionNode = [&tree](const DecisionNode& decisionNode, KuhnActionID action) -> DecisionNode {
-        std::size_t nextNodeIndex = tree.allDecisionNextNodeIndices[decisionNode.decisionDataOffset + action];
-        const Node& nextNode = tree.allNodes[nextNodeIndex];
-        EXPECT_EQ(nextNode.getNodeType(), NodeType::Decision);
-
-        return nextNode.decisionNode;
-    };
-
     // Root node, player 0 to act
     // The first player is free to choose a probability 0 <= alpha <= 1/3 that they will bet with a Jack
     const Node& root = tree.allNodes[tree.getRootNodeIndex()];
-    ASSERT_EQ(root.getNodeType(), NodeType::Decision);
-    float alpha = getFinalStrategy(KuhnHandID::Jack, root.decisionNode, tree)[KuhnActionID::BetOrCall];
+    ASSERT_EQ(root.nodeType, NodeType::Decision);
+    float alpha = getFinalStrategy(KuhnHandID::Jack, root, tree)[KuhnActionID::BetOrCall];
     ASSERT_GE(alpha, 0.0f);
     ASSERT_LE(alpha, 1.0f / 3.0f);
-    ASSERT_NEAR(getFinalStrategy(KuhnHandID::Queen, root.decisionNode, tree)[KuhnActionID::BetOrCall], 0.0f, StrategyEpsilon);
-    ASSERT_NEAR(getFinalStrategy(KuhnHandID::King, root.decisionNode, tree)[KuhnActionID::BetOrCall], 3.0f * alpha, StrategyEpsilon);
+    ASSERT_NEAR(getFinalStrategy(KuhnHandID::Queen, root, tree)[KuhnActionID::BetOrCall], 0.0f, StrategyEpsilon);
+    ASSERT_NEAR(getFinalStrategy(KuhnHandID::King, root, tree)[KuhnActionID::BetOrCall], 3.0f * alpha, StrategyEpsilon);
 
     // Check, player 1 to act
-    DecisionNode check = getNextDecisionNode(root.decisionNode, KuhnActionID::CheckOrFold);
+    const Node& check = tree.allNodes[root.childrenOffset + KuhnActionID::CheckOrFold];
+    ASSERT_EQ(check.nodeType, NodeType::Decision);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::Jack, check, tree)[KuhnActionID::BetOrCall], 1.0f / 3.0f, StrategyEpsilon);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::Queen, check, tree)[KuhnActionID::BetOrCall], 0.0f, StrategyEpsilon);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::King, check, tree)[KuhnActionID::BetOrCall], 1.0f, StrategyEpsilon);
 
     // Check Bet, player 0 to act
-    DecisionNode checkBet = getNextDecisionNode(check, KuhnActionID::BetOrCall);
+    const Node& checkBet = tree.allNodes[check.childrenOffset + KuhnActionID::BetOrCall];
+    ASSERT_EQ(checkBet.nodeType, NodeType::Decision);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::Jack, checkBet, tree)[KuhnActionID::BetOrCall], 0.0f, StrategyEpsilon);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::Queen, checkBet, tree)[KuhnActionID::BetOrCall], alpha + (1.0f / 3.0f), StrategyEpsilon);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::King, checkBet, tree)[KuhnActionID::BetOrCall], 1.0f, StrategyEpsilon);
 
     // Bet, player 1 to act
-    DecisionNode bet = getNextDecisionNode(root.decisionNode, KuhnActionID::BetOrCall);
+    const Node& bet = tree.allNodes[root.childrenOffset + KuhnActionID::BetOrCall];
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::Jack, bet, tree)[KuhnActionID::BetOrCall], 0.0f, StrategyEpsilon);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::Queen, bet, tree)[KuhnActionID::BetOrCall], 1.0f / 3.0f, StrategyEpsilon);
     ASSERT_NEAR(getFinalStrategy(KuhnHandID::King, bet, tree)[KuhnActionID::BetOrCall], 1.0f, StrategyEpsilon);

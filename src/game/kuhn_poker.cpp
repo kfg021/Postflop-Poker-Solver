@@ -35,6 +35,7 @@ GameState KuhnPoker::getInitialGameState() const {
         .previousStreetsWager = 1,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::GameStart),
+        .lastDealtCard = InvalidCard,
         .currentStreet = Street::River, // Since Kuhn poker has one street and no community cards, we begin action on the river 
     };
     return InitialState;
@@ -97,6 +98,7 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
         .previousStreetsWager = state.previousStreetsWager,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
+        .lastDealtCard = state.lastDealtCard,
         .currentStreet = state.currentStreet,
     };
 

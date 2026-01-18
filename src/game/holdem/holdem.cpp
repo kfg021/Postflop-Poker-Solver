@@ -123,6 +123,7 @@ GameState Holdem::getInitialGameState() const {
         .previousStreetsWager = m_settings.startingPlayerWagers,
         .playerToAct = Player::P0,
         .lastAction = static_cast<ActionID>(Action::StreetStart),
+        .lastDealtCard = InvalidCard,
         .currentStreet = getStartingStreet()
     };
     return initialState;
@@ -288,6 +289,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
         .previousStreetsWager = state.previousStreetsWager,
         .playerToAct = getOpposingPlayer(state.playerToAct),
         .lastAction = actionID,
+        .lastDealtCard = state.lastDealtCard,
         .currentStreet = state.currentStreet,
     };
 

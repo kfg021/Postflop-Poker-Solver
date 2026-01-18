@@ -3,7 +3,6 @@
 
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
-#include "solver/node.hpp"
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 #include "util/stack_allocator.hpp"
@@ -58,6 +57,6 @@ float calculateExploitability(const IGameRules& rules, Tree& tree, StackAllocato
 
 float calculateExploitabilityFast(const IGameRules& rules, Tree& tree, StackAllocator<float>& allocator);
 
-FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const DecisionNode& decisionNode, const Tree& tree);
+FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const Node& decisionNode, const Tree& tree);
 
 #endif // CFR_HPP

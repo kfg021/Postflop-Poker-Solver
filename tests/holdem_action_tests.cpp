@@ -55,18 +55,19 @@ enum HoldemActionID : std::uint8_t {
 };
 
 GameState getStateAfterChance(const GameState& state) {
-    CardSet turn = cardIDToSet(getCardIDFromValueAndSuit(Value::Five, Suit::Clubs));
-    CardSet river = cardIDToSet(getCardIDFromValueAndSuit(Value::Six, Suit::Diamonds));
+    CardID turn = getCardIDFromValueAndSuit(Value::Five, Suit::Clubs);
+    CardID river = getCardIDFromValueAndSuit(Value::Six, Suit::Diamonds);
 
     Street nextStreet = getNextStreet(state.currentStreet);
-    CardSet nextCard = (nextStreet == Street::Turn) ? turn : river;
+    CardID nextCard = (nextStreet == Street::Turn) ? turn : river;
 
     GameState nextState = {
-        .currentBoard = state.currentBoard | nextCard,
+        .currentBoard = state.currentBoard | cardIDToSet(nextCard),
         .totalWagers = state.totalWagers,
         .previousStreetsWager = state.totalWagers[Player::P0],
         .playerToAct = Player::P0,
         .lastAction = 0,
+        .lastDealtCard = nextCard,
         .currentStreet = nextStreet
     };
 
