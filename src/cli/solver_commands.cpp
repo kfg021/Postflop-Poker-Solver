@@ -352,6 +352,7 @@ bool handleNodeInfo(SolverContext& context) {
     };
 
     auto getActionString = [&context](int action) -> std::string {
+        assert(!context.nodePath.empty());
         const Node& node = context.tree->allNodes[context.nodePath.back()];
         const Node& nextNode = context.tree->allNodes[node.childrenOffset + action];
 
@@ -561,6 +562,21 @@ bool handleSolve(SolverContext& context) {
     return handleRoot(context);
 }
 
+bool handleStrategy(SolverContext& context) {
+    if (!isContextValid(context)) {
+        printInvalidContextError();
+        return false;
+    }
+
+    if (!isTreeSolved(context)) {
+        printUnsolvedTreeError();
+        return false;
+    }
+
+    std::cerr << "Error: Not implemented yet.\n";
+    return false;
+}
+
 bool handleAction(SolverContext& context, const std::string& argument) {
     if (!isContextValid(context)) {
         printInvalidContextError();
@@ -572,6 +588,7 @@ bool handleAction(SolverContext& context, const std::string& argument) {
         return false;
     }
 
+    assert(!context.nodePath.empty());
     const Node& node = context.tree->allNodes[context.nodePath.back()];
     if (node.nodeType != NodeType::Decision) {
         std::cerr << "Error: Current node is not a decision node.\n";
@@ -594,6 +611,28 @@ bool handleAction(SolverContext& context, const std::string& argument) {
 
     // Print node info for new node
     return handleNodeInfo(context);
+}
+
+bool handleChance(SolverContext& context, const std::string& argument) {
+    if (!isContextValid(context)) {
+        printInvalidContextError();
+        return false;
+    }
+
+    if (!isTreeSolved(context)) {
+        printUnsolvedTreeError();
+        return false;
+    }
+
+    assert(!context.nodePath.empty());
+    const Node& node = context.tree->allNodes[context.nodePath.back()];
+    if (node.nodeType != NodeType::Chance) {
+        std::cerr << "Error: Current node is not a chance node.\n";
+        return false;
+    }
+
+    std::cerr << "Error: Not implemented yet.\n";
+    return false;
 }
 
 bool handleBack(SolverContext& context) {
@@ -661,12 +700,12 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
         [&context]() { return handleNodeInfo(context); }
     );
 
-    // allSuccess &= dispatcher.registerCommand(
-    //     "strategy",
-    //     "hand-class"
-    //     "Prints the optimal strategies for all hands of a particular class.",
-    //     [&context]() { return handleStrategy(context); }
-    // );
+    allSuccess &= dispatcher.registerCommand(
+        "strategy",
+        "hand-class"
+        "Prints the optimal strategies for all hands of a particular class.",
+        [&context]() { return handleStrategy(context); }
+    );
 
     allSuccess &= dispatcher.registerCommand(
         "action",
@@ -675,12 +714,12 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
         [&context](const std::string& argument) { return handleAction(context, argument); }
     );
 
-    // allSuccess &= dispatcher.registerCommand(
-    //     "chance",
-    //     "card",
-    //     "Moves to the child node corresponding to the given chance card. Valid chance cards can be found by running \"info\" for chance nodes only.",
-    //     [&context](const std::string& argument) { return handleChance(context); }
-    // );
+    allSuccess &= dispatcher.registerCommand(
+        "chance",
+        "card",
+        "Moves to the child node corresponding to the given chance card. Valid chance cards can be found by running \"info\" for chance nodes only.",
+        [&context](const std::string& argument) { return handleChance(context, argument); }
+    );
 
     allSuccess &= dispatcher.registerCommand(
         "back",
