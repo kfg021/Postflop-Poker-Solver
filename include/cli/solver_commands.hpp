@@ -5,7 +5,9 @@
 #include "game/game_rules.hpp"
 #include "solver/tree.hpp"
 
+#include <cstddef>
 #include <memory>
+#include <vector>
 
 struct SolverContext {
     std::unique_ptr<IGameRules> rules;
@@ -14,6 +16,7 @@ struct SolverContext {
     int maxIterations;
     int exploitabilityCheckFrequency;
     int numThreads;
+    std::vector<std::size_t> nodePath;
 };
 
 bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context);

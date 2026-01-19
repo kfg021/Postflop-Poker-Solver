@@ -4,6 +4,7 @@
 #include "util/fixed_vector.hpp"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <span>

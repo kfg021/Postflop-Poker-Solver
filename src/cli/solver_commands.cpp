@@ -3,6 +3,7 @@
 #include "cli/cli_dispatcher.hpp"
 #include "game/game_rules.hpp"
 #include "game/game_types.hpp"
+#include "game/game_utils.hpp"
 #include "game/holdem/holdem_parser.hpp"
 #include "game/holdem/holdem.hpp"
 #include "game/kuhn_poker.hpp"
@@ -12,8 +13,10 @@
 #include "util/stack_allocator.hpp"
 #include "util/string_utils.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -44,6 +47,14 @@ void buildTreeSkeletonIfNeeded(SolverContext& context) {
         context.tree->buildTreeSkeleton(*context.rules);
         std::cout << "Finished building tree skeleton.\n\n";
     }
+}
+
+bool isTreeSolved(SolverContext& context) {
+    return isContextValid(context) && context.tree->areCfrVectorsInitialized();
+}
+
+void printUnsolvedTreeError() {
+    std::cerr << "Error: Tree must be solved first.\n";
 }
 
 template <typename T>
@@ -312,6 +323,126 @@ bool handleEstimateTreeSize(SolverContext& context) {
     return true;
 }
 
+bool handleNodeInfo(SolverContext& context) {
+    auto getNodeTypeString = [](NodeType nodeType) -> std::string {
+        switch (nodeType) {
+            case NodeType::Chance:
+                return "Chance";
+            case NodeType::Decision:
+                return "Decision";
+            case NodeType::Fold:
+                return "Fold";
+            case NodeType::Showdown:
+                return "Showdown";
+            default:
+                assert(false);
+                return "???";
+        }
+    };
+
+    // TODO: Prints cards in descending order regardless of if they came on turn/river
+    auto getBoardString = [](CardSet board) -> std::string {
+        std::vector<std::string> boardCards = getCardSetNames(board);
+        if (boardCards.empty()) {
+            return "Empty";
+        }
+        else {
+            return join(boardCards, " ");
+        }
+    };
+
+    auto getActionString = [&context](int action) -> std::string {
+        const Node& node = context.tree->allNodes[context.nodePath.back()];
+        const Node& nextNode = context.tree->allNodes[node.childrenOffset + action];
+
+        int lastBetTotal = std::max(nextNode.state.totalWagers[Player::P0], nextNode.state.totalWagers[Player::P1]);
+        int betOrRaiseSize = lastBetTotal - node.state.previousStreetsWager;
+
+        return context.rules->getActionName(nextNode.state.lastAction, betOrRaiseSize);
+    };
+
+    if (!isContextValid(context)) {
+        printInvalidContextError();
+        return false;
+    }
+
+    if (!isTreeSolved(context)) {
+        printUnsolvedTreeError();
+        return false;
+    }
+
+    static constexpr PlayerArray<std::string> playerNames = { "OOP", "IP" };
+
+    assert(!context.nodePath.empty());
+    const Node& node = context.tree->allNodes[context.nodePath.back()];
+
+    int oopWager = node.state.totalWagers[Player::P0];
+    int ipWager = node.state.totalWagers[Player::P1];
+    int deadMoney = context.tree->deadMoney;
+
+    // TODO: Print series of events that led to this node
+    std::cout << "Node type: " << getNodeTypeString(node.nodeType) << "\n";
+    std::cout << "Board: " << getBoardString(node.state.currentBoard) << "\n";
+    std::cout << "OOP wager: " << oopWager << "\n";
+    std::cout << "IP wager: " << ipWager << "\n";
+    if (deadMoney > 0) {
+        std::cout << "Dead money in pot: " << deadMoney << "\n";
+    }
+    std::cout << "Total pot size: " << oopWager + ipWager + deadMoney << "\n";
+
+    switch (node.nodeType) {
+        case NodeType::Chance: {
+            std::cout << "Possible cards: ";
+            int numTotalChanceCards = getSetSize(node.availableCards);
+            CardSet temp = node.availableCards;
+            for (int i = 0; i < numTotalChanceCards; ++i) {
+                std::cout << getNameFromCardID(popLowestCardFromSet(temp)) << " ";
+            }
+            assert(temp == 0);
+            std::cout << "\n";
+
+            return true;
+        }
+
+        case NodeType::Decision:
+            std::cout << "Player to act: " << playerNames[node.state.playerToAct] << "\n";
+            for (int action = 0; action < node.numChildren; ++action) {
+                std::cout << "    [" << action << "] " << getActionString(action) << "\n";
+            }
+
+            return true;
+
+        case NodeType::Fold:
+            std::cout << playerNames[node.state.playerToAct] << " wins\n";
+            return true;
+
+        case NodeType::Showdown:
+            return true;
+
+        default:
+            assert(false);
+            return false;
+
+    }
+}
+
+bool handleRoot(SolverContext& context) {
+    if (!isContextValid(context)) {
+        printInvalidContextError();
+        return false;
+    }
+
+    if (!isTreeSolved(context)) {
+        printUnsolvedTreeError();
+        return false;
+    }
+
+    context.nodePath = { context.tree->getRootNodeIndex() };
+
+    // Print node info for root node
+    return handleNodeInfo(context);
+}
+
 bool handleSolve(SolverContext& context) {
     struct CfrResult {
         float exploitability;
@@ -368,11 +499,11 @@ bool handleSolve(SolverContext& context) {
     }
 
     buildTreeSkeletonIfNeeded(context);
-    
+
     std::cout << "Allocating memory...\n" << std::flush;
     context.tree->initCfrVectors();
     std::cout << "Finished allocating memory.\n\n";
-    
+
     std::optional<CfrResult> resultOption;
 
     #ifdef _OPENMP
@@ -424,9 +555,68 @@ bool handleSolve(SolverContext& context) {
         std::cout << formatBytes(stackUsages[i]);
         if (i < context.numThreads - 1) std::cout << ", ";
     }
-    std::cout << "\n";
+    std::cout << "\n\n";
 
-    return true;
+    // Start traversal at the root
+    return handleRoot(context);
+}
+
+bool handleAction(SolverContext& context, const std::string& argument) {
+    if (!isContextValid(context)) {
+        printInvalidContextError();
+        return false;
+    }
+
+    if (!isTreeSolved(context)) {
+        printUnsolvedTreeError();
+        return false;
+    }
+
+    const Node& node = context.tree->allNodes[context.nodePath.back()];
+    if (node.nodeType != NodeType::Decision) {
+        std::cerr << "Error: Current node is not a decision node.\n";
+        return false;
+    }
+
+    std::optional<int> actionOption = parseInt(argument);
+    if (!actionOption) {
+        std::cerr << "Error: Action is not a valid integer.\n";
+        return false;
+    }
+
+    int action = *actionOption;
+    if (action < 0 || action >= node.numChildren) {
+        std::cerr << "Error: Action id is out of range.\n";
+        return false;
+    }
+
+    context.nodePath.push_back(node.childrenOffset + action);
+
+    // Print node info for new node
+    return handleNodeInfo(context);
+}
+
+bool handleBack(SolverContext& context) {
+    if (!isContextValid(context)) {
+        printInvalidContextError();
+        return false;
+    }
+
+    if (!isTreeSolved(context)) {
+        printUnsolvedTreeError();
+        return false;
+    }
+
+    assert(!context.nodePath.empty());
+    if (context.nodePath.size() == 1) {
+        std::cerr << "Error: Already at root.\n";
+        return false;
+    }
+
+    context.nodePath.pop_back();
+
+    // Print node info for new node
+    return handleNodeInfo(context);
 }
 
 } // namespace
@@ -455,7 +645,7 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
 
     allSuccess &= dispatcher.registerCommand(
         "tree-size",
-        "Provides an estimate of the size of the tree. Game settings must be loaded first.",
+        "Provides an estimate of the size of the tree.",
         [&context]() { return handleEstimateTreeSize(context); }
     );
 
@@ -465,7 +655,44 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
         [&context]() { return handleSolve(context); }
     );
 
-    // TODO: Add node exploring
+    allSuccess &= dispatcher.registerCommand(
+        "info",
+        "Prints information about the current node.",
+        [&context]() { return handleNodeInfo(context); }
+    );
+
+    // allSuccess &= dispatcher.registerCommand(
+    //     "strategy",
+    //     "hand-class"
+    //     "Prints the optimal strategies for all hands of a particular class.",
+    //     [&context]() { return handleStrategy(context); }
+    // );
+
+    allSuccess &= dispatcher.registerCommand(
+        "action",
+        "id",
+        "Moves to the child node corresponding to the given action id. Valid ation ids can be found by running \"info\" for decision nodes only.",
+        [&context](const std::string& argument) { return handleAction(context, argument); }
+    );
+
+    // allSuccess &= dispatcher.registerCommand(
+    //     "chance",
+    //     "card",
+    //     "Moves to the child node corresponding to the given chance card. Valid chance cards can be found by running \"info\" for chance nodes only.",
+    //     [&context](const std::string& argument) { return handleChance(context); }
+    // );
+
+    allSuccess &= dispatcher.registerCommand(
+        "back",
+        "Returns to the parent of the current node.",
+        [&context]() { return handleBack(context); }
+    );
+
+    allSuccess &= dispatcher.registerCommand(
+        "root",
+        "Returns to the root node.",
+        [&context]() { return handleRoot(context); }
+    );
 
     return allSuccess;
 }

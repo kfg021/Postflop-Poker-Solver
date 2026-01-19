@@ -114,6 +114,7 @@ private:
     std::array<T, 3> m_array;
 };
 
+// TODO: Refactor to store the dealt chance cards directly?
 struct GameState {
     CardSet currentBoard;
     PlayerArray<int> totalWagers;

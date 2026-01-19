@@ -4,7 +4,8 @@
 int main() {
     CliDispatcher dispatcher("PostflopSolver", Version{ .major = 1, .minor = 0, .patch = 0 });
     SolverContext context;
-    registerAllCommands(dispatcher, context);
+    bool success = registerAllCommands(dispatcher, context);
+    assert(success);
 
     dispatcher.run();
 

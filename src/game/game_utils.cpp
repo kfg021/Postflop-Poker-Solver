@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <bit>
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -42,6 +43,7 @@ CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
 }
 
 std::string getNameFromCardID(CardID cardID) {
+    assert(cardID < 52);
     Value cardValue = getCardValue(cardID);
     Suit cardSuit = getCardSuit(cardID);
     std::string cardName = { CardValueNames[static_cast<int>(cardValue)], CardSuitNames[static_cast<int>(cardSuit)] };
@@ -78,6 +80,7 @@ int getSetSize(CardSet cardSet) {
 }
 
 bool setContainsCard(CardSet cardSet, CardID cardID) {
+    assert(cardID < 52);
     return (cardSet >> cardID) & 1;
 }
 
