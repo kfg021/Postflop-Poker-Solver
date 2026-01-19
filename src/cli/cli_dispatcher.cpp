@@ -108,7 +108,7 @@ bool CliDispatcher::handleHelp() const {
         std::cout << name;
 
         if (m_commandArguments.find(name) != m_commandArguments.end()) {
-            std::cout << " <" << m_commandArguments.at(name) << "> ";
+            std::cout << " <" << m_commandArguments.at(name) << ">";
         }
 
         std::cout << ": " << m_commandDescriptions.at(name) << "\n";
