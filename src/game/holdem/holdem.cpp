@@ -36,11 +36,11 @@ static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
 int mapTwoCardSetToIndex(CardSet cardSet) {
     assert(getSetSize(cardSet) == 2);
 
-    int card0Index = static_cast<int>(popLowestCardFromSet(cardSet));
-    int card1Index = static_cast<int>(popLowestCardFromSet(cardSet));
+    CardID x = popLowestCardFromSet(cardSet);
+    CardID y = popLowestCardFromSet(cardSet);
     assert(cardSet == 0);
 
-    int finalIndex = card0Index + (card1Index * (card1Index - 1)) / 2;
+    int finalIndex = x + ((y * (y - 1)) >> 1);
     assert(finalIndex < holdem::NumPossibleTwoCardHands);
     return finalIndex;
 }

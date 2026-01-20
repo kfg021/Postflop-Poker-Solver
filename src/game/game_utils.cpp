@@ -134,13 +134,5 @@ std::vector<std::string> getCardSetNames(CardSet cardSet) {
 }
 
 Street getNextStreet(Street street) {
-    switch (street) {
-        case Street::Flop:
-            return Street::Turn;
-        case Street::Turn:
-            return Street::River;
-        default:
-            assert(false);
-            return Street::River;
-    }
+    return static_cast<Street>(static_cast<int>(street) + 1);
 }
