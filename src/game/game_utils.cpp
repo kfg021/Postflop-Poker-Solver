@@ -84,6 +84,10 @@ bool setContainsCard(CardSet cardSet, CardID cardID) {
     return (cardSet >> cardID) & 1;
 }
 
+bool doSetsOverlap(CardSet x, CardSet y) {
+    return (x & y) != 0;
+}
+
 CardID getLowestCardInSet(CardSet cardSet) {
     assert(getSetSize(cardSet) > 0);
 

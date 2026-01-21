@@ -40,10 +40,6 @@ PlayerArray<std::vector<std::int16_t>> buildSameHandIndexTable(const IGameRules&
 }
 
 double getTotalRangeWeight(const IGameRules& rules) {
-    auto doSetsOverlap = [](CardSet x, CardSet y) -> bool {
-        return (x & y) != 0;
-    };
-
     const auto& player0RangeWeights = rules.getInitialRangeWeights(Player::P0);
     const auto& player1RangeWeights = rules.getInitialRangeWeights(Player::P1);
 

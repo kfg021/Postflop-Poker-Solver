@@ -10,6 +10,7 @@
 #include "game/leduc_poker.hpp"
 #include "solver/cfr.hpp"
 #include "solver/tree.hpp"
+#include "util/fixed_vector.hpp"
 #include "util/result.hpp"
 #include "util/stack_allocator.hpp"
 #include "util/string_utils.hpp"
@@ -588,7 +589,7 @@ bool handleSolve(SolverContext& context) {
     return handleRoot(context);
 }
 
-bool handleStrategy(SolverContext& context) {
+bool handleStrategy(SolverContext& context, const std::string& argument) {
     if (!isContextValid(context)) {
         printInvalidContextError();
         return false;
@@ -599,8 +600,133 @@ bool handleStrategy(SolverContext& context) {
         return false;
     }
 
-    std::cerr << "Error: Not implemented yet.\n";
-    return false;
+    assert(!context.nodePath.empty());
+    const Node& node = context.tree->allNodes[context.nodePath.back().index];
+    if (node.nodeType != NodeType::Decision) {
+        std::cerr << "Error: Current node is not a decision node.\n";
+        return false;
+    }
+
+    CardSet hand;
+    switch (context.tree->gameHandSize) {
+        case 1: {
+            Result<CardID> cardResult = getCardIDFromName(argument);
+            if (cardResult.isError()) {
+                std::cerr << cardResult.getError() << "\n";
+                return false;
+            }
+            hand = cardIDToSet(cardResult.getValue());
+
+            break;
+        }
+
+        case 2: {
+            if (argument.size() != 4) {
+                std::cerr << "Error: A two card hand must be provided. (Example: AsKh)\n";
+                return false;
+            }
+
+            Result<CardID> card0Result = getCardIDFromName(argument.substr(0, 2));
+            if (card0Result.isError()) {
+                std::cerr << card0Result.getError() << "\n";
+                return false;
+            }
+
+            Result<CardID> card1Result = getCardIDFromName(argument.substr(2));
+            if (card1Result.isError()) {
+                std::cerr << card1Result.getError() << "\n";
+                return false;
+            }
+
+            CardID card0 = card0Result.getValue();
+            CardID card1 = card1Result.getValue();
+
+            if (card0 == card1) {
+                std::cerr << "Error: Hand must contain two unique cards.\n";
+                return false;
+            }
+
+            hand = cardIDToSet(card0) | cardIDToSet(card1);
+
+            break;
+        }
+
+        default:
+            assert(false);
+            return false;
+    }
+
+    Player playerToAct = node.state.playerToAct;
+    const auto& rangeHands = context.rules->getRangeHands(playerToAct);
+
+    // Find out which index in the current player's range this hand corresponds to
+    int handIndex = -1;
+    for (int i = 0; i < rangeHands.size(); ++i) {
+        if (hand == rangeHands[i]) {
+            handIndex = i;
+            break;
+        }
+    }
+    if (handIndex == -1) {
+        std::cerr << "Error: " << argument << " is not present in the current player's range\n";
+        return false;
+    }
+
+    assert(!doSetsOverlap(hand, context.rules->getInitialGameState().currentBoard));
+
+    double handWeight = static_cast<double>(context.rules->getInitialRangeWeights(playerToAct)[handIndex]);
+
+    assert(!context.nodePath.empty());
+    for (int i = 0; i < static_cast<int>(context.nodePath.size()) - 1; ++i) {
+        const Node& currentNode = context.tree->allNodes[context.nodePath[i].index];
+        const Node& nextNode = context.tree->allNodes[context.nodePath[i + 1].index];
+        std::optional<SuitMapping> swapList = context.nodePath[i + 1].swapList;
+
+        switch (currentNode.nodeType) {
+            case NodeType::Chance: {
+                if (swapList) {
+                    // We need to swap our hand index to reflect the swapped suits
+                    handIndex = context.rules->getHandIndexAfterSuitSwap(playerToAct, handIndex, swapList->child, swapList->parent);
+                }
+
+                // Exit if the most recently added chance card overlaps with our hand
+                CardID lastDealtCard = nextNode.state.lastDealtCard;
+                if (setContainsCard(rangeHands[handIndex], lastDealtCard)) {
+                    std::cerr << "Error: Hand " << argument << " is not possible given the board\n";
+                    return false;
+                }
+
+                break;
+            }
+
+            case NodeType::Decision:
+                assert(!swapList);
+                if (currentNode.state.playerToAct == playerToAct) {
+                    // This is a strategy node for the current player, multiply the hand weight by the strategy for the action we took
+                    int actionIndexTaken = context.nodePath[i + 1].index - currentNode.childrenOffset;
+                    assert((actionIndexTaken >= 0) && (actionIndexTaken <= currentNode.numChildren));
+                    FixedVector<float, MaxNumActions> finalStrategy = getFinalStrategy(handIndex, currentNode, *context.tree);
+                    handWeight *= static_cast<double>(finalStrategy[actionIndexTaken]);
+                }
+                break;
+
+            case NodeType::Fold:
+            case NodeType::Showdown:
+            default:
+                assert(false);
+                return false;
+
+        }
+    }
+
+    // Print the final strategy
+    FixedVector<float, MaxNumActions> finalStrategy = getFinalStrategy(handIndex, node, *context.tree);
+    std::cout << std::fixed << std::setprecision(3) << "Weight: " << handWeight << "\n";
+    for (int action = 0; action < static_cast<int>(finalStrategy.size()); ++action) {
+        std::cout << "    [" << action << "] " << finalStrategy[action] << "\n";
+    }
+
+    return true;
 }
 
 bool handleAction(SolverContext& context, const std::string& argument) {
@@ -779,9 +905,9 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
 
     allSuccess &= dispatcher.registerCommand(
         "strategy",
-        "hand-class"
-        "Prints the optimal strategies for all hands of a particular class.",
-        [&context]() { return handleStrategy(context); }
+        "hand",
+        "Prints the optimal strategy for a particular hand.",
+        [&context](const std::string& argument) { return handleStrategy(context, argument); }
     );
 
     allSuccess &= dispatcher.registerCommand(

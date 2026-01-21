@@ -22,6 +22,7 @@ Result<CardID> getCardIDFromName(const std::string& cardName);
 CardSet cardIDToSet(CardID cardID);
 int getSetSize(CardSet cardSet);
 bool setContainsCard(CardSet cardSet, CardID cardID);
+bool doSetsOverlap(CardSet x, CardSet y);
 CardID getLowestCardInSet(CardSet cardSet);
 CardID popLowestCardFromSet(CardSet& cardSet);
 CardSet filterCardsWithSuit(CardSet cardSet, Suit suit);
