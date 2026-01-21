@@ -10,6 +10,7 @@
 #include "game/leduc_poker.hpp"
 #include "solver/cfr.hpp"
 #include "solver/tree.hpp"
+#include "util/result.hpp"
 #include "util/stack_allocator.hpp"
 #include "util/string_utils.hpp"
 
@@ -340,9 +341,34 @@ bool handleNodeInfo(SolverContext& context) {
         }
     };
 
-    // TODO: Prints cards in descending order regardless of if they came on turn/river
-    auto getBoardString = [](CardSet board) -> std::string {
-        std::vector<std::string> boardCards = getCardSetNames(board);
+    auto getBoardString = [&context]() -> std::string {
+        // First get the cards from the starting board
+        std::vector<std::string> boardCards = getCardSetNames(context.rules->getInitialGameState().currentBoard);
+
+        // Then get turn/river cards, applying suit swap lists if needed
+        CardID lastChanceCard = InvalidCard;
+        std::optional<SuitMapping> lastSwapList;
+        for (const auto& [index, swapList] : context.nodePath) {
+            const Node& currentNode = context.tree->allNodes[index];
+            CardID lastDealtCard = currentNode.state.lastDealtCard;
+            if (lastDealtCard != lastChanceCard) {
+                // We've reached a new chance card, add it to the board after applying swap lists
+                // To go from tree suits to user suits, we need to apply the swaps in reverse order
+                // There can be at most 2 swap lists, one for turn and one for river
+                CardID cardToAdd = lastDealtCard;
+                if (swapList) {
+                    cardToAdd = swapCardSuits(cardToAdd, swapList->child, swapList->parent);
+                }
+                if (lastSwapList) {
+                    cardToAdd = swapCardSuits(cardToAdd, lastSwapList->child, lastSwapList->parent);
+                }
+                boardCards.push_back(getNameFromCardID(cardToAdd));
+
+                lastChanceCard = lastDealtCard;
+                lastSwapList = swapList;
+            }
+        }
+
         if (boardCards.empty()) {
             return "Empty";
         }
@@ -353,7 +379,7 @@ bool handleNodeInfo(SolverContext& context) {
 
     auto getActionString = [&context](int action) -> std::string {
         assert(!context.nodePath.empty());
-        const Node& node = context.tree->allNodes[context.nodePath.back()];
+        const Node& node = context.tree->allNodes[context.nodePath.back().index];
         const Node& nextNode = context.tree->allNodes[node.childrenOffset + action];
 
         int lastBetTotal = std::max(nextNode.state.totalWagers[Player::P0], nextNode.state.totalWagers[Player::P1]);
@@ -375,7 +401,7 @@ bool handleNodeInfo(SolverContext& context) {
     static constexpr PlayerArray<std::string> playerNames = { "OOP", "IP" };
 
     assert(!context.nodePath.empty());
-    const Node& node = context.tree->allNodes[context.nodePath.back()];
+    const Node& node = context.tree->allNodes[context.nodePath.back().index];
 
     int oopWager = node.state.totalWagers[Player::P0];
     int ipWager = node.state.totalWagers[Player::P1];
@@ -383,7 +409,7 @@ bool handleNodeInfo(SolverContext& context) {
 
     // TODO: Print series of events that led to this node
     std::cout << "Node type: " << getNodeTypeString(node.nodeType) << "\n";
-    std::cout << "Board: " << getBoardString(node.state.currentBoard) << "\n";
+    std::cout << "Board: " << getBoardString() << "\n";
     std::cout << "OOP wager: " << oopWager << "\n";
     std::cout << "IP wager: " << ipWager << "\n";
     if (deadMoney > 0) {
@@ -438,7 +464,7 @@ bool handleRoot(SolverContext& context) {
         return false;
     }
 
-    context.nodePath = { context.tree->getRootNodeIndex() };
+    context.nodePath = { { context.tree->getRootNodeIndex(), std::nullopt } };
 
     // Print node info for root node
     return handleNodeInfo(context);
@@ -589,7 +615,7 @@ bool handleAction(SolverContext& context, const std::string& argument) {
     }
 
     assert(!context.nodePath.empty());
-    const Node& node = context.tree->allNodes[context.nodePath.back()];
+    const Node& node = context.tree->allNodes[context.nodePath.back().index];
     if (node.nodeType != NodeType::Decision) {
         std::cerr << "Error: Current node is not a decision node.\n";
         return false;
@@ -607,13 +633,13 @@ bool handleAction(SolverContext& context, const std::string& argument) {
         return false;
     }
 
-    context.nodePath.push_back(node.childrenOffset + action);
+    context.nodePath.push_back({ node.childrenOffset + action, std::nullopt });
 
     // Print node info for new node
     return handleNodeInfo(context);
 }
 
-bool handleChance(SolverContext& context, const std::string& argument) {
+bool handleDeal(SolverContext& context, const std::string& argument) {
     if (!isContextValid(context)) {
         printInvalidContextError();
         return false;
@@ -625,13 +651,64 @@ bool handleChance(SolverContext& context, const std::string& argument) {
     }
 
     assert(!context.nodePath.empty());
-    const Node& node = context.tree->allNodes[context.nodePath.back()];
+    const Node& node = context.tree->allNodes[context.nodePath.back().index];
     if (node.nodeType != NodeType::Chance) {
         std::cerr << "Error: Current node is not a chance node.\n";
         return false;
     }
 
-    std::cerr << "Error: Not implemented yet.\n";
+    Result<CardID> cardResult = getCardIDFromName(argument);
+    if (cardResult.isError()) {
+        std::cerr << cardResult.getError() << "\n";
+        return false;
+    }
+
+    CardID dealCard = cardResult.getValue();
+    if (!setContainsCard(node.availableCards, dealCard)) {
+        std::cerr << "Error: Card is not available to be dealt.\n";
+        return false;
+    }
+
+    // Apply swap list from previous nodes
+    // There can only be one, since at most the turn could have happened before this
+    for (const auto& [index, swapList] : context.nodePath) {
+        if (swapList) {
+            dealCard = swapCardSuits(dealCard, swapList->child, swapList->parent);
+            break;
+        }
+    }
+
+    // Because of isomorphism, the card might not actually exist in the tree
+    std::optional<SuitMapping> swapList;
+    bool foundIsomorphism = false;
+    for (SuitMapping mapping : node.suitMappings) {
+        if (getCardSuit(dealCard) == mapping.child) {
+            swapList = mapping;
+            break;
+        }
+    }
+
+    CardID isomorphicDealCard;
+    if (swapList) {
+        isomorphicDealCard = getCardIDFromValueAndSuit(getCardValue(dealCard), swapList->parent);
+    }
+    else {
+        isomorphicDealCard = dealCard;
+    }
+
+    for (int cardIndex = 0; cardIndex < node.numChildren; ++cardIndex) {
+        CardID card = context.tree->allNodes[node.childrenOffset + cardIndex].state.lastDealtCard;
+        assert(card != InvalidCard);
+
+        if (card == isomorphicDealCard) {
+            context.nodePath.push_back({ node.childrenOffset + cardIndex, swapList });
+
+            // Print node info for new node
+            return handleNodeInfo(context);
+        }
+    }
+
+    assert(false);
     return false;
 }
 
@@ -683,7 +760,7 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
     );
 
     allSuccess &= dispatcher.registerCommand(
-        "tree-size",
+        "size",
         "Provides an estimate of the size of the tree.",
         [&context]() { return handleEstimateTreeSize(context); }
     );
@@ -710,20 +787,20 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
     allSuccess &= dispatcher.registerCommand(
         "action",
         "id",
-        "Moves to the child node corresponding to the given action id. Valid ation ids can be found by running \"info\" for decision nodes only.",
+        "Simulates playing the action corresponding to the given id. Valid actions can be found by running \"info\" for decision nodes only.",
         [&context](const std::string& argument) { return handleAction(context, argument); }
     );
 
     allSuccess &= dispatcher.registerCommand(
-        "chance",
+        "deal",
         "card",
-        "Moves to the child node corresponding to the given chance card. Valid chance cards can be found by running \"info\" for chance nodes only.",
-        [&context](const std::string& argument) { return handleChance(context, argument); }
+        "Deals the given card at a chance node. Valid cards can be found by running \"info\" for chance nodes only.",
+        [&context](const std::string& argument) { return handleDeal(context, argument); }
     );
 
     allSuccess &= dispatcher.registerCommand(
         "back",
-        "Returns to the parent of the current node.",
+        "Undoes an action or a deal by returning to the parent of the current node.",
         [&context]() { return handleBack(context); }
     );
 

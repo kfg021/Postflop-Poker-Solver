@@ -25,7 +25,8 @@ bool setContainsCard(CardSet cardSet, CardID cardID);
 CardID getLowestCardInSet(CardSet cardSet);
 CardID popLowestCardFromSet(CardSet& cardSet);
 CardSet filterCardsWithSuit(CardSet cardSet, Suit suit);
-CardSet swapSuits(CardSet cardSet, Suit x, Suit y);
+CardID swapCardSuits(CardID cardID, Suit x, Suit y);
+CardSet swapSetSuits(CardSet cardSet, Suit x, Suit y);
 std::vector<std::string> getCardSetNames(CardSet cardSet);
 
 // Street functions

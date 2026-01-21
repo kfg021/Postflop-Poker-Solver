@@ -3,11 +3,19 @@
 
 #include "cli/cli_dispatcher.hpp"
 #include "game/game_rules.hpp"
+#include "game/game_types.hpp"
 #include "solver/tree.hpp"
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <vector>
+
+// TODO: Suit permutation list for each node
+struct NodeInfo {
+    std::size_t index;
+    std::optional<SuitMapping> swapList;
+};
 
 struct SolverContext {
     std::unique_ptr<IGameRules> rules;
@@ -16,7 +24,7 @@ struct SolverContext {
     int maxIterations;
     int exploitabilityCheckFrequency;
     int numThreads;
-    std::vector<std::size_t> nodePath;
+    std::vector<NodeInfo> nodePath;
 };
 
 bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context);

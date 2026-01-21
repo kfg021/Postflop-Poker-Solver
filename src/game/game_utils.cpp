@@ -104,7 +104,21 @@ CardSet filterCardsWithSuit(CardSet cardSet, Suit suit) {
     return cardSet & (SingleSuitMask << suitID);
 }
 
-CardSet swapSuits(CardSet cardSet, Suit x, Suit y) {
+CardID swapCardSuits(CardID cardID, Suit x, Suit y) {
+    Value value = getCardValue(cardID);
+    Suit suit = getCardSuit(cardID);
+    if (suit == x) {
+        return getCardIDFromValueAndSuit(value, y);
+    }
+    else if (suit == y) {
+        return getCardIDFromValueAndSuit(value, x);
+    }
+    else {
+        return cardID;
+    }
+}
+
+CardSet swapSetSuits(CardSet cardSet, Suit x, Suit y) {
     assert(x != y);
     if (x > y) std::swap(x, y);
 

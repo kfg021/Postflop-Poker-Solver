@@ -437,7 +437,7 @@ std::span<const HandData> Holdem::getValidSortedHandRanks(Player player, CardSet
 int Holdem::getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const {
     assert(m_settings.useChanceCardIsomorphism);
 
-    CardSet swappedHand = swapSuits(m_settings.ranges[player].hands[handIndex], x, y);
+    CardSet swappedHand = swapSetSuits(m_settings.ranges[player].hands[handIndex], x, y);
     int swappedHandIndexInTable = mapTwoCardSetToIndex(swappedHand);
     int swappedHandIndex = m_handIndices[player][swappedHandIndexInTable];
     assert(swappedHandIndex != -1);
@@ -664,12 +664,12 @@ void Holdem::buildHandTables() {
 
                 CardSet suit0Masked = filterCardsWithSuit(m_settings.startingCommunityCards, x);
                 CardSet suit1Masked = filterCardsWithSuit(m_settings.startingCommunityCards, y);
-                bool isStartingBoardSymmetric = swapSuits(suit0Masked, x, y) == suit1Masked;
+                bool isStartingBoardSymmetric = swapSetSuits(suit0Masked, x, y) == suit1Masked;
 
                 auto areStartingRangesSymmetric = [this, x, y]() -> bool {
                     for (Player player : {Player::P0, Player::P1}) {
                         for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
-                            CardSet swappedHand = swapSuits(m_settings.ranges[player].hands[handIndex], x, y);
+                            CardSet swappedHand = swapSetSuits(m_settings.ranges[player].hands[handIndex], x, y);
                             int swappedHandIndexInTable = mapTwoCardSetToIndex(swappedHand);
                             int swappedHandIndex = m_handIndices[player][swappedHandIndexInTable];
 
