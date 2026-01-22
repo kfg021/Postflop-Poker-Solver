@@ -842,7 +842,6 @@ bool handleDeal(SolverContext& context, const std::string& argument) {
 
     // Because of isomorphism, the card might not actually exist in the tree
     std::optional<SuitMapping> swapList;
-    bool foundIsomorphism = false;
     for (SuitMapping mapping : node.suitMappings) {
         if (getCardSuit(dealCard) == mapping.child) {
             swapList = mapping;
