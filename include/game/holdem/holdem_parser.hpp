@@ -11,5 +11,6 @@
 Result<CardSet> buildCommunityCardsFromString(const std::string& communityCardString);
 Result<Holdem::Range> buildRangeFromString(const std::string& rangeString);
 Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardSet communityCards);
+Result<std::vector<CardSet>> getHandClassFromString(const std::string& handClassString);
 
 #endif // HOLDEM_PARSER_HPP

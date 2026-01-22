@@ -42,6 +42,62 @@ Result<Holdem::Range> buildRangeFromString(const std::string& rangeString) {
 
 // TODO: Add support for specific hand combos
 Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardSet communityCards) {
+    std::vector<std::string> rangeStrings = parseTokens(rangeString, ',');
+
+    if (rangeStrings.empty()) {
+        return "Error building range: Range is empty.";
+    }
+
+    Holdem::Range range;
+    std::unordered_set<CardSet> seenHands;
+
+    for (const std::string& rangeElement : rangeStrings) {
+        std::string errorString = "Error building range: \"" + rangeElement + "\" is not a valid range element. ";
+
+        std::size_t colonLoc = rangeElement.find(':');
+
+        std::string handClassString = (colonLoc != std::string::npos) ? rangeElement.substr(0, colonLoc) : rangeElement;
+        Result<std::vector<CardSet>> handClass = getHandClassFromString(handClassString);
+        if (handClass.isError()) {
+            return errorString + handClass.getError();
+        }
+
+        float frequency = 1.0f;
+        if (colonLoc != std::string::npos) {
+            std::optional<float> frequencyOption = parseFloat(rangeElement.substr(colonLoc + 1));
+            if (!frequencyOption) {
+                return errorString + "(Frequency is not a valid float)";
+            }
+
+            frequency = *frequencyOption;
+            if (frequency <= 0.0f || frequency > 1.0f) {
+                return errorString + "(Frequency must be > 0 and <= 1)";
+            }
+        }
+
+        for (CardSet hand : handClass.getValue()) {
+            if (seenHands.find(hand) != seenHands.end()) {
+                return "Error building range: Duplicate range elements.";
+            }
+
+            bool isHandValid = (hand & communityCards) == 0;
+            if (isHandValid) {
+                range.hands.push_back(hand);
+                range.weights.push_back(frequency);
+
+                seenHands.insert(hand);
+            }
+        }
+    }
+
+    if (range.hands.empty()) {
+        return "Error building range: No hands are possible given the starting board.";
+    }
+
+    return range;
+}
+
+Result<std::vector<CardSet>> getHandClassFromString(const std::string& handClassString) {
     auto getValueFromChar = [](char c) -> Result<Value> {
         switch (c) {
             case '2': case '3': case '4': case '5':
@@ -64,110 +120,67 @@ Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardS
         }
     };
 
-    std::vector<std::string> rangeStrings = parseTokens(rangeString, ',');
+    static const std::string ErrorPrefix = "Error parsing hand class: ";
 
-    if (rangeStrings.empty()) {
-        return "Error building range: Range is empty.";
+    if ((handClassString.size() != 2) && (handClassString.size() != 3)) {
+        return ErrorPrefix + "String is incorrect length.";
     }
 
-    Holdem::Range range;
-    std::unordered_set<CardSet> seenHands;
+    Result<Value> value0Result = getValueFromChar(handClassString[0]);
+    if (value0Result.isError()) {
+        return ErrorPrefix + "First character is not a valid card value.";
+    }
 
-    for (const std::string& rangeElement : rangeStrings) {
-        std::string errorString = "Error building range: \"" + rangeElement + "\" is not a valid range element.";
+    Result<Value> value1Result = getValueFromChar(handClassString[1]);
+    if (value1Result.isError()) {
+        return ErrorPrefix + "Second character is not a valid card value.";
+    }
 
-        if (rangeElement.size() < 2) {
-            return errorString + " (Range element too short)";
-        }
+    Value value0 = value0Result.getValue();
+    Value value1 = value1Result.getValue();
 
-        Result<Value> value0Result = getValueFromChar(rangeElement[0]);
-        if (value0Result.isError()) {
-            return errorString + " (Failed to parse first character)";
-        }
+    if (value0 < value1) std::swap(value0, value1);
 
-        Result<Value> value1Result = getValueFromChar(rangeElement[1]);
-        if (value1Result.isError()) {
-            return errorString + " (Failed to parse second character)";
-        }
+    enum class Combos : std::uint8_t {
+        Default,
+        Suited,
+        Offsuit
+    };
 
-        Value value0 = value0Result.getValue();
-        Value value1 = value1Result.getValue();
-
-        if (value0 < value1) std::swap(value0, value1);
-
-        enum class Combos : std::uint8_t {
-            Default,
-            Suited,
-            Offsuit,
-        };
-
-        Combos combos = Combos::Default;
-        if (rangeElement.size() >= 3) {
-            switch (rangeElement[2]) {
-                case 's':
-                    combos = Combos::Suited;
-                    break;
-                case 'o':
-                    combos = Combos::Offsuit;
-                    break;
-                default:
-                    if (rangeElement[2] != ':') {
-                        return errorString + " (Expected colon after hand)";
-                    }
-                    break;
-            }
-        }
-
-        bool isPocketPair = (value0 == value1);
-        if (isPocketPair) {
-            if (combos != Combos::Default) {
-                return errorString;
-            }
-        }
-
-        float frequency = 1.0f;
-        std::size_t colonLoc = rangeElement.find(':');
-        if (colonLoc != std::string::npos) {
-            std::optional<float> frequencyOption = parseFloat(rangeElement.substr(colonLoc + 1));
-            if (!frequencyOption) {
-                return errorString + " (Frequency is not a valid float)";
-            }
-
-            frequency = *frequencyOption;
-            if (frequency <= 0.0f || frequency > 1.0f) {
-                return errorString + " (Frequency must be > 0 and <= 1)";
-            }
-        }
-
-        for (int suit0 = 3; suit0 >= 0; --suit0) {
-            for (int suit1 = 3; suit1 >= 0; --suit1) {
-                if (isPocketPair && (suit0 <= suit1)) continue;
-                if ((combos == Combos::Offsuit) && (suit0 == suit1)) continue;
-                if ((combos == Combos::Suited) && (suit0 != suit1)) continue;
-
-                CardID card0 = getCardIDFromValueAndSuit(static_cast<Value>(value0), static_cast<Suit>(suit0));
-                CardID card1 = getCardIDFromValueAndSuit(static_cast<Value>(value1), static_cast<Suit>(suit1));
-                CardSet hand = cardIDToSet(card0) | cardIDToSet(card1);
-                assert(getSetSize(hand) == 2);
-
-                if (seenHands.find(hand) != seenHands.end()) {
-                    return "Error building range: Duplicate range elements.";
-                }
-
-                bool isHandValid = (hand & communityCards) == 0;
-                if (isHandValid) {
-                    range.hands.push_back(hand);
-                    range.weights.push_back(frequency);
-
-                    seenHands.insert(hand);
-                }
-            }
+    Combos combos = Combos::Default;
+    if (handClassString.size() == 3) {
+        switch (handClassString[2]) {
+            case 's':
+                combos = Combos::Suited;
+                break;
+            case 'o':
+                combos = Combos::Offsuit;
+                break;
+            default:
+                return ErrorPrefix + "Third character must be \"s\" or \"o\".";
         }
     }
 
-    if (range.hands.empty()) {
-        return "Error building range: No hands are possible given the starting board.";
+    bool isPocketPair = (value0 == value1);
+    if (isPocketPair && combos != Combos::Default) {
+        return ErrorPrefix + "Pocket pairs cannot be suited or offsuit";
     }
 
-    return range;
+    std::vector<CardSet> hands;
+    for (int suit0 = 3; suit0 >= 0; --suit0) {
+        for (int suit1 = 3; suit1 >= 0; --suit1) {
+            if (isPocketPair && (suit0 <= suit1)) continue;
+            if ((combos == Combos::Offsuit) && (suit0 == suit1)) continue;
+            if ((combos == Combos::Suited) && (suit0 != suit1)) continue;
+
+            CardID card0 = getCardIDFromValueAndSuit(static_cast<Value>(value0), static_cast<Suit>(suit0));
+            CardID card1 = getCardIDFromValueAndSuit(static_cast<Value>(value1), static_cast<Suit>(suit1));
+
+            CardSet hand = cardIDToSet(card0) | cardIDToSet(card1);
+            assert(getSetSize(hand) == 2);
+            hands.push_back(hand);
+        }
+    }
+
+    return hands;
 }
