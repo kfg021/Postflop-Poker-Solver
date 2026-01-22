@@ -11,7 +11,6 @@
 #include <optional>
 #include <vector>
 
-// TODO: Suit permutation list for each node
 struct NodeInfo {
     std::size_t index;
     std::optional<SuitMapping> swapList;

@@ -284,7 +284,6 @@ bool handleSetupKuhn(SolverContext& context) {
         .numThreads = 1
     };
 
-    // TODO: Print out default settings
     std::cout << "Successfully loaded Kuhn poker.\n";
     return true;
 }
@@ -305,7 +304,6 @@ bool handleSetupLeduc(SolverContext& context) {
         #endif
     };
 
-    // TODO: Print out default settings
     std::cout << "Successfully loaded Leduc poker.\n";
     return true;
 }
@@ -590,6 +588,78 @@ bool handleSolve(SolverContext& context) {
 }
 
 bool handleStrategy(SolverContext& context, const std::string& argument) {
+    struct Strategy {
+        CardSet hand;
+        double weight;
+        FixedVector<float, MaxNumActions> finalStrategy;
+    };
+
+    auto getStrategyForHand = [&context](CardSet hand) -> std::optional<Strategy> {
+        const Node& node = context.tree->allNodes[context.nodePath.back().index];
+        Player playerToAct = node.state.playerToAct;
+        const auto& rangeHands = context.rules->getRangeHands(playerToAct);
+
+        // Find out which index in the current player's range this hand corresponds to
+        int handIndex = -1;
+        for (int i = 0; i < rangeHands.size(); ++i) {
+            if (hand == rangeHands[i]) {
+                handIndex = i;
+                break;
+            }
+        }
+        if (handIndex == -1) {
+            // Hand was not in our range
+            return std::nullopt;
+        }
+
+        assert(!doSetsOverlap(hand, context.rules->getInitialGameState().currentBoard));
+
+        double handWeight = static_cast<double>(context.rules->getInitialRangeWeights(playerToAct)[handIndex]);
+
+        assert(!context.nodePath.empty());
+        for (int i = 0; i < static_cast<int>(context.nodePath.size()) - 1; ++i) {
+            const Node& currentNode = context.tree->allNodes[context.nodePath[i].index];
+            const Node& nextNode = context.tree->allNodes[context.nodePath[i + 1].index];
+            std::optional<SuitMapping> swapList = context.nodePath[i + 1].swapList;
+
+            switch (currentNode.nodeType) {
+                case NodeType::Chance: {
+                    if (swapList) {
+                        // We need to swap our hand index to reflect the swapped suits
+                        handIndex = context.rules->getHandIndexAfterSuitSwap(playerToAct, handIndex, swapList->child, swapList->parent);
+                    }
+
+                    // Exit if the most recently added chance card overlaps with our hand
+                    CardID lastDealtCard = nextNode.state.lastDealtCard;
+                    if (setContainsCard(rangeHands[handIndex], lastDealtCard)) {
+                        return std::nullopt;
+                    }
+
+                    break;
+                }
+
+                case NodeType::Decision:
+                    assert(!swapList);
+                    if (currentNode.state.playerToAct == playerToAct) {
+                        // This is a strategy node for the current player, multiply the hand weight by the strategy for the action we took
+                        int actionIndexTaken = context.nodePath[i + 1].index - currentNode.childrenOffset;
+                        assert((actionIndexTaken >= 0) && (actionIndexTaken <= currentNode.numChildren));
+                        FixedVector<float, MaxNumActions> finalStrategy = getFinalStrategy(handIndex, currentNode, *context.tree);
+                        handWeight *= static_cast<double>(finalStrategy[actionIndexTaken]);
+                    }
+                    break;
+
+                case NodeType::Fold:
+                case NodeType::Showdown:
+                default:
+                    assert(false);
+
+            }
+        }
+
+        return Strategy{ hand, handWeight, getFinalStrategy(handIndex, node, *context.tree) };
+    };
+
     if (!isContextValid(context)) {
         printInvalidContextError();
         return false;
@@ -607,46 +677,45 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
         return false;
     }
 
-    CardSet hand;
+    std::vector<Strategy> strategies;
     switch (context.tree->gameHandSize) {
         case 1: {
-            Result<CardID> cardResult = getCardIDFromName(argument);
-            if (cardResult.isError()) {
-                std::cerr << cardResult.getError() << "\n";
+            if (argument.size() != 1) {
+                std::cerr << "Error: Hand classes for one card hands must be one character (Ex. K, Q, J).\n";
                 return false;
             }
-            hand = cardIDToSet(cardResult.getValue());
+
+            Result<Value> cardValueResult = getValueFromChar(argument[0]);
+            if (cardValueResult.isError()) {
+                std::cerr << cardValueResult.getError() << "\n";
+                return false;
+            }
+
+            for (int suit = 3; suit >= 0; --suit) {
+                CardID card = getCardIDFromValueAndSuit(cardValueResult.getValue(), static_cast<Suit>(suit));
+                CardSet hand = cardIDToSet(card);
+                std::optional<Strategy> strategyOption = getStrategyForHand(hand);
+                if (strategyOption) {
+                    strategies.push_back(*strategyOption);
+                }
+            }
 
             break;
         }
 
         case 2: {
-            if (argument.size() != 4) {
-                std::cerr << "Error: A two card hand must be provided. (Example: AsKh)\n";
+            Result<std::vector<CardSet>> handClassResult = getHandClassFromString(argument);
+            if (handClassResult.isError()) {
+                std::cerr << handClassResult.getError() << "\n";
                 return false;
             }
 
-            Result<CardID> card0Result = getCardIDFromName(argument.substr(0, 2));
-            if (card0Result.isError()) {
-                std::cerr << card0Result.getError() << "\n";
-                return false;
+            for (CardSet hand : handClassResult.getValue()) {
+                std::optional<Strategy> strategyOption = getStrategyForHand(hand);
+                if (strategyOption) {
+                    strategies.push_back(*strategyOption);
+                }
             }
-
-            Result<CardID> card1Result = getCardIDFromName(argument.substr(2));
-            if (card1Result.isError()) {
-                std::cerr << card1Result.getError() << "\n";
-                return false;
-            }
-
-            CardID card0 = card0Result.getValue();
-            CardID card1 = card1Result.getValue();
-
-            if (card0 == card1) {
-                std::cerr << "Error: Hand must contain two unique cards.\n";
-                return false;
-            }
-
-            hand = cardIDToSet(card0) | cardIDToSet(card1);
 
             break;
         }
@@ -656,74 +725,41 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
             return false;
     }
 
-    Player playerToAct = node.state.playerToAct;
-    const auto& rangeHands = context.rules->getRangeHands(playerToAct);
-
-    // Find out which index in the current player's range this hand corresponds to
-    int handIndex = -1;
-    for (int i = 0; i < rangeHands.size(); ++i) {
-        if (hand == rangeHands[i]) {
-            handIndex = i;
-            break;
-        }
-    }
-    if (handIndex == -1) {
-        std::cerr << "Error: " << argument << " is not present in the current player's range\n";
+    if (strategies.empty()) {
+        std::cerr << "Error: Hand class " << argument << " is not present in the current player's range or is blocked by the board.\n";
         return false;
     }
 
-    assert(!doSetsOverlap(hand, context.rules->getInitialGameState().currentBoard));
-
-    double handWeight = static_cast<double>(context.rules->getInitialRangeWeights(playerToAct)[handIndex]);
-
-    assert(!context.nodePath.empty());
-    for (int i = 0; i < static_cast<int>(context.nodePath.size()) - 1; ++i) {
-        const Node& currentNode = context.tree->allNodes[context.nodePath[i].index];
-        const Node& nextNode = context.tree->allNodes[context.nodePath[i + 1].index];
-        std::optional<SuitMapping> swapList = context.nodePath[i + 1].swapList;
-
-        switch (currentNode.nodeType) {
-            case NodeType::Chance: {
-                if (swapList) {
-                    // We need to swap our hand index to reflect the swapped suits
-                    handIndex = context.rules->getHandIndexAfterSuitSwap(playerToAct, handIndex, swapList->child, swapList->parent);
-                }
-
-                // Exit if the most recently added chance card overlaps with our hand
-                CardID lastDealtCard = nextNode.state.lastDealtCard;
-                if (setContainsCard(rangeHands[handIndex], lastDealtCard)) {
-                    std::cerr << "Error: Hand " << argument << " is not possible given the board\n";
-                    return false;
-                }
-
-                break;
-            }
-
-            case NodeType::Decision:
-                assert(!swapList);
-                if (currentNode.state.playerToAct == playerToAct) {
-                    // This is a strategy node for the current player, multiply the hand weight by the strategy for the action we took
-                    int actionIndexTaken = context.nodePath[i + 1].index - currentNode.childrenOffset;
-                    assert((actionIndexTaken >= 0) && (actionIndexTaken <= currentNode.numChildren));
-                    FixedVector<float, MaxNumActions> finalStrategy = getFinalStrategy(handIndex, currentNode, *context.tree);
-                    handWeight *= static_cast<double>(finalStrategy[actionIndexTaken]);
-                }
-                break;
-
-            case NodeType::Fold:
-            case NodeType::Showdown:
-            default:
-                assert(false);
-                return false;
-
-        }
-    }
-
     // Print the final strategy
-    FixedVector<float, MaxNumActions> finalStrategy = getFinalStrategy(handIndex, node, *context.tree);
-    std::cout << std::fixed << std::setprecision(3) << "Weight: " << handWeight << "\n";
-    for (int action = 0; action < static_cast<int>(finalStrategy.size()); ++action) {
-        std::cout << "    [" << action << "] " << finalStrategy[action] << "\n";
+
+    // Print the header
+    std::cout << "Hand | Weight ";
+    for (int i = 0; i < node.numChildren; ++i) {
+        std::cout << "| [" << i << "]   ";
+    }
+    std::cout << "\n";
+    std::cout << "-----+--------";
+    for (int i = 0; i < node.numChildren; ++i) {
+        std::cout << "+-------";
+    }
+    std::cout << "\n";
+
+    // Print the rows
+    std::cout << std::fixed << std::setprecision(3);
+    for (const auto& [hand, weight, strategy] : strategies) {
+        std::string handString = join(getCardSetNames(hand), "");
+        if (handString.size() == 2) {
+            handString += "  ";
+        }
+        assert(handString.size() == 4);
+
+        std::cout << handString << " | " << weight << "  ";
+
+        assert(strategy.size() == node.numChildren);
+        for (float f : strategy) {
+            std::cout << "| " << f << " ";
+        }
+        std::cout << "\n";
     }
 
     return true;
@@ -905,8 +941,8 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
 
     allSuccess &= dispatcher.registerCommand(
         "strategy",
-        "hand",
-        "Prints the optimal strategy for a particular hand.",
+        "hand-class",
+        "Prints the optimal strategy for a particular hand class (ex. AA, AKo, JTs).",
         [&context](const std::string& argument) { return handleStrategy(context, argument); }
     );
 

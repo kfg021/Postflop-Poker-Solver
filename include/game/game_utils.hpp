@@ -30,6 +30,9 @@ CardID swapCardSuits(CardID cardID, Suit x, Suit y);
 CardSet swapSetSuits(CardSet cardSet, Suit x, Suit y);
 std::vector<std::string> getCardSetNames(CardSet cardSet);
 
+// Value functions
+Result<Value> getValueFromChar(char c);
+
 // Street functions
 Street getNextStreet(Street street);
 

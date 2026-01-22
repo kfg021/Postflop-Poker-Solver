@@ -1,6 +1,7 @@
 #include "game/game_utils.hpp"
 
 #include "game/game_types.hpp"
+#include "util/result.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -149,6 +150,28 @@ std::vector<std::string> getCardSetNames(CardSet cardSet) {
     // Descending order
     std::reverse(cardNames.begin(), cardNames.end());
     return cardNames;
+}
+
+Result<Value> getValueFromChar(char c) {
+    switch (c) {
+        case '2': case '3': case '4': case '5':
+        case '6': case '7': case '8': case '9': {
+            int valueID = static_cast<int>(Value::Two) + (c - '2');
+            return static_cast<Value>(valueID);
+        }
+        case 'T':
+            return Value::Ten;
+        case 'J':
+            return Value::Jack;
+        case 'Q':
+            return Value::Queen;
+        case 'K':
+            return Value::King;
+        case 'A':
+            return Value::Ace;
+        default:
+            return "Error: " + std::string{ c } + " is not a valid card value.";
+    }
 }
 
 Street getNextStreet(Street street) {

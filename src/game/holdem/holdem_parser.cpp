@@ -2,10 +2,12 @@
 
 #include "game/game_types.hpp"
 #include "game/game_utils.hpp"
+#include "util/result.hpp"
 #include "util/string_utils.hpp"
 
 #include <algorithm>
 #include <cassert>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -98,28 +100,6 @@ Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardS
 }
 
 Result<std::vector<CardSet>> getHandClassFromString(const std::string& handClassString) {
-    auto getValueFromChar = [](char c) -> Result<Value> {
-        switch (c) {
-            case '2': case '3': case '4': case '5':
-            case '6': case '7': case '8': case '9': {
-                int valueID = static_cast<int>(Value::Two) + (c - '2');
-                return static_cast<Value>(valueID);
-            }
-            case 'T':
-                return Value::Ten;
-            case 'J':
-                return Value::Jack;
-            case 'Q':
-                return Value::Queen;
-            case 'K':
-                return Value::King;
-            case 'A':
-                return Value::Ace;
-            default:
-                return "";
-        }
-    };
-
     static const std::string ErrorPrefix = "Error parsing hand class: ";
 
     if ((handClassString.size() != 2) && (handClassString.size() != 3)) {
