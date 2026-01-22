@@ -82,8 +82,7 @@ Result<Holdem::Range> buildRangeFromString(const std::string& rangeString, CardS
                 return "Error building range: Duplicate range elements.";
             }
 
-            bool isHandValid = (hand & communityCards) == 0;
-            if (isHandValid) {
+            if (!doSetsOverlap(hand, communityCards)) {
                 range.hands.push_back(hand);
                 range.weights.push_back(frequency);
 
