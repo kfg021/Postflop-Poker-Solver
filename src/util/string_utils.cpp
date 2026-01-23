@@ -90,9 +90,7 @@ std::optional<float> parseFloat(const std::string& input) {
 
 std::string formatBytes(std::size_t bytes) {
     auto getFormattedString = [](float count, const std::string& unit) -> std::string {
-        std::stringstream ss;
-        ss << std::fixed << std::setprecision(2) << count << " " << unit;
-        return ss.str();
+        return formatFixedPoint(count, 2) + " " + unit;
     };
 
     static constexpr std::size_t GB = (1 << 30);
@@ -113,4 +111,10 @@ std::string formatBytes(std::size_t bytes) {
     else {
         return getFormattedString(bytesFloat, "bytes");
     }
+}
+
+std::string formatFixedPoint(double num, int precision) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(precision) << num;
+    return ss.str();
 }

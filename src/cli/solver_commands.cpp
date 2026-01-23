@@ -19,7 +19,6 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
-#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <memory>
@@ -503,7 +502,7 @@ bool handleSolve(SolverContext& context) {
             if ((context.exploitabilityCheckFrequency > 0) && (iteration % context.exploitabilityCheckFrequency == 0)) {
                 float exploitability = calculateExploitabilityFast(*context.rules, *context.tree, allocator);
                 float exploitabilityPercent = (exploitability / startingPot) * 100.0f;
-                std::cout << "Finished iteration " << iteration << ". Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n";
+                std::cout << "Finished iteration " << iteration << ". Exploitability: " << formatFixedPoint(exploitability, 5) << " (" << formatFixedPoint(exploitabilityPercent, 5) << "%)\n";
                 if (exploitabilityPercent <= context.targetPercentExploitability) {
                     resultOption = CfrResult{ exploitability, iteration };
                     break;
@@ -514,7 +513,7 @@ bool handleSolve(SolverContext& context) {
         auto end = std::chrono::steady_clock::now();
         auto msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
         float secondsElapsed = msElapsed.count() / 1000.0f;
-        std::cout << "Training completed in " << std::fixed << std::setprecision(3) << secondsElapsed << "s.\n";
+        std::cout << "Training completed in " << formatFixedPoint(secondsElapsed, 3) << "s.\n";
 
         return resultOption;
     };
@@ -541,7 +540,7 @@ bool handleSolve(SolverContext& context) {
         #pragma omp single
         {
             std::cout << "Starting training in parallel with " << omp_get_num_threads() << " threads. Target exploitability: "
-                << std::fixed << std::setprecision(5) << context.targetPercentExploitability
+                << formatFixedPoint(context.targetPercentExploitability, 5)
                 << "% Maximum iterations: " << context.maxIterations << "\n" << std::flush;
 
             resultOption = runCfr(allocator);
@@ -551,7 +550,7 @@ bool handleSolve(SolverContext& context) {
     context.numThreads = 1;
     StackAllocator<float> allocator(context.numThreads);
     std::cout << "Starting training in single-threaded mode. Target exploitability: "
-        << std::fixed << std::setprecision(5) << context.targetPercentExploitability
+        << formatFixedPoint(context.targetPercentExploitability, 5)
         << "% Maximum iterations: " << context.maxIterations << "\n" << std::flush;
 
     resultOption = runCfr(allocator);
@@ -567,13 +566,13 @@ bool handleSolve(SolverContext& context) {
     std::cout << "Calculating expected value of final strategy...\n" << std::flush;
     float player0ExpectedValue = expectedValue(Player::P0, *context.rules, *context.tree, allocator);
     float player1ExpectedValue = expectedValue(Player::P1, *context.rules, *context.tree, allocator);
-    std::cout << "Player 0 expected value: " << std::fixed << std::setprecision(5) << player0ExpectedValue << "\n";
-    std::cout << "Player 1 expected value: " << std::fixed << std::setprecision(5) << player1ExpectedValue << "\n\n";
+    std::cout << "Player 0 expected value: " << formatFixedPoint(player0ExpectedValue, 5) << "\n";
+    std::cout << "Player 1 expected value: " << formatFixedPoint(player1ExpectedValue, 5) << "\n\n";
 
     std::cout << "Calculating exploitability of final strategy...\n" << std::flush;
     float exploitability = resultOption ? resultOption->exploitability : calculateExploitabilityFast(*context.rules, *context.tree, allocator);
     float exploitabilityPercent = (exploitability / static_cast<float>(getStartingPot())) * 100.0f;
-    std::cout << "Exploitability: " << std::fixed << std::setprecision(5) << exploitability << " (" << exploitabilityPercent << "%)\n\n";
+    std::cout << "Exploitability: " << formatFixedPoint(exploitability, 5) << " (" << formatFixedPoint(exploitabilityPercent, 5) << "%)\n\n";
 
     std::cout << "Maximum stack allocator memory usage per thread: ";
     auto stackUsages = allocator.getMaximumStackUsage();
@@ -662,8 +661,13 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
 
     auto extendString = [](const std::string& input, int totalSize) -> std::string {
         int currentSize = input.size();
-        assert(currentSize <= totalSize);
-        return input + std::string(totalSize - currentSize, ' ');
+
+        if (currentSize >= totalSize) {
+            return input;
+        }
+        else {
+            return input + std::string(totalSize - currentSize, ' ');
+        }
     };
 
     if (!isContextValid(context)) {
@@ -749,7 +753,7 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     // Print the final strategy
 
     auto printDivider = [&node]() -> void {
-        std::cout << "+------+--------+";
+        std::cout << "+------+---------+";
         for (int i = 0; i < node.numChildren; ++i) {
             std::cout << "-------+";
         }
@@ -762,7 +766,7 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     // Print the header
     printDivider();
 
-    std::cout << "| Hand | Weight |";
+    std::cout << "| Hand | Weight  |";
     for (int i = 0; i < node.numChildren; ++i) {
         std::cout << " [" << i << "]   |";
     }
@@ -771,14 +775,13 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     printDivider();
 
     // Print the rows
-    std::cout << std::fixed << std::setprecision(3);
     for (const auto& [hand, weight, strategy] : strategies) {
         std::string handString = join(getCardSetNames(hand), "");
-        std::cout << "| " << extendString(handString, 5) << "| " << weight << "  |";
+        std::cout << "| " << extendString(handString, 5) << "| " << formatFixedPoint(weight, 3) << "   |";
 
         assert(strategy.size() == node.numChildren);
         for (int i = 0; i < node.numChildren; ++i) {
-            std::cout << " " << strategy[i] << " |";
+            std::cout << " " << formatFixedPoint(strategy[i], 3) << " |";
 
             totalStrategy[i] += strategy[i] * weight;
         }
@@ -790,9 +793,9 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     printDivider();
 
     // Print the total strategy
-    std::cout << "| " << extendString(argument, 5) << "| " << totalWeight << "  |";
+    std::cout << "| " << extendString(argument, 5) << "| " << extendString(formatFixedPoint(totalWeight, 3), 8) << "|";
     for (int i = 0; i < node.numChildren; ++i) {
-        std::cout << " " << (totalStrategy[i] / totalWeight) << " |";
+        std::cout << " " << formatFixedPoint(totalStrategy[i] / totalWeight, 3) << " |";
     }
     std::cout << "\n";
 
