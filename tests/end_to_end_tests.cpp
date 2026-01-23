@@ -111,7 +111,9 @@ TEST(EndToEndTest, LeducWithoutIsomorphism) {
         }
     }
 
-    // https://cs.stackexchange.com/questions/169593/nash-equilibrium-details-for-leduc-holdem
+    // Lanctot, M., Zambaldi, V., Gruslys, A., Lazaridou, A., Tuyls, K., Perolat, J., Silver, D., & Graepel, T. (2017).
+    // A Unified Game-Theoretic Approach to Multiagent Reinforcement Learning.
+    // https://doi.org/10.48550/arXiv.1711.00832
     static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
 
     // Make sure EV is correct
@@ -148,7 +150,7 @@ TEST(EndToEndTest, LeducWithIsomorphism) {
         }
     }
 
-    // https://cs.stackexchange.com/questions/169593/nash-equilibrium-details-for-leduc-holdem
+    // Lanctot et al., 2017
     static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
 
     // Make sure EV is correct
@@ -194,7 +196,7 @@ TEST(EndToEndTest, LeducWithIsomorphismParallel) {
         }
     }
 
-    // https://cs.stackexchange.com/questions/169593/nash-equilibrium-details-for-leduc-holdem
+    // Lanctot et al., 2017
     static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
 
     // Make sure EV is correct
@@ -284,4 +286,4 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
     #else
     GTEST_SKIP() << "OMP not found, skipping parallel test.";
     #endif
-}
+    }
