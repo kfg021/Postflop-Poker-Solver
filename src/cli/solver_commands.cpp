@@ -660,6 +660,12 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
         return Strategy{ hand, handWeight, getFinalStrategy(handIndex, node, *context.tree) };
     };
 
+    auto extendString = [](const std::string& input, int totalSize) -> std::string {
+        int currentSize = input.size();
+        assert(currentSize <= totalSize);
+        return input + std::string(totalSize - currentSize, ' ');
+    };
+
     if (!isContextValid(context)) {
         printInvalidContextError();
         return false;
@@ -732,35 +738,55 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
 
     // Print the final strategy
 
+    auto printDivider = [&node]() -> void {
+        std::cout << "+------+--------+";
+        for (int i = 0; i < node.numChildren; ++i) {
+            std::cout << "-------+";
+        }
+        std::cout << "\n";
+    };
+
+    double totalWeight = 0.0;
+    FixedVector<double, MaxNumActions> totalStrategy(node.numChildren, 0.0);
+
     // Print the header
-    std::cout << "Hand | Weight ";
+    printDivider();
+
+    std::cout << "| Hand | Weight |";
     for (int i = 0; i < node.numChildren; ++i) {
-        std::cout << "| [" << i << "]   ";
+        std::cout << " [" << i << "]   |";
     }
     std::cout << "\n";
-    std::cout << "-----+--------";
-    for (int i = 0; i < node.numChildren; ++i) {
-        std::cout << "+-------";
-    }
-    std::cout << "\n";
+
+    printDivider();
 
     // Print the rows
     std::cout << std::fixed << std::setprecision(3);
     for (const auto& [hand, weight, strategy] : strategies) {
         std::string handString = join(getCardSetNames(hand), "");
-        if (handString.size() == 2) {
-            handString += "  ";
-        }
-        assert(handString.size() == 4);
-
-        std::cout << handString << " | " << weight << "  ";
+        std::cout << "| " << extendString(handString, 5) << "| " << weight << "  |";
 
         assert(strategy.size() == node.numChildren);
-        for (float f : strategy) {
-            std::cout << "| " << f << " ";
+        for (int i = 0; i < node.numChildren; ++i) {
+            std::cout << " " << strategy[i] << " |";
+
+            totalStrategy[i] += strategy[i] * weight;
         }
         std::cout << "\n";
+
+        totalWeight += weight;
     }
+
+    printDivider();
+
+    // Print the total strategy
+    std::cout << "| " << extendString(argument, 5) << "| " << totalWeight << "  |";
+    for (int i = 0; i < node.numChildren; ++i) {
+        std::cout << " " << (totalStrategy[i] / totalWeight) << " |";
+    }
+    std::cout << "\n";
+
+    printDivider();
 
     return true;
 }
