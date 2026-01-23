@@ -684,51 +684,61 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     }
 
     std::vector<Strategy> strategies;
-    switch (context.tree->gameHandSize) {
-        case 1: {
-            if (argument.size() != 1) {
-                std::cerr << "Error: Hand classes for one card hands must be one character (Ex. K, Q, J).\n";
-                return false;
+    if (argument == "all") {
+        for (CardSet hand : context.rules->getRangeHands(node.state.playerToAct)) {
+            std::optional<Strategy> strategyOption = getStrategyForHand(hand);
+            if (strategyOption) {
+                strategies.push_back(*strategyOption);
             }
-
-            Result<Value> cardValueResult = getValueFromChar(argument[0]);
-            if (cardValueResult.isError()) {
-                std::cerr << cardValueResult.getError() << "\n";
-                return false;
-            }
-
-            for (int suit = 3; suit >= 0; --suit) {
-                CardID card = getCardIDFromValueAndSuit(cardValueResult.getValue(), static_cast<Suit>(suit));
-                CardSet hand = cardIDToSet(card);
-                std::optional<Strategy> strategyOption = getStrategyForHand(hand);
-                if (strategyOption) {
-                    strategies.push_back(*strategyOption);
-                }
-            }
-
-            break;
         }
-
-        case 2: {
-            Result<std::vector<CardSet>> handClassResult = getHandClassFromString(argument);
-            if (handClassResult.isError()) {
-                std::cerr << handClassResult.getError() << "\n";
-                return false;
-            }
-
-            for (CardSet hand : handClassResult.getValue()) {
-                std::optional<Strategy> strategyOption = getStrategyForHand(hand);
-                if (strategyOption) {
-                    strategies.push_back(*strategyOption);
+    }
+    else {
+        switch (context.tree->gameHandSize) {
+            case 1: {
+                if (argument.size() != 1) {
+                    std::cerr << "Error: Hand classes for one card hands must be one character (Ex. K, Q, J).\n";
+                    return false;
                 }
+
+                Result<Value> cardValueResult = getValueFromChar(argument[0]);
+                if (cardValueResult.isError()) {
+                    std::cerr << cardValueResult.getError() << "\n";
+                    return false;
+                }
+
+                for (int suit = 3; suit >= 0; --suit) {
+                    CardID card = getCardIDFromValueAndSuit(cardValueResult.getValue(), static_cast<Suit>(suit));
+                    CardSet hand = cardIDToSet(card);
+                    std::optional<Strategy> strategyOption = getStrategyForHand(hand);
+                    if (strategyOption) {
+                        strategies.push_back(*strategyOption);
+                    }
+                }
+
+                break;
             }
 
-            break;
-        }
+            case 2: {
+                Result<std::vector<CardSet>> handClassResult = getHandClassFromString(argument);
+                if (handClassResult.isError()) {
+                    std::cerr << handClassResult.getError() << "\n";
+                    return false;
+                }
 
-        default:
-            assert(false);
-            return false;
+                for (CardSet hand : handClassResult.getValue()) {
+                    std::optional<Strategy> strategyOption = getStrategyForHand(hand);
+                    if (strategyOption) {
+                        strategies.push_back(*strategyOption);
+                    }
+                }
+
+                break;
+            }
+
+            default:
+                assert(false);
+                return false;
+        }
     }
 
     if (strategies.empty()) {
@@ -967,7 +977,7 @@ bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {
     allSuccess &= dispatcher.registerCommand(
         "strategy",
         "hand-class",
-        "Prints the optimal strategy for a particular hand class (ex. AA, AKo, JTs).",
+        "Prints the optimal strategy for a particular hand class (ex. AA, AKo, JTs), or for the entire range (all).",
         [&context](const std::string& argument) { return handleStrategy(context, argument); }
     );
 
