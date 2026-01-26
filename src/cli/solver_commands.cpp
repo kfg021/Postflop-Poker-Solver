@@ -247,7 +247,9 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     // Solver settings
     // Load num threads
     #ifdef _OPENMP
-    loadOptionalIntWithBounds(context.numThreads, input, { "solver", "threads" }, 6, 1, 64);
+    constexpr static int MaxNumThreads = 64;
+    int defaultNumThreads = std::min(omp_get_max_threads(), MaxNumThreads);
+    loadOptionalIntWithBounds(context.numThreads, input, { "solver", "threads" }, defaultNumThreads, 1, MaxNumThreads);
     #else
     context.numThreads = 1;
     std::cout << "OpenMP was not found, using one thread.\n";
@@ -296,11 +298,7 @@ bool handleSetupLeduc(SolverContext& context) {
         .targetPercentExploitability = 0.3f,
         .maxIterations = 10000,
         .exploitabilityCheckFrequency = 1000,
-        #ifdef _OPENMP
-        .numThreads = 6
-        #else
         .numThreads = 1
-        #endif
     };
 
     std::cout << "Successfully loaded Leduc poker.\n";
