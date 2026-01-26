@@ -445,24 +445,6 @@ void traverseDecision(
         ScopedVector<float> currentStrategy(allocator, getThreadIndex(), numActions * heroRangeSize);
         writeCurrentStrategyToBuffer(currentStrategy.getData(), decisionNode, tree, allocator);
 
-        // Regret and strategy discounting for DCFR
-        if constexpr (Mode == TraversalMode::DiscountedCfr) {
-            float alpha = static_cast<float>(constants.params.alphaT);
-            float beta = static_cast<float>(constants.params.betaT);
-            float gamma = static_cast<float>(constants.params.gammaT);
-
-            for (int action = 0; action < numActions; ++action) {
-                std::size_t trainingActionOffset = getTrainingDataActionOffset(action, decisionNode, tree);
-                for (int hand = 0; hand < heroRangeSize; ++hand) {
-                    float& regretSum = tree.allRegretSums[trainingActionOffset + hand];
-                    float& strategySum = tree.allStrategySums[trainingActionOffset + hand];
-
-                    regretSum *= (regretSum > 0.0f) ? alpha : beta;
-                    strategySum *= gamma;
-                }
-            }
-        }
-
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
         calculateActionEVs(newOutputExpectedValues.getData(), {});
 
@@ -479,6 +461,16 @@ void traverseDecision(
             for (int hand = 0; hand < heroRangeSize; ++hand) {
                 float& regretSum = tree.allRegretSums[trainingActionOffset + hand];
                 float& strategySum = tree.allStrategySums[trainingActionOffset + hand];
+
+                // Regret and strategy discounting for DCFR
+                if constexpr (Mode == TraversalMode::DiscountedCfr) {
+                    float alpha = constants.params.alphaT;
+                    float beta = constants.params.betaT;
+                    float gamma = constants.params.gammaT;
+
+                    regretSum *= (regretSum > 0.0f) ? alpha : beta;
+                    strategySum *= gamma;
+                }
 
                 float strategyExpectedValue = outputExpectedValues[hand];
                 float actionExpectedValue = newOutputExpectedValues[action * heroRangeSize + hand];
@@ -605,7 +597,7 @@ void traverseDecision(
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
         calculateActionEVs(newOutputExpectedValues.getData(), strategy.getData());
 
-        /// Calculate expected value of strategy
+        // Calculate expected value of strategy
         // Not the hero's turn; no strategy or regret updates
         for (int action = 0; action < numActions; ++action) {
             for (int hand = 0; hand < heroRangeSize; ++hand) {
@@ -963,9 +955,9 @@ DiscountParams getDiscountParams(float alpha, float beta, float gamma, int itera
     double b = std::pow(t, static_cast<double>(beta));
 
     return {
-        .alphaT = a / (a + 1),
-        .betaT = b / (b + 1),
-        .gammaT = std::pow(t / (t + 1), static_cast<double>(gamma))
+        .alphaT = static_cast<float>(a / (a + 1)),
+        .betaT = static_cast<float>(b / (b + 1)),
+        .gammaT = static_cast<float>(std::pow(t / (t + 1), static_cast<double>(gamma)))
     };
 }
 
