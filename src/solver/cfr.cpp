@@ -36,7 +36,6 @@ enum class TraversalMode : std::uint8_t {
 
 struct TraversalConstants {
     Player hero;
-    TraversalMode mode;
     DiscountParams params;
 };
 
@@ -125,52 +124,51 @@ void writeAverageStrategyToBuffer(std::span<float> averageStrategyBuffer, const 
     }
 }
 
+template <int GameHandSize>
 bool areHandAndCardDisjoint(Player player, int hand, CardID card, const Tree& tree) {
     assert(hand < tree.rangeSize[player]);
     const auto& rangeHandCards = tree.rangeHandCards[player];
-    switch (tree.gameHandSize) {
-        case 1:
-            return rangeHandCards[hand] != card;
-        case 2:
-            return (rangeHandCards[2 * hand] != card) && (rangeHandCards[2 * hand + 1] != card);
-        default:
-            assert(false);
-            return false;
+
+    static_assert(GameHandSize == 1 || GameHandSize == 2);
+    if constexpr (GameHandSize == 1) {
+        return rangeHandCards[hand] != card;
+    }
+    else if constexpr (GameHandSize == 2) {
+        return (rangeHandCards[2 * hand] != card) && (rangeHandCards[2 * hand + 1] != card);
     }
 }
 
+template <int GameHandSize>
 bool areHandAndSetDisjoint(Player player, int hand, CardSet cardSet, const Tree& tree) {
     assert(hand < tree.rangeSize[player]);
     const auto& rangeHandCards = tree.rangeHandCards[player];
-    switch (tree.gameHandSize) {
-        case 1:
-            return !setContainsCard(cardSet, rangeHandCards[hand]);
-        case 2:
-            return !setContainsCard(cardSet, rangeHandCards[2 * hand]) && !setContainsCard(cardSet, rangeHandCards[2 * hand + 1]);
-        default:
-            assert(false);
-            return false;
+
+    static_assert(GameHandSize == 1 || GameHandSize == 2);
+    if constexpr (GameHandSize == 1) {
+        return !setContainsCard(cardSet, rangeHandCards[hand]);
+    }
+    else if constexpr (GameHandSize == 2) {
+        return !setContainsCard(cardSet, rangeHandCards[2 * hand]) && !setContainsCard(cardSet, rangeHandCards[2 * hand + 1]);
     }
 }
 
+template <int GameHandSize>
 void addReachProbsToArray(std::array<float, StandardDeckSize>& villainReachProbWithCard, int villainHandIndex, float villainReachProb, const TraversalConstants& constants, const Tree& tree) {
     Player villain = getOpposingPlayer(constants.hero);
     assert(villainHandIndex < tree.rangeSize[villain]);
     const auto& rangeHandCards = tree.rangeHandCards[villain];
-    switch (tree.gameHandSize) {
-        case 1:
-            villainReachProbWithCard[rangeHandCards[villainHandIndex]] += villainReachProb;
-            break;
-        case 2:
-            villainReachProbWithCard[rangeHandCards[2 * villainHandIndex]] += villainReachProb;
-            villainReachProbWithCard[rangeHandCards[2 * villainHandIndex + 1]] += villainReachProb;
-            break;
-        default:
-            assert(false);
-            break;
+
+    static_assert(GameHandSize == 1 || GameHandSize == 2);
+    if constexpr (GameHandSize == 1) {
+        villainReachProbWithCard[rangeHandCards[villainHandIndex]] += villainReachProb;
+    }
+    else if constexpr (GameHandSize == 2) {
+        villainReachProbWithCard[rangeHandCards[2 * villainHandIndex]] += villainReachProb;
+        villainReachProbWithCard[rangeHandCards[2 * villainHandIndex + 1]] += villainReachProb;
     }
 }
 
+template <int GameHandSize>
 float getReachProbBlockedByHeroHand(
     int heroHandIndex,
     const std::array<float, StandardDeckSize>& villainReachProbWithCard,
@@ -179,38 +177,36 @@ float getReachProbBlockedByHeroHand(
     const Tree& tree
 ) {
     const auto& rangeHandCards = tree.rangeHandCards[constants.hero];
-    switch (tree.gameHandSize) {
-        case 1:
-            return villainReachProbWithCard[rangeHandCards[heroHandIndex]];
-        case 2:
-            return villainReachProbWithCard[rangeHandCards[2 * heroHandIndex]] + villainReachProbWithCard[rangeHandCards[2 * heroHandIndex + 1]];
-        default:
-            assert(false);
-            return 0.0f;
+
+    static_assert(GameHandSize == 1 || GameHandSize == 2);
+    if constexpr (GameHandSize == 1) {
+        return villainReachProbWithCard[rangeHandCards[heroHandIndex]];
+    }
+    else if constexpr (GameHandSize == 2) {
+        return villainReachProbWithCard[rangeHandCards[2 * heroHandIndex]] + villainReachProbWithCard[rangeHandCards[2 * heroHandIndex + 1]];
     }
 }
 
 // Returns the portion of the villain's range that was double-counted in the above function
+template <int GameHandSize>
 float getInclusionExculsionCorrection(
     int heroHandIndex,
     const TraversalConstants& constants,
     std::span<const float> villainReachProbs,
     const Tree& tree
 ) {
-    switch (tree.gameHandSize) {
-        case 1:
-            return 0.0f;
-        case 2: {
-            std::int16_t sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
-            return (sameHandIndex != -1) ? villainReachProbs[sameHandIndex] : 0.0f;
-        }
-        default:
-            // For hand size > 2, logic is more complicated
-            assert(false);
-            return 0.0f;
+    static_assert(GameHandSize == 1 || GameHandSize == 2);
+    if constexpr (GameHandSize == 1) {
+        return 0.0f;
     }
+    else if constexpr (GameHandSize == 2) {
+        std::int16_t sameHandIndex = tree.sameHandIndexTable[constants.hero][heroHandIndex];
+        return (sameHandIndex != -1) ? villainReachProbs[sameHandIndex] : 0.0f;
+    }
+    // For hand size > 2, logic is more complicated
 }
 
+template <int GameHandSize, TraversalMode Mode>
 void traverseTree(
     const Node& node,
     const TraversalConstants& constants,
@@ -221,6 +217,7 @@ void traverseTree(
     StackAllocator<float>& allocator
 );
 
+template <int GameHandSize, TraversalMode Mode>
 void traverseChance(
     const Node& chanceNode,
     const TraversalConstants& constants,
@@ -249,11 +246,11 @@ void traverseChance(
 
         // Normalize expected values by the number of total chance cards possible
         // Hero and villain both have a hand
-        int chanceCardReachFactor = getSetSize(chanceNode.availableCards) - (2 * tree.gameHandSize);
+        int chanceCardReachFactor = getSetSize(chanceNode.availableCards) - (2 * GameHandSize);
 
         ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), villainRangeSize);
         for (int hand = 0; hand < villainRangeSize; ++hand) {
-            if (areHandAndCardDisjoint(villain, hand, chanceCard, tree)) {
+            if (areHandAndCardDisjoint<GameHandSize>(villain, hand, chanceCard, tree)) {
                 newVillainReachProbs[hand] = villainReachProbs[hand] / static_cast<float>(chanceCardReachFactor);
             }
             else {
@@ -263,7 +260,7 @@ void traverseChance(
 
         auto evCardRangeBegin = newOutputExpectedValues.begin() + cardIndex * heroRangeSize;
         auto evCardRangeEnd = evCardRangeBegin + heroRangeSize;
-        traverseTree(nextNode, constants, rules, newVillainReachProbs.getData(), { evCardRangeBegin, evCardRangeEnd }, tree, allocator);
+        traverseTree<GameHandSize, Mode>(nextNode, constants, rules, newVillainReachProbs.getData(), { evCardRangeBegin, evCardRangeEnd }, tree, allocator);
     };
 
     assert(chanceNode.nodeType == NodeType::Chance);
@@ -302,7 +299,7 @@ void traverseChance(
         CardID chanceCard = tree.allNodes[chanceNode.childrenOffset + cardIndex].state.lastDealtCard;
 
         for (int hand = 0; hand < heroRangeSize; ++hand) {
-            if (areHandAndCardDisjoint(constants.hero, hand, chanceCard, tree)) {
+            if (areHandAndCardDisjoint<GameHandSize>(constants.hero, hand, chanceCard, tree)) {
                 outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + hand];
             }
             else {
@@ -317,7 +314,7 @@ void traverseChance(
                     CardID isomorphicCard = getCardIDFromValueAndSuit(getCardValue(chanceCard), mapping.child);
                     int indexAfterSuitSwap = rules.getHandIndexAfterSuitSwap(constants.hero, hand, mapping.parent, mapping.child);
 
-                    if (areHandAndCardDisjoint(constants.hero, hand, isomorphicCard, tree)) {
+                    if (areHandAndCardDisjoint<GameHandSize>(constants.hero, hand, isomorphicCard, tree)) {
                         outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + indexAfterSuitSwap];
                     }
                     else {
@@ -329,7 +326,7 @@ void traverseChance(
     }
 }
 
-// TODO: Consider making this a template
+template <int GameHandSize, TraversalMode Mode>
 void traverseDecision(
     const Node& decisionNode,
     const TraversalConstants& constants,
@@ -362,7 +359,7 @@ void traverseDecision(
             auto evActionRangeEnd = evActionRangeBegin + heroRangeSize;
 
             // For the hero we copy the villain reach probs from the previous level
-            traverseTree(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, villainReachProbs, { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
+            traverseTree<GameHandSize, Mode>(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, villainReachProbs, { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
         };
 
         auto calculateActionEVVillain = [
@@ -390,7 +387,7 @@ void traverseDecision(
 
             auto evActionRangeBegin = newOutputExpectedValues.begin() + action * heroRangeSize;
             auto evActionRangeEnd = evActionRangeBegin + heroRangeSize;
-            traverseTree(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, newVillainReachProbs.getData(), { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
+            traverseTree<GameHandSize, Mode>(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, newVillainReachProbs.getData(), { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
         };
 
         auto calculateActionEV = [
@@ -453,7 +450,7 @@ void traverseDecision(
         writeCurrentStrategyToBuffer(currentStrategy.getData(), decisionNode, tree, allocator);
 
         // Regret and strategy discounting for DCFR
-        if (constants.mode == TraversalMode::DiscountedCfr) {
+        if constexpr (Mode == TraversalMode::DiscountedCfr) {
             float alpha = static_cast<float>(constants.params.alphaT);
             float beta = static_cast<float>(constants.params.betaT);
             float gamma = static_cast<float>(constants.params.gammaT);
@@ -495,7 +492,7 @@ void traverseDecision(
                 strategySum += currentStrategy[action * heroRangeSize + hand];
 
                 // In CFR+, we erase negative regrets for faster convergence
-                if (constants.mode == TraversalMode::CfrPlus) {
+                if constexpr (Mode == TraversalMode::CfrPlus) {
                     regretSum = std::max(regretSum, 0.0f);
                 }
             }
@@ -592,19 +589,14 @@ void traverseDecision(
 
         // Calculate strategy
         ScopedVector<float> strategy(allocator, getThreadIndex(), numActions * villainRangeSize);
-        switch (constants.mode) {
-            case TraversalMode::VanillaCfr:
-            case TraversalMode::CfrPlus:
-            case TraversalMode::DiscountedCfr:
-                writeCurrentStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
-                break;
-            case TraversalMode::ExpectedValue:
-            case TraversalMode::BestResponse:
-                writeAverageStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
-                break;
-            default:
-                assert(false);
-                break;
+
+        if constexpr (Mode == TraversalMode::VanillaCfr
+            || Mode == TraversalMode::CfrPlus
+            || Mode == TraversalMode::DiscountedCfr) {
+            writeCurrentStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
+        }
+        else {
+            writeAverageStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
         }
 
         ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), numActions * villainRangeSize);
@@ -627,21 +619,16 @@ void traverseDecision(
     };
 
     if (constants.hero == decisionNode.state.playerToAct) {
-        switch (constants.mode) {
-            case TraversalMode::VanillaCfr:
-            case TraversalMode::CfrPlus:
-            case TraversalMode::DiscountedCfr:
-                heroToActTraining();
-                break;
-            case TraversalMode::ExpectedValue:
-                heroToActExpectedValue();
-                break;
-            case TraversalMode::BestResponse:
-                heroToActBestResponse();
-                break;
-            default:
-                assert(false);
-                break;
+        if constexpr (Mode == TraversalMode::VanillaCfr
+            || Mode == TraversalMode::CfrPlus
+            || Mode == TraversalMode::DiscountedCfr) {
+            heroToActTraining();
+        }
+        else if constexpr (Mode == TraversalMode::ExpectedValue) {
+            heroToActExpectedValue();
+        }
+        else if constexpr (Mode == TraversalMode::BestResponse) {
+            heroToActBestResponse();
         }
     }
     else {
@@ -649,6 +636,7 @@ void traverseDecision(
     }
 }
 
+template <int GameHandSize, TraversalMode Mode>
 void traverseFold(
     const Node& foldNode,
     const TraversalConstants& constants,
@@ -669,11 +657,11 @@ void traverseFold(
     std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
     for (int hand = 0; hand < villainRangeSize; ++hand) {
-        if (!areHandAndSetDisjoint(villain, hand, foldNode.state.currentBoard, tree)) continue;
+        if (!areHandAndSetDisjoint<GameHandSize>(villain, hand, foldNode.state.currentBoard, tree)) continue;
 
         float villainReachProb = villainReachProbs[hand];
         villainTotalReachProb += villainReachProb;
-        addReachProbsToArray(villainReachProbWithCard, hand, villainReachProb, constants, tree);
+        addReachProbsToArray<GameHandSize>(villainReachProbWithCard, hand, villainReachProb, constants, tree);
     }
 
     if (villainTotalReachProb == 0.0f) {
@@ -692,16 +680,17 @@ void traverseFold(
     float heroPayoff = (foldingPlayer == villain) ? winPayoff : losePayoff;
 
     for (int hand = 0; hand < heroRangeSize; ++hand) {
-        if (!areHandAndSetDisjoint(constants.hero, hand, foldNode.state.currentBoard, tree)) continue;
+        if (!areHandAndSetDisjoint<GameHandSize>(constants.hero, hand, foldNode.state.currentBoard, tree)) continue;
 
         float villainValidReachProb = villainTotalReachProb
-            - getReachProbBlockedByHeroHand(hand, villainReachProbWithCard, constants, villainReachProbs, tree)
-            + getInclusionExculsionCorrection(hand, constants, villainReachProbs, tree);
+            - getReachProbBlockedByHeroHand<GameHandSize>(hand, villainReachProbWithCard, constants, villainReachProbs, tree)
+            + getInclusionExculsionCorrection<GameHandSize>(hand, constants, villainReachProbs, tree);
 
         outputExpectedValues[hand] += heroPayoff * villainValidReachProb;
     }
 }
 
+template <int GameHandSize, TraversalMode Mode>
 void traverseShowdown(
     const Node& showdownNode,
     const TraversalConstants& constants,
@@ -743,15 +732,15 @@ void traverseShowdown(
         int villainIndexSorted = 0;
 
         for (HandData heroHandData : sortedHandRanks[hero]) {
-            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
+            assert(areHandAndSetDisjoint<GameHandSize>(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
 
             while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank < heroHandData.rank) {
                 int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
-                assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
+                assert(areHandAndSetDisjoint<GameHandSize>(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
 
                 float villainReachProb = villainReachProbs[villainHandIndex];
                 villainTotalReachProb += villainReachProb;
-                addReachProbsToArray(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
+                addReachProbsToArray<GameHandSize>(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
 
                 ++villainIndexSorted;
             }
@@ -761,7 +750,7 @@ void traverseShowdown(
             }
 
             float villainValidReachProb = villainTotalReachProb
-                - getReachProbBlockedByHeroHand(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree);
+                - getReachProbBlockedByHeroHand<GameHandSize>(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree);
             // We don't need to call getInclusionExculsionCorrection because this pass only includes cases where the hero wins
             // If the hero and villain hands were identical, then it would be a tie
             // Thus getReachProbBlockedByHeroHand will not have any contribution from identical hero and villain hands
@@ -778,15 +767,15 @@ void traverseShowdown(
         int villainIndexSorted = villainFilteredRangeSize - 1;
 
         for (HandData heroHandData : std::views::reverse(sortedHandRanks[hero])) {
-            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
+            assert(areHandAndSetDisjoint<GameHandSize>(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
 
             while (villainIndexSorted >= 0 && sortedHandRanks[villain][villainIndexSorted].rank > heroHandData.rank) {
                 int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
-                assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
+                assert(areHandAndSetDisjoint<GameHandSize>(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
 
                 float villainReachProb = villainReachProbs[villainHandIndex];
                 villainTotalReachProb += villainReachProb;
-                addReachProbsToArray(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
+                addReachProbsToArray<GameHandSize>(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
 
                 --villainIndexSorted;
             }
@@ -796,7 +785,7 @@ void traverseShowdown(
             }
 
             float villainValidReachProb = villainTotalReachProb
-                - getReachProbBlockedByHeroHand(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree);
+                - getReachProbBlockedByHeroHand<GameHandSize>(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree);
             // We don't need to call getInclusionExculsionCorrection because this pass only includes cases where the hero loses
             // If the hero and villain hands were identical, then it would be a tie
             // Thus getReachProbBlockedByHeroHand will not have any contribution from identical hero and villain hands
@@ -815,7 +804,7 @@ void traverseShowdown(
 
         for (int heroIndexSorted = 0; heroIndexSorted < heroFilteredRangeSize; ++heroIndexSorted) {
             HandData heroHandData = sortedHandRanks[hero][heroIndexSorted];
-            assert(areHandAndSetDisjoint(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
+            assert(areHandAndSetDisjoint<GameHandSize>(hero, heroHandData.index, showdownNode.state.currentBoard, tree));
 
             bool heroRankIncreased = (heroIndexSorted == 0) || (heroHandData.rank > sortedHandRanks[hero][heroIndexSorted - 1].rank);
             if (heroRankIncreased) {
@@ -830,11 +819,11 @@ void traverseShowdown(
 
                 while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank == heroHandData.rank) {
                     int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
-                    assert(areHandAndSetDisjoint(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
+                    assert(areHandAndSetDisjoint<GameHandSize>(villain, villainHandIndex, showdownNode.state.currentBoard, tree));
 
                     float villainReachProb = villainReachProbs[villainHandIndex];
                     villainTotalReachProb += villainReachProb;
-                    addReachProbsToArray(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
+                    addReachProbsToArray<GameHandSize>(villainReachProbWithCard, villainHandIndex, villainReachProb, constants, tree);
 
                     ++villainIndexSorted;
                 }
@@ -845,14 +834,15 @@ void traverseShowdown(
             }
 
             float villainValidReachProb = villainTotalReachProb
-                - getReachProbBlockedByHeroHand(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree)
-                + getInclusionExculsionCorrection(heroHandData.index, constants, villainReachProbs, tree);
+                - getReachProbBlockedByHeroHand<GameHandSize>(heroHandData.index, villainReachProbWithCard, constants, villainReachProbs, tree)
+                + getInclusionExculsionCorrection<GameHandSize>(heroHandData.index, constants, villainReachProbs, tree);
 
             outputExpectedValues[heroHandData.index] += tiePayoff * villainValidReachProb;
         }
     }
 }
 
+template <int GameHandSize, TraversalMode Mode>
 void traverseTree(
     const Node& node,
     const TraversalConstants& constants,
@@ -866,16 +856,16 @@ void traverseTree(
 
     switch (node.nodeType) {
         case NodeType::Chance:
-            traverseChance(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
+            traverseChance<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Decision:
-            traverseDecision(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
+            traverseDecision<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Fold:
-            traverseFold(node, constants, villainReachProbs, outputExpectedValues, tree);
+            traverseFold<GameHandSize, Mode>(node, constants, villainReachProbs, outputExpectedValues, tree);
             break;
         case NodeType::Showdown:
-            traverseShowdown(node, constants, rules, villainReachProbs, outputExpectedValues, tree);
+            traverseShowdown<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree);
             break;
         default:
             assert(false);
@@ -883,6 +873,7 @@ void traverseTree(
     }
 }
 
+template <TraversalMode Mode>
 void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rules, std::span<float> outputExpectedValues, Tree& tree, StackAllocator<float>& allocator) {
     Player villain = getOpposingPlayer(constants.hero);
     const auto& initialRangeWeights = rules.getInitialRangeWeights(villain);
@@ -895,39 +886,60 @@ void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rul
         villainReachProbs[hand] = initialRangeWeights[hand];
     }
 
-    return traverseTree(
-        tree.allNodes[tree.getRootNodeIndex()],
-        constants,
-        rules,
-        villainReachProbs,
-        outputExpectedValues,
-        tree,
-        allocator
-    );
+    switch (tree.gameHandSize) {
+        case 1: {
+            traverseTree<1, Mode>(
+                tree.allNodes[tree.getRootNodeIndex()],
+                constants,
+                rules,
+                villainReachProbs,
+                outputExpectedValues,
+                tree,
+                allocator
+            );
+            break;
+        }
+
+        case 2: {
+            traverseTree<2, Mode>(
+                tree.allNodes[tree.getRootNodeIndex()],
+                constants,
+                rules,
+                villainReachProbs,
+                outputExpectedValues,
+                tree,
+                allocator
+            );
+            break;
+        }
+
+        default:
+            assert(false);
+            break;
+    }
 }
 
+template <TraversalMode Mode>
 float rootExpectedValue(
     Player hero,
     const IGameRules& rules,
     Tree& tree,
-    TraversalMode mode,
     StackAllocator<float>& allocator
 ) {
-    assert((mode == TraversalMode::ExpectedValue) || (mode == TraversalMode::BestResponse));
+    static_assert((Mode == TraversalMode::ExpectedValue) || (Mode == TraversalMode::BestResponse));
 
     // Allocator should be empty before starting traversal, otherwise something wasn't deleted correctly
     assert(allocator.isEmpty());
 
     TraversalConstants constants = {
        .hero = hero,
-       .mode = mode,
        .params = {} // No params needed for expected value
     };
 
     int heroRangeSize = tree.rangeSize[hero];
     ScopedVector<float> outputExpectedValues(allocator, getThreadIndex(), heroRangeSize);
 
-    traverseFromRoot(constants, rules, outputExpectedValues, tree, allocator);
+    traverseFromRoot<Mode>(constants, rules, outputExpectedValues, tree, allocator);
 
     const auto& heroRangeWeights = rules.getInitialRangeWeights(hero);
     double expectedValue = 0.0;
@@ -962,12 +974,11 @@ void vanillaCfr(
 
     TraversalConstants constants = {
         .hero = hero,
-        .mode = TraversalMode::VanillaCfr,
         .params = {} // No params needed for vanilla CFR
     };
 
     ScopedVector<float> outputExpectedValues(allocator, getThreadIndex(), tree.rangeSize[hero]);
-    traverseFromRoot(constants, rules, outputExpectedValues, tree, allocator);
+    traverseFromRoot<TraversalMode::VanillaCfr>(constants, rules, outputExpectedValues, tree, allocator);
 }
 
 void cfrPlus(
@@ -981,12 +992,11 @@ void cfrPlus(
 
     TraversalConstants constants = {
         .hero = hero,
-        .mode = TraversalMode::CfrPlus,
         .params = {} // No params needed for CFR+
     };
 
     ScopedVector<float> outputExpectedValues(allocator, getThreadIndex(), tree.rangeSize[hero]);
-    traverseFromRoot(constants, rules, outputExpectedValues, tree, allocator);
+    traverseFromRoot<TraversalMode::CfrPlus>(constants, rules, outputExpectedValues, tree, allocator);
 }
 
 void discountedCfr(
@@ -1001,12 +1011,11 @@ void discountedCfr(
 
     TraversalConstants constants = {
         .hero = hero,
-        .mode = TraversalMode::DiscountedCfr,
         .params = params
     };
 
     ScopedVector<float> outputExpectedValues(allocator, getThreadIndex(), tree.rangeSize[hero]);
-    traverseFromRoot(constants, rules, outputExpectedValues, tree, allocator);
+    traverseFromRoot<TraversalMode::DiscountedCfr>(constants, rules, outputExpectedValues, tree, allocator);
 }
 
 float expectedValue(
@@ -1015,7 +1024,7 @@ float expectedValue(
     Tree& tree,
     StackAllocator<float>& allocator
 ) {
-    return rootExpectedValue(hero, rules, tree, TraversalMode::ExpectedValue, allocator);
+    return rootExpectedValue<TraversalMode::ExpectedValue>(hero, rules, tree, allocator);
 }
 
 float bestResponseEV(
@@ -1024,7 +1033,7 @@ float bestResponseEV(
     Tree& tree,
     StackAllocator<float>& allocator
 ) {
-    return rootExpectedValue(hero, rules, tree, TraversalMode::BestResponse, allocator);
+    return rootExpectedValue<TraversalMode::BestResponse>(hero, rules, tree, allocator);
 }
 
 float calculateExploitability(const IGameRules& rules, Tree& tree, StackAllocator<float>& allocator) {
