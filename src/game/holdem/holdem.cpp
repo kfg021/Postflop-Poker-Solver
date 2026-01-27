@@ -618,9 +618,13 @@ void Holdem::buildHandTables() {
     // Build valid indices table for fold nodes
     auto insertValidIndicesEmptyBoard = [this](Player player) -> void {
         const auto& playerHands = m_settings.ranges[player].hands;
+
+        int indexInTable = 0;
         for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
-            assert(!doSetsOverlap(playerHands[handIndex], m_settings.startingCommunityCards));
-            m_validHandIndices[player][handIndex] = handIndex;
+            if (!doSetsOverlap(playerHands[handIndex], m_settings.startingCommunityCards)) {
+                m_validHandIndices[player][handIndex] = handIndex;
+                ++indexInTable;
+            }
         }
     };
 
