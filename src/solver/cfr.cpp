@@ -652,6 +652,7 @@ void traverseFold(
 
     for (std::int16_t hand : villainValidHandIndices) {
         assert(hand != -1);
+        assert(areHandAndSetDisjoint<GameHandSize>(hand, foldNode.state.currentBoard, villainRangeHandCards));
 
         float villainReachProb = villainReachProbs[hand];
         villainTotalReachProb += villainReachProb;
@@ -677,6 +678,7 @@ void traverseFold(
 
     for (std::int16_t hand : heroValidHandIndices) {
         assert(hand != -1);
+        assert(areHandAndSetDisjoint<GameHandSize>(hand, foldNode.state.currentBoard, heroRangeHandCards));
 
         float villainValidReachProb = villainTotalReachProb
             - getReachProbBlockedByHeroHand<GameHandSize>(hand, villainReachProbWithCard, villainReachProbs, heroRangeHandCards)

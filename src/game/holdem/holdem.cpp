@@ -399,7 +399,7 @@ std::span<const float> Holdem::getInitialRangeWeights(Player player) const {
 std::span<const std::int16_t> Holdem::getValidHandIndices(Player player, CardSet board) const {
     CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
     int runoutIndex;
-    switch (chanceCardsDealt) {
+    switch (getSetSize(chanceCardsDealt)) {
         case 0:
             runoutIndex = 0;
             break;
@@ -410,6 +410,7 @@ std::span<const std::int16_t> Holdem::getValidHandIndices(Player player, CardSet
             runoutIndex = 1 + holdem::DeckSize + mapTwoCardSetToIndex(chanceCardsDealt);
             break;
         default:
+            assert(false);
             runoutIndex = 0;
             break;
     }
@@ -622,7 +623,7 @@ void Holdem::buildHandTables() {
         int indexInTable = 0;
         for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
             if (!doSetsOverlap(playerHands[handIndex], m_settings.startingCommunityCards)) {
-                m_validHandIndices[player][handIndex] = handIndex;
+                m_validHandIndices[player][indexInTable] = handIndex;
                 ++indexInTable;
             }
         }
