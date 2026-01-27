@@ -122,9 +122,9 @@ public:
 private:
     // Save space by storing the size in as small of a type as possible
     using Size =
-        std::conditional_t<(Capacity <= std::numeric_limits<uint8_t>::max()), uint8_t,
-        std::conditional_t<(Capacity <= std::numeric_limits<uint16_t>::max()), uint16_t,
-        std::conditional_t<(Capacity <= std::numeric_limits<uint32_t>::max()), uint32_t,
+        std::conditional_t<(Capacity <= std::numeric_limits<std::uint8_t>::max()), std::uint8_t,
+        std::conditional_t<(Capacity <= std::numeric_limits<std::uint16_t>::max()), std::uint16_t,
+        std::conditional_t<(Capacity <= std::numeric_limits<std::uint32_t>::max()), std::uint32_t,
         std::size_t
         >>>;
 
