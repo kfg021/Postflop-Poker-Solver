@@ -134,6 +134,11 @@ std::span<const float> KuhnPoker::getInitialRangeWeights(Player /*player*/) cons
     return Weights;
 }
 
+std::span<const std::int16_t> KuhnPoker::getValidHandIndices(Player /*player*/, CardSet /*board*/) const {
+    static constexpr std::array<const std::int16_t, 3> ValidIndices = { 0, 1, 2 };
+    return ValidIndices;
+}
+
 std::span<const HandData> KuhnPoker::getValidSortedHandRanks(Player /*player*/, CardSet /*board*/) const {
     enum KuhnHandID : std::uint8_t {
         Jack,

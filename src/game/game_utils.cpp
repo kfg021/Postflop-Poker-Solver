@@ -43,6 +43,20 @@ CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
     return cardID;
 }
 
+CardID swapCardSuits(CardID cardID, Suit x, Suit y) {
+    Value value = getCardValue(cardID);
+    Suit suit = getCardSuit(cardID);
+    if (suit == x) {
+        return getCardIDFromValueAndSuit(value, y);
+    }
+    else if (suit == y) {
+        return getCardIDFromValueAndSuit(value, x);
+    }
+    else {
+        return cardID;
+    }
+}
+
 std::string getNameFromCardID(CardID cardID) {
     assert(cardID < 52);
     Value cardValue = getCardValue(cardID);
@@ -107,20 +121,6 @@ CardSet filterCardsWithSuit(CardSet cardSet, Suit suit) {
     static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
     int suitID = static_cast<int>(suit);
     return cardSet & (SingleSuitMask << suitID);
-}
-
-CardID swapCardSuits(CardID cardID, Suit x, Suit y) {
-    Value value = getCardValue(cardID);
-    Suit suit = getCardSuit(cardID);
-    if (suit == x) {
-        return getCardIDFromValueAndSuit(value, y);
-    }
-    else if (suit == y) {
-        return getCardIDFromValueAndSuit(value, x);
-    }
-    else {
-        return cardID;
-    }
 }
 
 CardSet swapSetSuits(CardSet cardSet, Suit x, Suit y) {

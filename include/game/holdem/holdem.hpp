@@ -52,6 +52,7 @@ public:
     ChanceNodeInfo getChanceNodeInfo(CardSet board) const override;
     std::span<const CardSet> getRangeHands(Player player) const override;
     std::span<const float> getInitialRangeWeights(Player player) const override;
+    std::span<const std::int16_t> getValidHandIndices(Player player, CardSet board) const override;
     std::span<const HandData> getValidSortedHandRanks(Player player, CardSet board) const override;
     int getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit y) const override;
     std::string getActionName(ActionID actionID, int betRaiseSize) const override;
@@ -63,8 +64,9 @@ private:
     Street getStartingStreet() const;
 
     Settings m_settings;
+    PlayerArray<std::vector<std::int16_t>> m_validHandIndices;
     PlayerArray<std::vector<HandData>> m_handRanks;
-    PlayerArray<std::array<int, holdem::NumPossibleTwoCardHands>> m_handIndices;
+    PlayerArray<std::array<std::int16_t, holdem::NumPossibleTwoCardHands>> m_handToRangeIndex;
     FixedVector<SuitEquivalenceClass, 4> m_startingIsomorphisms;
     std::array<FixedVector<SuitEquivalenceClass, 4>, 4> m_isomorphismsAfterSuitDealt;
 };

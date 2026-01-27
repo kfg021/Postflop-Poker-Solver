@@ -396,6 +396,38 @@ std::span<const float> Holdem::getInitialRangeWeights(Player player) const {
     return m_settings.ranges[player].weights;
 }
 
+std::span<const std::int16_t> Holdem::getValidHandIndices(Player player, CardSet board) const {
+    CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
+    int runoutIndex;
+    switch (chanceCardsDealt) {
+        case 0:
+            runoutIndex = 0;
+            break;
+        case 1:
+            runoutIndex = 1 + static_cast<int>(getLowestCardInSet(chanceCardsDealt));
+            break;
+        case 2:
+            runoutIndex = 1 + holdem::DeckSize + mapTwoCardSetToIndex(chanceCardsDealt);
+            break;
+        default:
+            runoutIndex = 0;
+            break;
+    }
+
+    std::size_t playerRangeSize = m_settings.ranges[player].hands.size();
+    std::size_t handIndexOffset = runoutIndex * playerRangeSize;
+
+    auto rangeBegin = m_validHandIndices[player].begin() + handIndexOffset;
+    auto rangeEnd = rangeBegin + playerRangeSize;
+
+    // Ignore all indices equal to -1 (invalid indices)
+    while (rangeEnd > rangeBegin && *(rangeEnd - 1) == -1) {
+        --rangeEnd;
+    }
+
+    return { rangeBegin, rangeEnd };
+}
+
 std::span<const HandData> Holdem::getValidSortedHandRanks(Player player, CardSet board) const {
     assert(getSetSize(board) == 5);
 
@@ -439,10 +471,10 @@ int Holdem::getHandIndexAfterSuitSwap(Player player, int handIndex, Suit x, Suit
 
     CardSet swappedHand = swapSetSuits(m_settings.ranges[player].hands[handIndex], x, y);
     int swappedHandIndexInTable = mapTwoCardSetToIndex(swappedHand);
-    int swappedHandIndex = m_handIndices[player][swappedHandIndexInTable];
+    std::int16_t swappedHandIndex = m_handToRangeIndex[player][swappedHandIndexInTable];
     assert(swappedHandIndex != -1);
 
-    return swappedHandIndex;
+    return static_cast<int>(swappedHandIndex);
 }
 
 std::string Holdem::getActionName(ActionID actionID, int betRaiseSize) const {
@@ -511,11 +543,15 @@ void Holdem::buildHandTables() {
     const auto& startingCards = m_settings.startingCommunityCards;
     const auto& ranges = m_settings.ranges;
 
-    switch (getStartingStreet()) {
-        case Street::River:
-            // We are starting at the river, so we can directly map player range indices into the hand ranking table
-            for (Player player : { Player::P0, Player::P1 }) {
-                int playerRangeSize = ranges[player].hands.size();
+    Street startingStreet = getStartingStreet();
+
+    // Build sorted hand ranks table for showdown nodes
+    for (Player player : { Player::P0, Player::P1 }) {
+        int playerRangeSize = ranges[player].hands.size();
+
+        switch (startingStreet) {
+            case Street::River:
+                // We are starting at the river, so we can directly map player range indices into the hand ranking table
                 m_handRanks[player].resize(playerRangeSize);
 
                 for (int rangeIndex = 0; rangeIndex < playerRangeSize; ++rangeIndex) {
@@ -524,18 +560,15 @@ void Holdem::buildHandTables() {
                 }
 
                 std::sort(m_handRanks[player].begin(), m_handRanks[player].end());
-            }
-            break;
+                break;
 
-        case Street::Turn:
-            // We are starting at the turn, so we have to consider each possible river runout
-            for (Player player : { Player::P0, Player::P1 }) {
-                int playerRangeSize = ranges[player].hands.size();
+            case Street::Turn: {
+                // We are starting at the turn, so we have to consider each possible river runout
                 int handRankTableSize = holdem::DeckSize * playerRangeSize;
                 m_handRanks[player].resize(handRankTableSize);
 
                 for (CardID riverCard = 0; riverCard < holdem::DeckSize; ++riverCard) {
-                    int handRankOffset = static_cast<int>(riverCard) * playerRangeSize;
+                    int handRankOffset = riverCard * playerRangeSize;
 
                     for (int rangeIndex = 0; rangeIndex < playerRangeSize; ++rangeIndex) {
                         CardSet board = ranges[player].hands[rangeIndex] | startingCards | cardIDToSet(riverCard);
@@ -547,13 +580,12 @@ void Holdem::buildHandTables() {
                         m_handRanks[player].begin() + handRankOffset + playerRangeSize
                     );
                 }
-            }
-            break;
 
-        case Street::Flop:
-            // We are starting at the flop, so we have to consider each possible turn and river runout
-            for (Player player : { Player::P0, Player::P1 }) {
-                int playerRangeSize = ranges[player].hands.size();
+                break;
+            }
+
+            case Street::Flop: {
+                // We are starting at the flop, so we have to consider each possible turn and river runout
                 int handRankTableSize = holdem::NumPossibleTwoCardHands * playerRangeSize;
                 m_handRanks[player].resize(handRankTableSize);
 
@@ -573,20 +605,101 @@ void Holdem::buildHandTables() {
                         );
                     }
                 }
-            }
-            break;
 
-        default:
-            assert(false);
-            break;
+                break;
+            }
+
+            default:
+                assert(false);
+                break;
+        }
+    }
+
+    // Build valid indices table for fold nodes
+    auto insertValidIndicesEmptyBoard = [this](Player player) -> void {
+        const auto& playerHands = m_settings.ranges[player].hands;
+        for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
+            assert(!doSetsOverlap(playerHands[handIndex], m_settings.startingCommunityCards));
+            m_validHandIndices[player][handIndex] = handIndex;
+        }
+    };
+
+    auto insertValidIndicesOneCardBoards = [this](Player player) -> void {
+        CardSet startingBoard = m_settings.startingCommunityCards;
+        const auto& playerHands = m_settings.ranges[player].hands;
+
+        for (CardID card = 0; card < holdem::DeckSize; ++card) {
+            if (setContainsCard(startingBoard, card)) continue;
+
+            int validIndexOffset = (1 + card) * playerHands.size();
+            int indexInTable = 0;
+            for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
+                if (!doSetsOverlap(playerHands[handIndex], startingBoard | cardIDToSet(card))) {
+                    m_validHandIndices[player][validIndexOffset + indexInTable] = handIndex;
+                    ++indexInTable;
+                }
+            }
+        }
+    };
+
+    auto insertValidIndicesTwoCardBoards = [this](Player player) -> void {
+        CardSet startingBoard = m_settings.startingCommunityCards;
+        const auto& playerHands = m_settings.ranges[player].hands;
+
+        for (CardID turnCard = 0; turnCard < holdem::DeckSize; ++turnCard) {
+            for (CardID riverCard = turnCard + 1; riverCard < holdem::DeckSize; ++riverCard) {
+                CardSet runout = cardIDToSet(turnCard) | cardIDToSet(riverCard);
+                if (doSetsOverlap(startingBoard, runout)) continue;
+
+                int validIndexOffset = (1 + holdem::DeckSize + mapTwoCardSetToIndex(runout)) * playerHands.size();
+                int indexInTable = 0;
+                for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
+                    if (!doSetsOverlap(startingBoard | runout, playerHands[handIndex])) {
+                        m_validHandIndices[player][validIndexOffset + indexInTable] = handIndex;
+                        ++indexInTable;
+                    }
+                }
+            }
+        }
+    };
+
+    for (Player player : { Player::P0, Player::P1 }) {
+        int playerRangeSize = ranges[player].hands.size();
+
+        switch (startingStreet) {
+            case Street::River: {
+                static constexpr int NumEntries = 1;
+                m_validHandIndices[player].assign(NumEntries * playerRangeSize, -1);
+                insertValidIndicesEmptyBoard(player);
+                break;
+            }
+            case Street::Turn: {
+                static constexpr int NumEntries = 1 + holdem::DeckSize;
+                m_validHandIndices[player].assign(NumEntries * playerRangeSize, -1);
+                insertValidIndicesEmptyBoard(player);
+                insertValidIndicesOneCardBoards(player);
+                break;
+            }
+            case Street::Flop: {
+                static constexpr int NumEntries = 1 + holdem::DeckSize + holdem::NumPossibleTwoCardHands;
+                m_validHandIndices[player].assign(NumEntries * playerRangeSize, -1);
+                insertValidIndicesEmptyBoard(player);
+                insertValidIndicesOneCardBoards(player);
+                insertValidIndicesTwoCardBoards(player);
+                break;
+            }
+            default:
+                assert(false);
+                break;
+        }
     }
 
     // Build hand index table for card isomorphisms
     for (Player player : { Player::P0, Player::P1 }) {
-        m_handIndices[player].fill(-1);
+        m_handToRangeIndex[player].fill(-1);
         for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
             int handIndexInTable = mapTwoCardSetToIndex(m_settings.ranges[player].hands[handIndex]);
-            m_handIndices[player][handIndexInTable] = handIndex;
+            m_handToRangeIndex[player][handIndexInTable] = static_cast<std::int16_t>(handIndex);
         }
     }
 
@@ -644,7 +757,7 @@ void Holdem::buildHandTables() {
 
         m_startingIsomorphisms = IdentityIsomorphism;
 
-        bool willTurnBeDealt = (getStartingStreet() == Street::Flop);
+        bool willTurnBeDealt = (startingStreet == Street::Flop);
 
         if (willTurnBeDealt) {
             for (int suit = 0; suit < 4; ++suit) {
@@ -671,7 +784,7 @@ void Holdem::buildHandTables() {
                         for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
                             CardSet swappedHand = swapSetSuits(m_settings.ranges[player].hands[handIndex], x, y);
                             int swappedHandIndexInTable = mapTwoCardSetToIndex(swappedHand);
-                            int swappedHandIndex = m_handIndices[player][swappedHandIndexInTable];
+                            std::int16_t swappedHandIndex = m_handToRangeIndex[player][swappedHandIndexInTable];
 
                             if (swappedHandIndex == -1) {
                                 // Ranges cannot be symmetric, since the swapped hand does not even exist in the player's range
@@ -730,15 +843,5 @@ bool Holdem::areBothPlayersAllIn(const GameState& state) const {
 }
 
 Street Holdem::getStartingStreet() const {
-    switch (getSetSize(m_settings.startingCommunityCards)) {
-        case 3:
-            return Street::Flop;
-        case 4:
-            return Street::Turn;
-        case 5:
-            return Street::River;
-        default:
-            assert(false);
-            return Street::River;
-    }
+    return static_cast<Street>(static_cast<int>(Street::Flop) + (getSetSize(m_settings.startingCommunityCards) - 3));
 }

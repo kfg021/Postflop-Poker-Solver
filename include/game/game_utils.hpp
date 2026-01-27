@@ -15,6 +15,7 @@ Player getOpposingPlayer(Player player);
 Value getCardValue(CardID cardID);
 Suit getCardSuit(CardID cardID);
 CardID getCardIDFromValueAndSuit(Value value, Suit suit);
+CardID swapCardSuits(CardID cardID, Suit x, Suit y);
 std::string getNameFromCardID(CardID cardID);
 Result<CardID> getCardIDFromName(const std::string& cardName);
 
@@ -26,7 +27,6 @@ bool doSetsOverlap(CardSet x, CardSet y);
 CardID getLowestCardInSet(CardSet cardSet);
 CardID popLowestCardFromSet(CardSet& cardSet);
 CardSet filterCardsWithSuit(CardSet cardSet, Suit suit);
-CardID swapCardSuits(CardID cardID, Suit x, Suit y);
 CardSet swapSetSuits(CardSet cardSet, Suit x, Suit y);
 std::vector<std::string> getCardSetNames(CardSet cardSet);
 

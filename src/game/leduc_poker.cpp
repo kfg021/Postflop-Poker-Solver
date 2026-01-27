@@ -188,6 +188,34 @@ std::span<const float> LeducPoker::getInitialRangeWeights(Player /*player*/) con
     return Weights;
 }
 
+std::span<const std::int16_t> LeducPoker::getValidHandIndices(Player /*player*/, CardSet board) const {
+    if (board == 0) {
+        static constexpr std::array<const std::int16_t, 6> ValidIndicesEmptyBoard = { 0, 1, 2, 3, 4, 5 };
+        return ValidIndicesEmptyBoard;
+    }
+    else {
+        assert(getSetSize(board) == 1);
+
+        static constexpr std::array<std::array<const std::int16_t, 5>, 6> ValidIndicesWithBoard = {
+            std::array<const std::int16_t, 5> { 1, 2, 3, 4, 5 }, // Board = Jh
+            std::array<const std::int16_t, 5> { 0, 2, 3, 4, 5 }, // Board = Js
+            std::array<const std::int16_t, 5> { 0, 1, 3, 4, 5 }, // Board = Qh
+            std::array<const std::int16_t, 5> { 0, 1, 2, 4, 5 }, // Board = Qs
+            std::array<const std::int16_t, 5> { 0, 1, 2, 3, 5 }, // Board = Kh
+            std::array<const std::int16_t, 5> { 0, 1, 2, 3, 4 }  // Board = Ks
+        };
+
+        for (int i = 0; i < 6; ++i) {
+            if (board == PossibleHands[i]) {
+                return ValidIndicesWithBoard[i];
+            }
+        }
+
+        assert(false);
+        return {};
+    }
+}
+
 std::span<const HandData> LeducPoker::getValidSortedHandRanks(Player /*player*/, CardSet board) const {
     enum LeducHandRankID : std::uint8_t {
         JackHigh,

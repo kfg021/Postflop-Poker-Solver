@@ -209,6 +209,7 @@ void traverseTree(
     StackAllocator<float>& allocator
 );
 
+// TODO: Determine if we want to use prefiltered ranges for chance nodes
 template <int GameHandSize, TraversalMode Mode>
 void traverseChance(
     const Node& chanceNode,
@@ -295,6 +296,7 @@ void traverseChance(
         CardID chanceCard = tree.allNodes[chanceNode.childrenOffset + cardIndex].state.lastDealtCard;
 
         for (int hand = 0; hand < heroRangeSize; ++hand) {
+            // First calculate contribution from canonical cards
             if (areHandAndCardDisjoint<GameHandSize>(hand, chanceCard, heroRangeHandCards)) {
                 outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + hand];
             }
@@ -302,7 +304,7 @@ void traverseChance(
                 assert(newOutputExpectedValues[cardIndex * heroRangeSize + hand] == 0.0f);
             }
 
-            // Then calculate contribution for all isomorphisms
+            // Then calculate contribution from all isomorphisms
             for (SuitMapping mapping : chanceNode.suitMappings) {
                 assert(mapping.parent != mapping.child);
 
@@ -628,6 +630,7 @@ template <int GameHandSize, TraversalMode Mode>
 void traverseFold(
     const Node& foldNode,
     const TraversalConstants& constants,
+    const IGameRules& rules,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree
@@ -638,17 +641,17 @@ void traverseFold(
 
     Player villain = getOpposingPlayer(constants.hero);
 
-    int heroRangeSize = tree.rangeSize[constants.hero];
-    int villainRangeSize = tree.rangeSize[villain];
-
     const auto& heroRangeHandCards = tree.rangeHandCards[constants.hero];
     const auto& villainRangeHandCards = tree.rangeHandCards[villain];
+
+    const auto& heroValidHandIndices = rules.getValidHandIndices(constants.hero, foldNode.state.currentBoard);
+    const auto& villainValidHandIndices = rules.getValidHandIndices(villain, foldNode.state.currentBoard);
 
     float villainTotalReachProb = 0.0f;
     std::array<float, StandardDeckSize> villainReachProbWithCard = {};
 
-    for (int hand = 0; hand < villainRangeSize; ++hand) {
-        if (!areHandAndSetDisjoint<GameHandSize>(hand, foldNode.state.currentBoard, villainRangeHandCards)) continue;
+    for (std::int16_t hand : villainValidHandIndices) {
+        assert(hand != -1);
 
         float villainReachProb = villainReachProbs[hand];
         villainTotalReachProb += villainReachProb;
@@ -672,8 +675,8 @@ void traverseFold(
 
     const auto& heroSameHandIndexTable = tree.sameHandIndexTable[constants.hero];
 
-    for (int hand = 0; hand < heroRangeSize; ++hand) {
-        if (!areHandAndSetDisjoint<GameHandSize>(hand, foldNode.state.currentBoard, heroRangeHandCards)) continue;
+    for (std::int16_t hand : heroValidHandIndices) {
+        assert(hand != -1);
 
         float villainValidReachProb = villainTotalReachProb
             - getReachProbBlockedByHeroHand<GameHandSize>(hand, villainReachProbWithCard, villainReachProbs, heroRangeHandCards)
@@ -699,13 +702,11 @@ void traverseShowdown(
     Player hero = constants.hero;
     Player villain = getOpposingPlayer(hero);
 
-    PlayerArray<std::span<const HandData>> sortedHandRanks;
-    for (Player player : { hero, villain }) {
-        sortedHandRanks[player] = rules.getValidSortedHandRanks(player, showdownNode.state.currentBoard);
-    }
+    const auto& heroSortedHandRanks = rules.getValidSortedHandRanks(hero, showdownNode.state.currentBoard);
+    const auto& villainSortedHandRanks = rules.getValidSortedHandRanks(villain, showdownNode.state.currentBoard);
 
-    int heroFilteredRangeSize = sortedHandRanks[hero].size();
-    int villainFilteredRangeSize = sortedHandRanks[villain].size();
+    int heroFilteredRangeSize = heroSortedHandRanks.size();
+    int villainFilteredRangeSize = villainSortedHandRanks.size();
 
     const auto& heroRangeHandCards = tree.rangeHandCards[hero];
     const auto& villainRangeHandCards = tree.rangeHandCards[villain];
@@ -727,11 +728,11 @@ void traverseShowdown(
 
         int villainIndexSorted = 0;
 
-        for (HandData heroHandData : sortedHandRanks[hero]) {
+        for (HandData heroHandData : heroSortedHandRanks) {
             assert(areHandAndSetDisjoint<GameHandSize>(heroHandData.index, showdownNode.state.currentBoard, heroRangeHandCards));
 
-            while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank < heroHandData.rank) {
-                int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
+            while (villainIndexSorted < villainFilteredRangeSize && villainSortedHandRanks[villainIndexSorted].rank < heroHandData.rank) {
+                int villainHandIndex = villainSortedHandRanks[villainIndexSorted].index;
                 assert(areHandAndSetDisjoint<GameHandSize>(villainHandIndex, showdownNode.state.currentBoard, villainRangeHandCards));
 
                 float villainReachProb = villainReachProbs[villainHandIndex];
@@ -762,11 +763,11 @@ void traverseShowdown(
 
         int villainIndexSorted = villainFilteredRangeSize - 1;
 
-        for (HandData heroHandData : std::views::reverse(sortedHandRanks[hero])) {
+        for (HandData heroHandData : std::views::reverse(heroSortedHandRanks)) {
             assert(areHandAndSetDisjoint<GameHandSize>(heroHandData.index, showdownNode.state.currentBoard, heroRangeHandCards));
 
-            while (villainIndexSorted >= 0 && sortedHandRanks[villain][villainIndexSorted].rank > heroHandData.rank) {
-                int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
+            while (villainIndexSorted >= 0 && villainSortedHandRanks[villainIndexSorted].rank > heroHandData.rank) {
+                int villainHandIndex = villainSortedHandRanks[villainIndexSorted].index;
                 assert(areHandAndSetDisjoint<GameHandSize>(villainHandIndex, showdownNode.state.currentBoard, villainRangeHandCards));
 
                 float villainReachProb = villainReachProbs[villainHandIndex];
@@ -801,22 +802,22 @@ void traverseShowdown(
         int villainIndexSorted = 0;
 
         for (int heroIndexSorted = 0; heroIndexSorted < heroFilteredRangeSize; ++heroIndexSorted) {
-            HandData heroHandData = sortedHandRanks[hero][heroIndexSorted];
+            HandData heroHandData = heroSortedHandRanks[heroIndexSorted];
             assert(areHandAndSetDisjoint<GameHandSize>(heroHandData.index, showdownNode.state.currentBoard, heroRangeHandCards));
 
-            bool heroRankIncreased = (heroIndexSorted == 0) || (heroHandData.rank > sortedHandRanks[hero][heroIndexSorted - 1].rank);
+            bool heroRankIncreased = (heroIndexSorted == 0) || (heroHandData.rank > heroSortedHandRanks[heroIndexSorted - 1].rank);
             if (heroRankIncreased) {
                 // We need to reset our reach probs because the hero's rank has increased
                 villainTotalReachProb = 0.0;
                 villainReachProbWithCard.fill(0.0);
 
                 // Skip until we find a hand that we tie with
-                while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank < heroHandData.rank) {
+                while (villainIndexSorted < villainFilteredRangeSize && villainSortedHandRanks[villainIndexSorted].rank < heroHandData.rank) {
                     ++villainIndexSorted;
                 }
 
-                while (villainIndexSorted < villainFilteredRangeSize && sortedHandRanks[villain][villainIndexSorted].rank == heroHandData.rank) {
-                    int villainHandIndex = sortedHandRanks[villain][villainIndexSorted].index;
+                while (villainIndexSorted < villainFilteredRangeSize && villainSortedHandRanks[villainIndexSorted].rank == heroHandData.rank) {
+                    int villainHandIndex = villainSortedHandRanks[villainIndexSorted].index;
                     assert(areHandAndSetDisjoint<GameHandSize>(villainHandIndex, showdownNode.state.currentBoard, villainRangeHandCards));
 
                     float villainReachProb = villainReachProbs[villainHandIndex];
@@ -860,7 +861,7 @@ void traverseTree(
             traverseDecision<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Fold:
-            traverseFold<GameHandSize, Mode>(node, constants, villainReachProbs, outputExpectedValues, tree);
+            traverseFold<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree);
             break;
         case NodeType::Showdown:
             traverseShowdown<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree);
