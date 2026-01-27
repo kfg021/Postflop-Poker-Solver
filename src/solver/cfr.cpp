@@ -209,7 +209,6 @@ void traverseTree(
     StackAllocator<float>& allocator
 );
 
-// TODO: Determine if we want to use prefiltered ranges for chance nodes
 template <int GameHandSize, TraversalMode Mode>
 void traverseChance(
     const Node& chanceNode,
@@ -297,12 +296,14 @@ void traverseChance(
 
         for (int hand = 0; hand < heroRangeSize; ++hand) {
             // First calculate contribution from canonical cards
-            if (areHandAndCardDisjoint<GameHandSize>(hand, chanceCard, heroRangeHandCards)) {
-                outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + hand];
-            }
-            else {
-                assert(newOutputExpectedValues[cardIndex * heroRangeSize + hand] == 0.0f);
-            }
+
+            // Because of how fold and showdown nodes are structured, blocked hands will always return 0.0f.
+            // Therefore, we can just add them directly and avoid having to branch
+            assert(
+                areHandAndCardDisjoint<GameHandSize>(hand, chanceCard, heroRangeHandCards)
+                || newOutputExpectedValues[cardIndex * heroRangeSize + hand] == 0.0f
+            );
+            outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + hand];
 
             // Then calculate contribution from all isomorphisms
             for (SuitMapping mapping : chanceNode.suitMappings) {
@@ -312,12 +313,13 @@ void traverseChance(
                     CardID isomorphicCard = getCardIDFromValueAndSuit(getCardValue(chanceCard), mapping.child);
                     int indexAfterSuitSwap = rules.getHandIndexAfterSuitSwap(constants.hero, hand, mapping.parent, mapping.child);
 
-                    if (areHandAndCardDisjoint<GameHandSize>(hand, isomorphicCard, heroRangeHandCards)) {
-                        outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + indexAfterSuitSwap];
-                    }
-                    else {
-                        assert(newOutputExpectedValues[cardIndex * heroRangeSize + indexAfterSuitSwap] == 0.0f);
-                    }
+                    // Because of how fold and showdown nodes are structured, blocked hands will always return 0.0f.
+                    // Therefore, we can just add them directly and avoid having to branch
+                    assert(
+                        areHandAndCardDisjoint<GameHandSize>(hand, isomorphicCard, heroRangeHandCards)
+                        || newOutputExpectedValues[cardIndex * heroRangeSize + indexAfterSuitSwap] == 0.0f
+                    );
+                    outputExpectedValues[hand] += newOutputExpectedValues[cardIndex * heroRangeSize + indexAfterSuitSwap];
                 }
             }
         }
