@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.14)
 
 set(PROJECT_NAME PostflopSolver)
 project(${PROJECT_NAME} VERSION 1.0.0 LANGUAGES CXX)
