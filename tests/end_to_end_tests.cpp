@@ -11,6 +11,28 @@
 #include <omp.h>
 #endif
 
+namespace {
+    static constexpr int KuhnIterations = 100000;
+    static constexpr int LeducIterations = 10000;
+
+    // https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
+    static constexpr float KuhnPlayer0ExpectedValue = -1.0f / 18.0f;
+
+    // Lanctot, M., Zambaldi, V., Gruslys, A., Lazaridou, A., Tuyls, K., Perolat, J., Silver, D., & Graepel, T. (2017).
+    // A Unified Game-Theoretic Approach to Multiagent Reinforcement Learning.
+    // https://doi.org/10.48550/arXiv.1711.00832
+    static constexpr float LeducPlayer0ExpectedValue = -0.0856f;
+
+    static constexpr float StrategyEpsilon = 1e-3f;
+    static constexpr float ExploitabilityEpsilon = 1e-2f;
+
+    static constexpr int NumParallelThreads = 6;
+
+    DiscountParams getTestingDiscountParams(int index) {
+        return getDiscountParams(1.5f, 0.0f, 2.0f, index + 1);
+    }
+} // namespace
+
 TEST(EndToEndTest, Kuhn) {
     KuhnPoker kuhnPokerRules;
     Tree tree;
@@ -24,10 +46,9 @@ TEST(EndToEndTest, Kuhn) {
 
     StackAllocator<float> allocator(1);
 
-    static constexpr float Iterations = 100000;
-    for (int i = 0; i < Iterations; ++i) {
+    for (int i = 0; i < KuhnIterations; ++i) {
         for (Player hero : { Player::P0, Player::P1 }) {
-            discountedCfr(hero, kuhnPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i), tree, allocator);
+            discountedCfr(hero, kuhnPokerRules, getTestingDiscountParams(i), tree, allocator);
         }
     }
 
@@ -42,20 +63,15 @@ TEST(EndToEndTest, Kuhn) {
         King
     };
 
-    static constexpr float StrategyEpsilon = 1e-3;
-
     // Test that strategy is optimal
     // https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
 
-    // Kuhn poker has a known EV of -1/18 for the starting player
-    static constexpr float ExpectedPlayer0ExpectedValue = -1.0f / 18.0f;
     float player0ExpectedValue = expectedValue(Player::P0, kuhnPokerRules, tree, allocator);
     float player1ExpectedValue = expectedValue(Player::P1, kuhnPokerRules, tree, allocator);
-    EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
-    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player0ExpectedValue, KuhnPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player1ExpectedValue, -KuhnPlayer0ExpectedValue, StrategyEpsilon);
 
     // Make sure exploitability is non-negative and small
-    static constexpr float ExploitabilityEpsilon = 1e-2;
     float exploitability = calculateExploitability(kuhnPokerRules, tree, allocator);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
@@ -104,27 +120,19 @@ TEST(EndToEndTest, LeducWithoutIsomorphism) {
 
     StackAllocator<float> allocator(1);
 
-    static constexpr float Iterations = 10000;
-    for (int i = 0; i < Iterations; ++i) {
+    for (int i = 0; i < LeducIterations; ++i) {
         for (Player hero : { Player::P0, Player::P1 }) {
-            discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree, allocator);
+            discountedCfr(hero, leducPokerRules, getTestingDiscountParams(i), tree, allocator);
         }
     }
 
-    // Lanctot, M., Zambaldi, V., Gruslys, A., Lazaridou, A., Tuyls, K., Perolat, J., Silver, D., & Graepel, T. (2017).
-    // A Unified Game-Theoretic Approach to Multiagent Reinforcement Learning.
-    // https://doi.org/10.48550/arXiv.1711.00832
-    static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
-
     // Make sure EV is correct
-    static constexpr float StrategyEpsilon = 1e-3;
     float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree, allocator);
     float player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree, allocator);
-    EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
-    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player0ExpectedValue, LeducPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player1ExpectedValue, -LeducPlayer0ExpectedValue, StrategyEpsilon);
 
     // Make sure exploitability is non-negative and small
-    static constexpr float ExploitabilityEpsilon = 1e-2;
     float exploitability = calculateExploitability(leducPokerRules, tree, allocator);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
@@ -143,25 +151,19 @@ TEST(EndToEndTest, LeducWithIsomorphism) {
 
     StackAllocator<float> allocator(1);
 
-    static constexpr float Iterations = 10000;
-    for (int i = 0; i < Iterations; ++i) {
+    for (int i = 0; i < LeducIterations; ++i) {
         for (Player hero : { Player::P0, Player::P1 }) {
-            discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree, allocator);
+            discountedCfr(hero, leducPokerRules, getTestingDiscountParams(i), tree, allocator);
         }
     }
 
-    // Lanctot et al., 2017
-    static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
-
     // Make sure EV is correct
-    static constexpr float StrategyEpsilon = 1e-3;
     float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree, allocator);
     float player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree, allocator);
-    EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
-    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player0ExpectedValue, LeducPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player1ExpectedValue, -LeducPlayer0ExpectedValue, StrategyEpsilon);
 
     // Make sure exploitability is non-negative and small
-    static constexpr float ExploitabilityEpsilon = 1e-2;
     float exploitability = calculateExploitability(leducPokerRules, tree, allocator);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
@@ -179,35 +181,28 @@ TEST(EndToEndTest, LeducWithIsomorphismParallel) {
 
     tree.initCfrVectors();
 
-    static constexpr int NumThreads = 6;
-    StackAllocator<float> allocator(NumThreads);
-    omp_set_num_threads(NumThreads);
+    StackAllocator<float> allocator(NumParallelThreads);
+    omp_set_num_threads(NumParallelThreads);
 
     #pragma omp parallel
     {
         #pragma omp single
         {
-            static constexpr float Iterations = 10000;
-            for (int i = 0; i < Iterations; ++i) {
+            for (int i = 0; i < LeducIterations; ++i) {
                 for (Player hero : { Player::P0, Player::P1 }) {
-                    discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree, allocator);
+                    discountedCfr(hero, leducPokerRules, getTestingDiscountParams(i), tree, allocator);
                 }
             }
         }
     }
 
-    // Lanctot et al., 2017
-    static constexpr float ExpectedPlayer0ExpectedValue = -0.0856;
-
     // Make sure EV is correct
-    static constexpr float StrategyEpsilon = 1e-3;
     float player0ExpectedValue = expectedValue(Player::P0, leducPokerRules, tree, allocator);
     float player1ExpectedValue = expectedValue(Player::P1, leducPokerRules, tree, allocator);
-    EXPECT_NEAR(player0ExpectedValue, ExpectedPlayer0ExpectedValue, StrategyEpsilon);
-    EXPECT_NEAR(player1ExpectedValue, -ExpectedPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player0ExpectedValue, LeducPlayer0ExpectedValue, StrategyEpsilon);
+    EXPECT_NEAR(player1ExpectedValue, -LeducPlayer0ExpectedValue, StrategyEpsilon);
 
     // Make sure exploitability is non-negative and small
-    static constexpr float ExploitabilityEpsilon = 1e-2;
     float exploitability = calculateExploitability(leducPokerRules, tree, allocator);
     ASSERT_GE(exploitability, 0.0f);
     ASSERT_NEAR(exploitability, 0.0f, ExploitabilityEpsilon);
@@ -237,10 +232,9 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
 
         StackAllocator<float> allocator(1);
 
-        static constexpr float Iterations = 10000;
-        for (int i = 0; i < Iterations; ++i) {
+        for (int i = 0; i < LeducIterations; ++i) {
             for (Player hero : { Player::P0, Player::P1 }) {
-                discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree, allocator);
+                discountedCfr(hero, leducPokerRules, getTestingDiscountParams(i), tree, allocator);
             }
         }
 
@@ -258,18 +252,16 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
         tree.buildTreeSkeleton(leducPokerRules);
         tree.initCfrVectors();
 
-        static constexpr int NumThreads = 6;
-        StackAllocator<float> allocator(NumThreads);
-        omp_set_num_threads(NumThreads);
+        StackAllocator<float> allocator(NumParallelThreads);
+        omp_set_num_threads(NumParallelThreads);
 
         #pragma omp parallel
         {
             #pragma omp single
             {
-                static constexpr float Iterations = 10000;
-                for (int i = 0; i < Iterations; ++i) {
+                for (int i = 0; i < LeducIterations; ++i) {
                     for (Player hero : { Player::P0, Player::P1 }) {
-                        discountedCfr(hero, leducPokerRules, getDiscountParams(1.5f, 0.0f, 2.0f, i + 1), tree, allocator);
+                        discountedCfr(hero, leducPokerRules, getTestingDiscountParams(i), tree, allocator);
                     }
                 }
             }

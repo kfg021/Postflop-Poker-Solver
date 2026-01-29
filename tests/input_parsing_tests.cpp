@@ -8,7 +8,9 @@
 #include <cmath>
 #include <string>
 
-static constexpr float Epsilon = 1e-5;
+namespace {
+    static constexpr float Epsilon = 1e-5f;
+} // namespace
 
 TEST(CardNameParsingTest, CorrectCardNameParsing) {
     const std::string CardValueNames = "23456789TJQKA";
