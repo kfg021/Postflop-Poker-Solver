@@ -70,7 +70,7 @@ bool loadField(T& field, const YAML::Node& node, const std::vector<std::string>&
             std::cout << "Successfully loaded field " << join(indices, "::") << ".\n";
             return true;
         }
-        catch (const YAML::Exception& e) {
+        catch (const YAML::Exception&) {
             return false;
         }
     }
