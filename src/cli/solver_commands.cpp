@@ -609,7 +609,10 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
             return std::nullopt;
         }
 
-        assert(!doSetsOverlap(hand, context.rules->getInitialGameState().currentBoard));
+        if (doSetsOverlap(hand, context.rules->getInitialGameState().currentBoard)) {
+            // Hand is in our range, but is blocked by the starting board
+            return std::nullopt;
+        }
 
         double handWeight = static_cast<double>(context.rules->getInitialRangeWeights(playerToAct)[handIndex]);
 
@@ -640,7 +643,7 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
                     if (currentNode.state.playerToAct == playerToAct) {
                         // This is a strategy node for the current player, multiply the hand weight by the strategy for the action we took
                         int actionIndexTaken = context.nodePath[i + 1].index - currentNode.childrenOffset;
-                        assert((actionIndexTaken >= 0) && (actionIndexTaken <= currentNode.numChildren));
+                        assert((actionIndexTaken >= 0) && (actionIndexTaken < currentNode.numChildren));
                         FixedVector<float, MaxNumActions> finalStrategy = getFinalStrategy(handIndex, currentNode, *context.tree);
                         handWeight *= static_cast<double>(finalStrategy[actionIndexTaken]);
                     }
@@ -655,17 +658,6 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
         }
 
         return Strategy{ hand, handWeight, getFinalStrategy(handIndex, node, *context.tree) };
-    };
-
-    auto extendString = [](const std::string& input, int totalSize) -> std::string {
-        int currentSize = input.size();
-
-        if (currentSize >= totalSize) {
-            return input;
-        }
-        else {
-            return input + std::string(totalSize - currentSize, ' ');
-        }
     };
 
     if (!isContextValid(context)) {
@@ -749,6 +741,17 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     }
 
     // Print the final strategy
+
+    auto extendString = [](const std::string& input, int totalSize) -> std::string {
+        int currentSize = input.size();
+
+        if (currentSize >= totalSize) {
+            return input;
+        }
+        else {
+            return input + std::string(totalSize - currentSize, ' ');
+        }
+    };
 
     auto printDivider = [&node]() -> void {
         std::cout << "+------+---------+";
