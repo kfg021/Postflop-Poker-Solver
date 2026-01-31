@@ -62,23 +62,26 @@ void writeCurrentStrategyToBuffer(std::span<float> currentStrategyBuffer, const 
     ScopedVector<float> totalPositiveRegrets(allocator, getThreadIndex(), playerToActRangeSize);
     std::fill(totalPositiveRegrets.begin(), totalPositiveRegrets.end(), 0.0f);
 
-    auto regretSums = tree.allRegretSums.begin() + decisionNode.trainingDataOffset;
+    const auto regretSums = tree.allRegretSums.begin() + decisionNode.trainingDataOffset;
 
     for (int action = 0; action < numActions; ++action) {
         for (int hand = 0; hand < playerToActRangeSize; ++hand) {
-            totalPositiveRegrets[hand] += std::max(regretSums[action * playerToActRangeSize + hand], 0.0f);
+            float positiveRegret = std::max(regretSums[action * playerToActRangeSize + hand], 0.0f);
+            currentStrategyBuffer[action * playerToActRangeSize + hand] = positiveRegret;
+            totalPositiveRegrets[hand] += positiveRegret;
         }
     }
 
+    float numActionsInverse = 1.0f / static_cast<float>(numActions);
     for (int action = 0; action < numActions; ++action) {
         for (int hand = 0; hand < playerToActRangeSize; ++hand) {
             if (totalPositiveRegrets[hand] > 0.0f) {
-                currentStrategyBuffer[action * playerToActRangeSize + hand] = std::max(regretSums[action * playerToActRangeSize + hand], 0.0f) / totalPositiveRegrets[hand];
+                currentStrategyBuffer[action * playerToActRangeSize + hand] /= totalPositiveRegrets[hand];
             }
             else {
                 // Play a uniform strategy if no action has positive regret
                 assert(totalPositiveRegrets[hand] == 0.0f);
-                currentStrategyBuffer[action * playerToActRangeSize + hand] = 1.0f / static_cast<float>(numActions);
+                currentStrategyBuffer[action * playerToActRangeSize + hand] = numActionsInverse;
             }
         }
     }
@@ -95,24 +98,27 @@ void writeAverageStrategyToBuffer(std::span<float> averageStrategyBuffer, const 
     ScopedVector<float> totalStrategy(allocator, getThreadIndex(), playerToActRangeSize);
     std::fill(totalStrategy.begin(), totalStrategy.end(), 0.0f);
 
-    auto strategySums = tree.allStrategySums.begin() + decisionNode.trainingDataOffset;
+    const auto strategySums = tree.allStrategySums.begin() + decisionNode.trainingDataOffset;
 
     for (int action = 0; action < numActions; ++action) {
         for (int hand = 0; hand < playerToActRangeSize; ++hand) {
-            assert(strategySums[action * playerToActRangeSize + hand] >= 0.0f);
-            totalStrategy[hand] += strategySums[action * playerToActRangeSize + hand];
+            float strategy = strategySums[action * playerToActRangeSize + hand];
+            assert(strategy >= 0.0f);
+            averageStrategyBuffer[action * playerToActRangeSize + hand] = strategy;
+            totalStrategy[hand] += strategy;
         }
     }
 
+    float numActionsInverse = 1.0f / static_cast<float>(numActions);
     for (int action = 0; action < numActions; ++action) {
         for (int hand = 0; hand < playerToActRangeSize; ++hand) {
             if (totalStrategy[hand] > 0.0f) {
-                averageStrategyBuffer[action * playerToActRangeSize + hand] = strategySums[action * playerToActRangeSize + hand] / totalStrategy[hand];
+                averageStrategyBuffer[action * playerToActRangeSize + hand] /= totalStrategy[hand];
             }
             else {
                 // Play a uniform strategy if we don't have a strategy yet
                 assert(totalStrategy[hand] == 0.0f);
-                averageStrategyBuffer[action * playerToActRangeSize + hand] = 1.0f / static_cast<float>(numActions);
+                averageStrategyBuffer[action * playerToActRangeSize + hand] = numActionsInverse;
             }
         }
     }
@@ -1075,7 +1081,7 @@ FixedVector<float, MaxNumActions> getFinalStrategy(int hand, const Node& decisio
     int numActions = static_cast<int>(decisionNode.numChildren);
     assert(numActions > 0);
 
-    auto strategySums = tree.allStrategySums.begin() + decisionNode.trainingDataOffset;
+    const auto strategySums = tree.allStrategySums.begin() + decisionNode.trainingDataOffset;
 
     float total = 0.0f;
     for (int action = 0; action < numActions; ++action) {
