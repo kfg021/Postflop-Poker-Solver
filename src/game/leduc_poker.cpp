@@ -49,9 +49,24 @@ GameState LeducPoker::getInitialGameState() const {
     return InitialState;
 }
 
+CardSet LeducPoker::getDeck() const {
+    static const CardSet Deck = PossibleHands[0]
+        | PossibleHands[1]
+        | PossibleHands[2]
+        | PossibleHands[3]
+        | PossibleHands[4]
+        | PossibleHands[5];
+    assert(getSetSize(Deck) == 6);
+    return Deck;
+}
+
 int LeducPoker::getDeadMoney() const {
     // Leduc poker has no dead money
     return 0;
+}
+
+bool LeducPoker::isUsingIsomorphism() const {
+    return m_useChanceCardIsomorphism;
 }
 
 NodeType LeducPoker::getNodeType(const GameState& state) const {
@@ -157,26 +172,12 @@ GameState LeducPoker::getNewStateAfterDecision(const GameState& state, ActionID 
     return nextState;
 }
 
-ChanceNodeInfo LeducPoker::getChanceNodeInfo(CardSet board) const {
+FixedVector<SuitEquivalenceClass, 4> LeducPoker::getChanceNodeIsomorphisms(CardSet board) const {
     assert(board == 0);
 
-    static const CardSet Deck = PossibleHands[0]
-        | PossibleHands[1]
-        | PossibleHands[2]
-        | PossibleHands[3]
-        | PossibleHands[4]
-        | PossibleHands[5];
-    assert(getSetSize(Deck) == 6);
-
-    FixedVector<SuitEquivalenceClass, 4> isomorphisms;
-    if (m_useChanceCardIsomorphism) {
-        isomorphisms.pushBack({ Suit::Hearts, Suit::Spades });
-    }
-
-    return {
-        .availableCards = Deck,
-        .isomorphisms = isomorphisms
-    };
+    return m_useChanceCardIsomorphism ?
+        FixedVector<SuitEquivalenceClass, 4>{{ Suit::Hearts, Suit::Spades }} :
+        FixedVector<SuitEquivalenceClass, 4>{};
 }
 
 std::span<const CardSet> LeducPoker::getRangeHands(Player /*player*/) const {

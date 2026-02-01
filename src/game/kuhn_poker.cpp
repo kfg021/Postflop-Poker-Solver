@@ -41,9 +41,20 @@ GameState KuhnPoker::getInitialGameState() const {
     return InitialState;
 }
 
+CardSet KuhnPoker::getDeck() const {
+    static const CardSet Deck = PossibleHands[0] | PossibleHands[1] | PossibleHands[2];
+    assert(getSetSize(Deck) == 3);
+    return Deck;
+}
+
 int KuhnPoker::getDeadMoney() const {
     // Kuhn poker has no dead money
     return 0;
+}
+
+bool KuhnPoker::isUsingIsomorphism() const {
+    // Kuhn poker has no chance cards, so no isomorphism is needed
+    return false;
 }
 
 NodeType KuhnPoker::getNodeType(const GameState& state) const {
@@ -119,7 +130,7 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
     return nextState;
 }
 
-ChanceNodeInfo KuhnPoker::getChanceNodeInfo(CardSet /*board*/) const {
+FixedVector<SuitEquivalenceClass, 4> KuhnPoker::getChanceNodeIsomorphisms(CardSet /*board*/) const {
     // Kuhn poker has no chance nodes
     assert(false);
     return {};
@@ -157,8 +168,7 @@ std::span<const HandData> KuhnPoker::getValidSortedHandRanks(Player /*player*/, 
 
 int KuhnPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit /*x*/, Suit /*y*/) const {
     // Kuhn poker only has one suit and no isomorphisms
-    assert(false);
-    return handIndex;
+    return -1;
 }
 
 std::string KuhnPoker::getActionName(ActionID actionID, int /*betRaiseSize*/) const {

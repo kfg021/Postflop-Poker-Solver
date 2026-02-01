@@ -14,7 +14,7 @@
 namespace {
 // sameHandIndexTable[p][i] = j iff the ith entry in player p's range is equal to the jth entry in the other player's range
 // (or -1 if no such index exists)
-// Used to calculate showdown and fold equity
+// Used to calculate showdown and fold equity for games with two card hands
 PlayerArray<std::vector<std::int16_t>> buildSameHandIndexTable(const IGameRules& rules) {
     const auto& player0Hands = rules.getRangeHands(Player::P0);
     const auto& player1Hands = rules.getRangeHands(Player::P1);
@@ -83,16 +83,17 @@ void createChanceNode(const IGameRules& rules, const GameState& state, std::vect
 
     // Process child nodes
     FixedVector<SuitMapping, 3> suitMappings;
-    ChanceNodeInfo chanceNodeInfo = rules.getChanceNodeInfo(state.currentBoard);
-    int numTotalChanceCards = getSetSize(chanceNodeInfo.availableCards);
+    FixedVector<SuitEquivalenceClass, 4> isomorphisms = rules.getChanceNodeIsomorphisms(state.currentBoard);
+    CardSet availableCards = rules.getDeck() & ~state.currentBoard;
+    int numTotalChanceCards = getSetSize(availableCards);
     int numCanonicalChanceCards = 0;
 
-    CardSet temp = chanceNodeInfo.availableCards;
+    CardSet temp = availableCards;
     for (int i = 0; i < numTotalChanceCards; ++i) {
         CardID nextCard = popLowestCardFromSet(temp);
 
         Suit suit = getCardSuit(nextCard);
-        Suit parentSuit = getParentSuit(suit, chanceNodeInfo.isomorphisms);
+        Suit parentSuit = getParentSuit(suit, isomorphisms);
 
         if (suit == parentSuit) {
             // At a chance node both players should have wagered same amount
@@ -131,7 +132,7 @@ void createChanceNode(const IGameRules& rules, const GameState& state, std::vect
         .childrenOffset = childrenOffset,
         .numChildren = static_cast<std::uint8_t>(numCanonicalChanceCards),
         .nodeType = NodeType::Chance,
-        .availableCards = chanceNodeInfo.availableCards,
+        .availableCards = availableCards,
         .suitMappings = suitMappings
     };
     allNodes.push_back(chanceNode);
@@ -190,7 +191,9 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
         }
     }
 
-    sameHandIndexTable = buildSameHandIndexTable(rules);
+    if (gameHandSize == 2) {
+        sameHandIndexTable = buildSameHandIndexTable(rules);
+    }
 
     deadMoney = rules.getDeadMoney();
 

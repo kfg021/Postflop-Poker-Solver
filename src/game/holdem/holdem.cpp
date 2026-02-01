@@ -129,8 +129,17 @@ GameState Holdem::getInitialGameState() const {
     return initialState;
 }
 
+CardSet Holdem::getDeck() const {
+    static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
+    return Deck;
+}
+
 int Holdem::getDeadMoney() const {
     return m_settings.deadMoney;
+}
+
+bool Holdem::isUsingIsomorphism() const {
+    return m_settings.useChanceCardIsomorphism;
 }
 
 NodeType Holdem::getNodeType(const GameState& state) const {
@@ -357,7 +366,7 @@ GameState Holdem::getNewStateAfterDecision(const GameState& state, ActionID acti
     return nextState;
 }
 
-ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
+FixedVector<SuitEquivalenceClass, 4> Holdem::getChanceNodeIsomorphisms(CardSet board) const {
     if (m_settings.useChanceCardIsomorphism) {
         CardSet previouslyDealtCards = board & ~m_settings.startingCommunityCards;
         bool wasTurnCardDealt = (previouslyDealtCards != 0);
@@ -368,23 +377,14 @@ ChanceNodeInfo Holdem::getChanceNodeInfo(CardSet board) const {
             CardID dealtTurn = getLowestCardInSet(previouslyDealtCards);
             int dealtTurnSuitID = static_cast<int>(getCardSuit(dealtTurn));
 
-            return {
-                .availableCards = Deck & ~board,
-                .isomorphisms = m_isomorphismsAfterSuitDealt[dealtTurnSuitID]
-            };
+            return m_isomorphismsAfterSuitDealt[dealtTurnSuitID];
         }
         else {
-            return {
-                .availableCards = Deck & ~board,
-                .isomorphisms = m_startingIsomorphisms
-            };
+            return m_startingIsomorphisms;
         }
     }
     else {
-        return {
-            .availableCards = Deck & ~board,
-            .isomorphisms = {}
-        };
+        return {};
     }
 }
 

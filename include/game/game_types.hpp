@@ -127,11 +127,6 @@ struct GameState {
 
 using SuitEquivalenceClass = FixedVector<Suit, 4>;
 
-struct ChanceNodeInfo {
-    CardSet availableCards;
-    FixedVector<SuitEquivalenceClass, 4> isomorphisms;
-};
-
 struct SuitMapping {
     Suit child;
     Suit parent;
