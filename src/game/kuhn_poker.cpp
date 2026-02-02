@@ -52,11 +52,6 @@ int KuhnPoker::getDeadMoney() const {
     return 0;
 }
 
-bool KuhnPoker::isUsingIsomorphism() const {
-    // Kuhn poker has no chance cards, so no isomorphism is needed
-    return false;
-}
-
 NodeType KuhnPoker::getNodeType(const GameState& state) const {
     switch (static_cast<Action>(state.lastAction)) {
         case Action::GameStart:
@@ -132,7 +127,6 @@ GameState KuhnPoker::getNewStateAfterDecision(const GameState& state, ActionID a
 
 FixedVector<SuitEquivalenceClass, 4> KuhnPoker::getChanceNodeIsomorphisms(CardSet /*board*/) const {
     // Kuhn poker has no chance nodes
-    assert(false);
     return {};
 }
 

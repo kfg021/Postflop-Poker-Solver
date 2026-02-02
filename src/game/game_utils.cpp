@@ -174,6 +174,17 @@ Result<Value> getValueFromChar(char c) {
     }
 }
 
+int mapTwoSuitsToIndex(Suit x, Suit y) {
+    assert(x != y);
+    if (x > y) std::swap(x, y);
+
+    int xID = static_cast<int>(x);
+    int yID = static_cast<int>(y);
+    int finalIndex = xID + ((yID * (yID - 1)) >> 1);
+    assert(finalIndex < 6);
+    return finalIndex;
+}
+
 Street getNextStreet(Street street) {
     return static_cast<Street>(static_cast<int>(street) + 1);
 }

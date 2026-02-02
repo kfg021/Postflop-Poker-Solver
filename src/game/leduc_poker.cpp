@@ -65,10 +65,6 @@ int LeducPoker::getDeadMoney() const {
     return 0;
 }
 
-bool LeducPoker::isUsingIsomorphism() const {
-    return m_useChanceCardIsomorphism;
-}
-
 NodeType LeducPoker::getNodeType(const GameState& state) const {
     switch (static_cast<Action>(state.lastAction)) {
         case Action::StreetStart:

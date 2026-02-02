@@ -138,10 +138,6 @@ int Holdem::getDeadMoney() const {
     return m_settings.deadMoney;
 }
 
-bool Holdem::isUsingIsomorphism() const {
-    return m_settings.useChanceCardIsomorphism;
-}
-
 NodeType Holdem::getNodeType(const GameState& state) const {
     switch (static_cast<Action>(state.lastAction)) {
         case Action::StreetStart:
@@ -379,13 +375,9 @@ FixedVector<SuitEquivalenceClass, 4> Holdem::getChanceNodeIsomorphisms(CardSet b
 
             return m_isomorphismsAfterSuitDealt[dealtTurnSuitID];
         }
-        else {
-            return m_startingIsomorphisms;
-        }
     }
-    else {
-        return {};
-    }
+
+    return m_startingIsomorphisms;
 }
 
 std::span<const CardSet> Holdem::getRangeHands(Player player) const {
@@ -699,17 +691,17 @@ void Holdem::buildHandTables() {
         }
     }
 
-    // Build hand index table for card isomorphisms
-    for (Player player : { Player::P0, Player::P1 }) {
-        m_handToRangeIndex[player].fill(-1);
-        for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
-            int handIndexInTable = mapTwoCardSetToIndex(m_settings.ranges[player].hands[handIndex]);
-            m_handToRangeIndex[player][handIndexInTable] = static_cast<std::int16_t>(handIndex);
-        }
-    }
-
-    // Build chance card isomorphism tables
     if (m_settings.useChanceCardIsomorphism) {
+        // Build hand index table for card isomorphisms
+        for (Player player : { Player::P0, Player::P1 }) {
+            m_handToRangeIndex[player].fill(-1);
+            for (int handIndex = 0; handIndex < m_settings.ranges[player].hands.size(); ++handIndex) {
+                int handIndexInTable = mapTwoCardSetToIndex(m_settings.ranges[player].hands[handIndex]);
+                m_handToRangeIndex[player][handIndexInTable] = static_cast<std::int16_t>(handIndex);
+            }
+        }
+
+        // Build chance card isomorphism tables
         auto mergeSuitClasses = [](FixedVector<SuitEquivalenceClass, 4>& isomorphisms, Suit x, Suit y) -> void {
             // Inefficient, but there are only 4 suits...
             int suit0Class = -1;

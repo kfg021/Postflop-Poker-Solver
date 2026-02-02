@@ -13,7 +13,6 @@ public:
     GameState getInitialGameState() const override;
     CardSet getDeck() const override;
     int getDeadMoney() const override;
-    bool isUsingIsomorphism() const override;
     NodeType getNodeType(const GameState& state) const override;
     FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const override;
     GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const override;

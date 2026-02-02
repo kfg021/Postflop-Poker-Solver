@@ -5,6 +5,7 @@
 #include "game/game_utils.hpp"
 #include "util/fixed_vector.hpp"
 
+#include <array>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -37,6 +38,33 @@ PlayerArray<std::vector<std::int16_t>> buildSameHandIndexTable(const IGameRules&
     }
 
     return sameHandIndexTable;
+}
+
+PlayerArray<std::array<std::vector<std::int16_t>, 6>> buildIsomorphicHandIndices(const IGameRules& rules) {
+    auto startingIsomorphisms = rules.getChanceNodeIsomorphisms(rules.getInitialGameState().currentBoard);
+    PlayerArray<std::array<std::vector<std::int16_t>, 6>> isomorphicHandIndices;
+
+    for (const SuitEquivalenceClass& isomorphism : startingIsomorphisms) {
+        for (int i = 0; i < isomorphism.size(); ++i) {
+            for (int j = i + 1; j < isomorphism.size(); ++j) {
+                Suit x = isomorphism[i];
+                Suit y = isomorphism[j];
+                int twoSuitIndex = mapTwoSuitsToIndex(x, y);
+
+                for (Player player : { Player::P0, Player::P1 }) {
+                    int playerRangeSize = rules.getRangeHands(player).size();
+
+                    assert(isomorphicHandIndices[player][twoSuitIndex].empty());
+                    isomorphicHandIndices[player][twoSuitIndex].resize(playerRangeSize);
+                    for (int hand = 0; hand < playerRangeSize; ++hand) {
+                        isomorphicHandIndices[player][twoSuitIndex][hand] = static_cast<std::int16_t>(rules.getHandIndexAfterSuitSwap(player, hand, x, y));
+                    }
+                }
+            }
+        }
+    }
+
+    return isomorphicHandIndices;
 }
 
 double getTotalRangeWeight(const IGameRules& rules) {
@@ -195,6 +223,8 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
         sameHandIndexTable = buildSameHandIndexTable(rules);
     }
 
+    isomorphicHandIndices = buildIsomorphicHandIndices(rules);
+
     deadMoney = rules.getDeadMoney();
 
     // Range weight of 0 means that there are no valid combos of hands
@@ -216,7 +246,12 @@ std::size_t Tree::getTreeSkeletonSize() const {
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
     std::size_t rangeHandCardsHeapSize = (rangeHandCards[Player::P0].capacity() + rangeHandCards[Player::P1].capacity()) * sizeof(CardID);
     std::size_t sameHandIndexTableHeapSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(std::int16_t);
-    return treeStackSize + nodesHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize;
+    std::size_t isomorphicHandIndicesHeapSize = 0;
+    for (int i = 0; i < 6; ++i) {
+        isomorphicHandIndicesHeapSize += (isomorphicHandIndices[Player::P0][i].capacity() + isomorphicHandIndices[Player::P1][i].capacity()) * sizeof(std::int16_t);
+    }
+
+    return treeStackSize + nodesHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize + isomorphicHandIndicesHeapSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {

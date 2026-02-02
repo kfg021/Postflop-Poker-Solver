@@ -33,6 +33,9 @@ std::vector<std::string> getCardSetNames(CardSet cardSet);
 // Value functions
 Result<Value> getValueFromChar(char c);
 
+// Suit functions
+int mapTwoSuitsToIndex(Suit x, Suit y);
+
 // Street functions
 Street getNextStreet(Street street);
 

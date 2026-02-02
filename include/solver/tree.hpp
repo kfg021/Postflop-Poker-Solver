@@ -5,6 +5,7 @@
 #include "game/game_rules.hpp"
 #include "util/fixed_vector.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <span>
@@ -47,6 +48,7 @@ public:
     PlayerArray<std::vector<CardID>> rangeHandCards;
     PlayerArray<int> rangeSize;
     PlayerArray<std::vector<std::int16_t>> sameHandIndexTable;
+    PlayerArray<std::array<std::vector<std::int16_t>, 6>> isomorphicHandIndices;
     int deadMoney;
     double totalRangeWeight;
     Street startingStreet;

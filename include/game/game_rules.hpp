@@ -15,7 +15,6 @@ public:
     virtual GameState getInitialGameState() const = 0;
     virtual CardSet getDeck() const = 0;
     virtual int getDeadMoney() const = 0;
-    virtual bool isUsingIsomorphism() const = 0;
     virtual NodeType getNodeType(const GameState& state) const = 0;
     virtual FixedVector<ActionID, MaxNumActions> getValidActions(const GameState& state) const = 0;
     virtual GameState getNewStateAfterDecision(const GameState& state, ActionID actionID) const = 0;
