@@ -626,7 +626,9 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
                 case NodeType::Chance: {
                     if (swapList) {
                         // We need to swap our hand index to reflect the swapped suits
-                        handIndex = context.rules->getHandIndexAfterSuitSwap(playerToAct, handIndex, swapList->child, swapList->parent);
+                        const auto& isomorphicHandIndices = context.tree->isomorphicHandIndices[playerToAct][mapTwoSuitsToIndex(swapList->parent, swapList->child)];
+                        assert(isomorphicHandIndices.size() == context.tree->rangeSize[playerToAct]);
+                        handIndex = isomorphicHandIndices[handIndex];
                     }
 
                     // Exit if the most recently added chance card overlaps with our hand
