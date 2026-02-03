@@ -4,10 +4,8 @@
 #include "util/result.hpp"
 
 #include <algorithm>
-#include <bit>
 #include <cassert>
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -15,47 +13,6 @@ namespace {
 constexpr char CardValueNames[] = "23456789TJQKA";
 constexpr char CardSuitNames[] = "cdhs";
 } // namespace
-
-Player getOpposingPlayer(Player player) {
-    int playerID = static_cast<int>(player);
-    assert(playerID == 0 || playerID == 1);
-    return static_cast<Player>(playerID ^ 1);
-}
-
-Value getCardValue(CardID cardID) {
-    assert(cardID < 52);
-    return static_cast<Value>(cardID / 4);
-}
-
-Suit getCardSuit(CardID cardID) {
-    assert(cardID < 52);
-    return static_cast<Suit>(cardID % 4);
-}
-
-CardID getCardIDFromValueAndSuit(Value value, Suit suit) {
-    int valueID = static_cast<int>(value);
-    assert(valueID < 13);
-
-    int suitID = static_cast<int>(suit);
-    assert(suitID < 4);
-
-    CardID cardID = static_cast<CardID>((valueID * 4) + suitID);
-    return cardID;
-}
-
-CardID swapCardSuits(CardID cardID, Suit x, Suit y) {
-    Value value = getCardValue(cardID);
-    Suit suit = getCardSuit(cardID);
-    if (suit == x) {
-        return getCardIDFromValueAndSuit(value, y);
-    }
-    else if (suit == y) {
-        return getCardIDFromValueAndSuit(value, x);
-    }
-    else {
-        return cardID;
-    }
-}
 
 std::string getNameFromCardID(CardID cardID) {
     assert(cardID < 52);
@@ -83,60 +40,6 @@ Result<CardID> getCardIDFromName(const std::string& cardName) {
     }
 
     return (valueID * 4) + suitID;
-}
-
-CardSet cardIDToSet(CardID cardID) {
-    assert(cardID < 52);
-    return (1LL << cardID);
-}
-
-int getSetSize(CardSet cardSet) {
-    return std::popcount(cardSet);
-}
-
-bool setContainsCard(CardSet cardSet, CardID cardID) {
-    assert(cardID < 52);
-    return (cardSet >> cardID) & 1;
-}
-
-bool doSetsOverlap(CardSet x, CardSet y) {
-    return (x & y) != 0;
-}
-
-CardID getLowestCardInSet(CardSet cardSet) {
-    assert(getSetSize(cardSet) > 0);
-
-    CardID lowestCard = static_cast<CardID>(std::countr_zero(cardSet));
-    assert(lowestCard < 52);
-    return lowestCard;
-}
-
-CardID popLowestCardFromSet(CardSet& cardSet) {
-    CardID lowestCard = getLowestCardInSet(cardSet);
-    cardSet &= (cardSet - 1);
-    return lowestCard;
-}
-
-CardSet filterCardsWithSuit(CardSet cardSet, Suit suit) {
-    static constexpr CardSet SingleSuitMask = 0x1'1111'1111'1111;
-    int suitID = static_cast<int>(suit);
-    return cardSet & (SingleSuitMask << suitID);
-}
-
-CardSet swapSetSuits(CardSet cardSet, Suit x, Suit y) {
-    assert(x != y);
-    if (x > y) std::swap(x, y);
-
-    CardSet suit0Masked = filterCardsWithSuit(cardSet, x);
-    CardSet suit1Masked = filterCardsWithSuit(cardSet, y);
-
-    int diff = static_cast<int>(y) - static_cast<int>(x);
-    assert(diff > 0);
-
-    cardSet &= ~(suit0Masked | suit1Masked);
-    cardSet |= (suit0Masked << diff) | (suit1Masked >> diff);
-
-    return cardSet;
 }
 
 std::vector<std::string> getCardSetNames(CardSet cardSet) {
@@ -172,19 +75,4 @@ Result<Value> getValueFromChar(char c) {
         default:
             return "Error: " + std::string{ c } + " is not a valid card value.";
     }
-}
-
-int mapTwoSuitsToIndex(Suit x, Suit y) {
-    assert(x != y);
-    if (x > y) std::swap(x, y);
-
-    int xID = static_cast<int>(x);
-    int yID = static_cast<int>(y);
-    int finalIndex = xID + ((yID * (yID - 1)) >> 1);
-    assert(finalIndex < 6);
-    return finalIndex;
-}
-
-Street getNextStreet(Street street) {
-    return static_cast<Street>(static_cast<int>(street) + 1);
 }
