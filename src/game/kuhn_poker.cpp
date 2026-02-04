@@ -17,15 +17,27 @@ enum class Action : std::uint8_t {
     Bet
 };
 
-CardSet getHand(Value value, Suit suit) {
-    return cardIDToSet(getCardIDFromValueAndSuit(value, suit));
-}
-
-const std::array<CardSet, 3> PossibleHands = {
-    getHand(Value::Jack, Suit::Spades),
-    getHand(Value::Queen, Suit::Spades),
-    getHand(Value::King, Suit::Spades)
+constexpr std::array<CardID, 3> PossibleCards = {
+    getCardIDFromValueAndSuit(Value::Jack, Suit::Spades),
+    getCardIDFromValueAndSuit(Value::Queen, Suit::Spades),
+    getCardIDFromValueAndSuit(Value::King, Suit::Spades)
 };
+
+constexpr std::array<CardSet, 3> PossibleHands = {
+    cardIDToSet(PossibleCards[0]),
+    cardIDToSet(PossibleCards[1]),
+    cardIDToSet(PossibleCards[2])
+};
+
+enum KuhnHandID : std::uint8_t {
+    Jack,
+    Queen,
+    King
+};
+
+constexpr HandInfo getHandInfo(int handID) {
+    return { .index = static_cast<std::int16_t>(handID), .card0 = PossibleCards[handID], .card1 = InvalidCard };
+}
 } // namespace
 
 GameState KuhnPoker::getInitialGameState() const {
@@ -139,22 +151,16 @@ std::span<const float> KuhnPoker::getInitialRangeWeights(Player /*player*/) cons
     return Weights;
 }
 
-std::span<const std::int16_t> KuhnPoker::getValidHandIndices(Player /*player*/, CardSet /*board*/) const {
-    static constexpr std::array<const std::int16_t, 3> ValidIndices = { 0, 1, 2 };
+std::span<const HandInfo> KuhnPoker::getValidHands(Player /*player*/, CardSet /*board*/) const {
+    static constexpr std::array<HandInfo, 3> ValidIndices = { getHandInfo(0), getHandInfo(1), getHandInfo(2) };
     return ValidIndices;
 }
 
-std::span<const HandData> KuhnPoker::getValidSortedHandRanks(Player /*player*/, CardSet /*board*/) const {
-    enum KuhnHandID : std::uint8_t {
-        Jack,
-        Queen,
-        King
-    };
-
-    static constexpr std::array<HandData, 3> SortedHandRanks = {
-        HandData{.rank = KuhnHandID::Jack, .index = KuhnHandID::Jack},
-        HandData{.rank = KuhnHandID::Queen, .index = KuhnHandID::Queen},
-        HandData{.rank = KuhnHandID::King, .index = KuhnHandID::King},
+std::span<const RankedHand> KuhnPoker::getValidSortedHandRanks(Player /*player*/, CardSet /*board*/) const {
+    static constexpr std::array<RankedHand, 3> SortedHandRanks = {
+        RankedHand{.rank = KuhnHandID::Jack, .info = getHandInfo(KuhnHandID::Jack)},
+        RankedHand{.rank = KuhnHandID::Queen, .info = getHandInfo(KuhnHandID::Queen)},
+        RankedHand{.rank = KuhnHandID::King, .info = getHandInfo(KuhnHandID::King)},
     };
 
     return SortedHandRanks;

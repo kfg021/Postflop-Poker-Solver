@@ -31,8 +31,6 @@ enum class Action : std::uint8_t {
     AllIn
 };
 
-static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
-
 int mapTwoCardSetToIndex(CardSet cardSet) {
     assert(getSetSize(cardSet) == 2);
 
@@ -388,7 +386,7 @@ std::span<const float> Holdem::getInitialRangeWeights(Player player) const {
     return m_settings.ranges[player].weights;
 }
 
-std::span<const std::int16_t> Holdem::getValidHandIndices(Player player, CardSet board) const {
+std::span<const HandInfo> Holdem::getValidHands(Player player, CardSet board) const {
     CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
     int runoutIndex;
     switch (getSetSize(chanceCardsDealt)) {
@@ -410,18 +408,18 @@ std::span<const std::int16_t> Holdem::getValidHandIndices(Player player, CardSet
     std::size_t playerRangeSize = m_settings.ranges[player].hands.size();
     std::size_t handIndexOffset = runoutIndex * playerRangeSize;
 
-    auto rangeBegin = m_validHandIndices[player].begin() + handIndexOffset;
+    auto rangeBegin = m_validHands[player].begin() + handIndexOffset;
     auto rangeEnd = rangeBegin + playerRangeSize;
 
-    // Ignore all indices equal to -1 (invalid indices)
-    while (rangeEnd > rangeBegin && *(rangeEnd - 1) == -1) {
+    // Ignore all invalid hands
+    while (rangeEnd > rangeBegin && *(rangeEnd - 1) == InvalidHand) {
         --rangeEnd;
     }
 
     return { rangeBegin, rangeEnd };
 }
 
-std::span<const HandData> Holdem::getValidSortedHandRanks(Player player, CardSet board) const {
+std::span<const RankedHand> Holdem::getValidSortedHandRanks(Player player, CardSet board) const {
     assert(getSetSize(board) == 5);
 
     CardSet chanceCardsDealt = board & ~m_settings.startingCommunityCards;
@@ -498,7 +496,7 @@ void Holdem::buildHandTables() {
     std::unordered_map<CardSet, HandRank> seenFiveCardHandRanks;
 
     auto insertSevenCardHandRank = [this, &seenFiveCardHandRanks](Player player, CardSet board, int handRankOffset, int rangeIndex) -> void {
-        m_handRanks[player][handRankOffset + rangeIndex] = { .rank = 0, .index = rangeIndex };
+        m_handRanks[player][handRankOffset + rangeIndex] = { .rank = 0, .info = getHandInfo(player, rangeIndex) };
 
         if (getSetSize(board) != 7) return;
 
@@ -615,7 +613,7 @@ void Holdem::buildHandTables() {
         int indexInTable = 0;
         for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
             if (!doSetsOverlap(playerHands[handIndex], m_settings.startingCommunityCards)) {
-                m_validHandIndices[player][indexInTable] = handIndex;
+                m_validHands[player][indexInTable] = getHandInfo(player, handIndex);
                 ++indexInTable;
             }
         }
@@ -632,7 +630,7 @@ void Holdem::buildHandTables() {
             int indexInTable = 0;
             for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
                 if (!doSetsOverlap(playerHands[handIndex], startingBoard | cardIDToSet(card))) {
-                    m_validHandIndices[player][validIndexOffset + indexInTable] = handIndex;
+                    m_validHands[player][validIndexOffset + indexInTable] = getHandInfo(player, handIndex);
                     ++indexInTable;
                 }
             }
@@ -652,7 +650,7 @@ void Holdem::buildHandTables() {
                 int indexInTable = 0;
                 for (int handIndex = 0; handIndex < playerHands.size(); ++handIndex) {
                     if (!doSetsOverlap(startingBoard | runout, playerHands[handIndex])) {
-                        m_validHandIndices[player][validIndexOffset + indexInTable] = handIndex;
+                        m_validHands[player][validIndexOffset + indexInTable] = getHandInfo(player, handIndex);
                         ++indexInTable;
                     }
                 }
@@ -666,20 +664,20 @@ void Holdem::buildHandTables() {
         switch (startingStreet) {
             case Street::River: {
                 static constexpr int NumEntries = 1;
-                m_validHandIndices[player].assign(NumEntries * playerRangeSize, -1);
+                m_validHands[player].assign(NumEntries * playerRangeSize, InvalidHand);
                 insertValidIndicesEmptyBoard(player);
                 break;
             }
             case Street::Turn: {
                 static constexpr int NumEntries = 1 + holdem::DeckSize;
-                m_validHandIndices[player].assign(NumEntries * playerRangeSize, -1);
+                m_validHands[player].assign(NumEntries * playerRangeSize, InvalidHand);
                 insertValidIndicesEmptyBoard(player);
                 insertValidIndicesOneCardBoards(player);
                 break;
             }
             case Street::Flop: {
                 static constexpr int NumEntries = 1 + holdem::DeckSize + holdem::NumPossibleTwoCardHands;
-                m_validHandIndices[player].assign(NumEntries * playerRangeSize, -1);
+                m_validHands[player].assign(NumEntries * playerRangeSize, InvalidHand);
                 insertValidIndicesEmptyBoard(player);
                 insertValidIndicesOneCardBoards(player);
                 insertValidIndicesTwoCardBoards(player);
@@ -828,6 +826,14 @@ void Holdem::buildHandTables() {
             }
         }
     }
+}
+
+HandInfo Holdem::getHandInfo(Player player, int handIndex) const {
+    CardSet hand = m_settings.ranges[player].hands[handIndex];
+    CardID card0 = popLowestCardFromSet(hand);
+    CardID card1 = popLowestCardFromSet(hand);
+    assert(hand == 0);
+    return { .index = static_cast<std::int16_t>(handIndex), .card0 = card0, .card1 = card1 };
 }
 
 int Holdem::getTotalEffectiveStack() const {

@@ -17,8 +17,8 @@ namespace {
 // (or -1 if no such index exists)
 // Used to calculate showdown and fold equity for games with two card hands
 PlayerArray<std::vector<std::int16_t>> buildSameHandIndexTable(const IGameRules& rules) {
-    const auto& player0Hands = rules.getRangeHands(Player::P0);
-    const auto& player1Hands = rules.getRangeHands(Player::P1);
+    const auto player0Hands = rules.getRangeHands(Player::P0);
+    const auto player1Hands = rules.getRangeHands(Player::P1);
 
     int player0RangeSize = player0Hands.size();
     int player1RangeSize = player1Hands.size();
@@ -68,11 +68,11 @@ PlayerArray<std::array<std::vector<std::int16_t>, 6>> buildIsomorphicHandIndices
 }
 
 double getTotalRangeWeight(const IGameRules& rules) {
-    const auto& player0RangeWeights = rules.getInitialRangeWeights(Player::P0);
-    const auto& player1RangeWeights = rules.getInitialRangeWeights(Player::P1);
+    const auto player0RangeWeights = rules.getInitialRangeWeights(Player::P0);
+    const auto player1RangeWeights = rules.getInitialRangeWeights(Player::P1);
 
-    const auto& player0Hands = rules.getRangeHands(Player::P0);
-    const auto& player1Hands = rules.getRangeHands(Player::P1);
+    const auto player0Hands = rules.getRangeHands(Player::P0);
+    const auto player1Hands = rules.getRangeHands(Player::P1);
 
     int player0RangeSize = player0Hands.size();
     int player1RangeSize = player1Hands.size();
@@ -208,17 +208,6 @@ void Tree::buildTreeSkeleton(const IGameRules& rules) {
         static_cast<int>(rangeHands[Player::P1].size()),
     };
 
-    for (Player player : { Player::P0, Player::P1 }) {
-        rangeHandCards[player].resize(rangeSize[player] * gameHandSize);
-        for (int i = 0; i < rangeSize[player]; ++i) {
-            CardSet hand = rangeHands[player][i];
-            for (int j = 0; j < gameHandSize; ++j) {
-                rangeHandCards[player][i * gameHandSize + j] = popLowestCardFromSet(hand);
-            }
-            assert(hand == 0);
-        }
-    }
-
     if (gameHandSize == 2) {
         sameHandIndexTable = buildSameHandIndexTable(rules);
     }
@@ -244,14 +233,13 @@ std::size_t Tree::getTreeSkeletonSize() const {
 
     std::size_t treeStackSize = sizeof(Tree);
     std::size_t nodesHeapSize = allNodes.capacity() * sizeof(Node);
-    std::size_t rangeHandCardsHeapSize = (rangeHandCards[Player::P0].capacity() + rangeHandCards[Player::P1].capacity()) * sizeof(CardID);
     std::size_t sameHandIndexTableHeapSize = (sameHandIndexTable[Player::P0].capacity() + sameHandIndexTable[Player::P1].capacity()) * sizeof(std::int16_t);
     std::size_t isomorphicHandIndicesHeapSize = 0;
     for (int i = 0; i < 6; ++i) {
         isomorphicHandIndicesHeapSize += (isomorphicHandIndices[Player::P0][i].capacity() + isomorphicHandIndices[Player::P1][i].capacity()) * sizeof(std::int16_t);
     }
 
-    return treeStackSize + nodesHeapSize + rangeHandCardsHeapSize + sameHandIndexTableHeapSize + isomorphicHandIndicesHeapSize;
+    return treeStackSize + nodesHeapSize + sameHandIndexTableHeapSize + isomorphicHandIndicesHeapSize;
 }
 
 std::size_t Tree::estimateFullTreeSize() const {

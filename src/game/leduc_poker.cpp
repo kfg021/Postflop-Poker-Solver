@@ -20,18 +20,27 @@ enum class Action : std::uint8_t {
     Raise
 };
 
-CardSet getHand(Value value, Suit suit) {
-    return cardIDToSet(getCardIDFromValueAndSuit(value, suit));
-}
-
-const std::array<CardSet, 6> PossibleHands = {
-    getHand(Value::Jack, Suit::Hearts),
-    getHand(Value::Jack, Suit::Spades),
-    getHand(Value::Queen, Suit::Hearts),
-    getHand(Value::Queen, Suit::Spades),
-    getHand(Value::King, Suit::Hearts),
-    getHand(Value::King, Suit::Spades)
+constexpr std::array<CardID, 6> PossibleCards = {
+    getCardIDFromValueAndSuit(Value::Jack, Suit::Hearts),
+    getCardIDFromValueAndSuit(Value::Jack, Suit::Spades),
+    getCardIDFromValueAndSuit(Value::Queen, Suit::Hearts),
+    getCardIDFromValueAndSuit(Value::Queen, Suit::Spades),
+    getCardIDFromValueAndSuit(Value::King, Suit::Hearts),
+    getCardIDFromValueAndSuit(Value::King, Suit::Spades)
 };
+
+constexpr std::array<CardSet, 6> PossibleHands = {
+    cardIDToSet(PossibleCards[0]),
+    cardIDToSet(PossibleCards[1]),
+    cardIDToSet(PossibleCards[2]),
+    cardIDToSet(PossibleCards[3]),
+    cardIDToSet(PossibleCards[4]),
+    cardIDToSet(PossibleCards[5])
+};
+
+constexpr HandInfo getHandInfo(int handIndexID) {
+    return { .index = static_cast<std::int16_t>(handIndexID), .card0 = PossibleCards[handIndexID], .card1 = InvalidCard };
+}
 } // namespace
 
 LeducPoker::LeducPoker(bool useChanceCardIsomorphism) : m_useChanceCardIsomorphism{ useChanceCardIsomorphism } {};
@@ -185,22 +194,42 @@ std::span<const float> LeducPoker::getInitialRangeWeights(Player /*player*/) con
     return Weights;
 }
 
-std::span<const std::int16_t> LeducPoker::getValidHandIndices(Player /*player*/, CardSet board) const {
+std::span<const HandInfo> LeducPoker::getValidHands(Player /*player*/, CardSet board) const {
+    auto getHandArray = []() constexpr -> std::array<HandInfo, 6> {
+        std::array<HandInfo, 6> validIndices;
+        for (int i = 0; i < 6; ++i) {
+            validIndices[i] = getHandInfo(i);
+        }
+        return validIndices;
+    };
+
+    auto getHandArrayWithoutIndex = [](int indexToSkip) constexpr -> std::array<HandInfo, 5> {
+        std::array<HandInfo, 5> validIndices;
+        int currentIndex = 0;
+        for (int i = 0; i < 6; ++i) {
+            if (i != indexToSkip) {
+                validIndices[currentIndex] = getHandInfo(i);
+                ++currentIndex;
+            }
+        }
+        return validIndices;
+    };
+
     if (board == 0) {
-        static constexpr std::array<const std::int16_t, 6> ValidIndicesEmptyBoard = { 0, 1, 2, 3, 4, 5 };
-        return ValidIndicesEmptyBoard;
+        static constexpr std::array<HandInfo, 6> ValidIndicesWithoutBoard = getHandArray();
+        return ValidIndicesWithoutBoard;
     }
     else {
-        assert(getSetSize(board) == 1);
-
-        static constexpr std::array<std::array<const std::int16_t, 5>, 6> ValidIndicesWithBoard = {
-            std::array<const std::int16_t, 5> { 1, 2, 3, 4, 5 }, // Board = Jh
-            std::array<const std::int16_t, 5> { 0, 2, 3, 4, 5 }, // Board = Js
-            std::array<const std::int16_t, 5> { 0, 1, 3, 4, 5 }, // Board = Qh
-            std::array<const std::int16_t, 5> { 0, 1, 2, 4, 5 }, // Board = Qs
-            std::array<const std::int16_t, 5> { 0, 1, 2, 3, 5 }, // Board = Kh
-            std::array<const std::int16_t, 5> { 0, 1, 2, 3, 4 }  // Board = Ks
+        static constexpr std::array<std::array<HandInfo, 5>, 6> ValidIndicesWithBoard = {
+            getHandArrayWithoutIndex(0), // Board = Jh
+            getHandArrayWithoutIndex(1), // Board = Js
+            getHandArrayWithoutIndex(2), // Board = Qh
+            getHandArrayWithoutIndex(3), // Board = Qs
+            getHandArrayWithoutIndex(4), // Board = Kh
+            getHandArrayWithoutIndex(5)  // Board = Ks
         };
+
+        assert(getSetSize(board) == 1);
 
         for (int i = 0; i < 6; ++i) {
             if (board == PossibleHands[i]) {
@@ -213,7 +242,7 @@ std::span<const std::int16_t> LeducPoker::getValidHandIndices(Player /*player*/,
     }
 }
 
-std::span<const HandData> LeducPoker::getValidSortedHandRanks(Player /*player*/, CardSet board) const {
+std::span<const RankedHand> LeducPoker::getValidSortedHandRanks(Player /*player*/, CardSet board) const {
     enum LeducHandRankID : std::uint8_t {
         JackHigh,
         QueenHigh,
@@ -232,59 +261,59 @@ std::span<const HandData> LeducPoker::getValidSortedHandRanks(Player /*player*/,
         KingOfSpades
     };
 
-    static constexpr std::array<std::array<HandData, 5>, 6> SortedHandRanks = {
+    static constexpr std::array<std::array<RankedHand, 5>, 6> SortedHandRanks = {
         // Board = Jh
-        std::array<HandData, 5> {
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfHearts},
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfSpades},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfHearts},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfSpades},
-            HandData{.rank = LeducHandRankID::PairOfJacks, .index = LeducHandIndexID::JackOfSpades}
+        std::array<RankedHand, 5> {
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfHearts)},
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfSpades)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfHearts)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfSpades)},
+            RankedHand{.rank = LeducHandRankID::PairOfJacks, .info = getHandInfo(LeducHandIndexID::JackOfSpades)}
         },
 
         // Board = Js
-        std::array<HandData, 5> {
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfHearts},
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfSpades},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfHearts},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfSpades},
-            HandData{.rank = LeducHandRankID::PairOfJacks, .index = LeducHandIndexID::JackOfHearts}
+        std::array<RankedHand, 5> {
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfHearts)},
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfSpades)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfHearts)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfSpades)},
+            RankedHand{.rank = LeducHandRankID::PairOfJacks, .info = getHandInfo(LeducHandIndexID::JackOfHearts)}
         },
 
         // Board = Qh
-        std::array<HandData, 5> {
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfHearts},
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfSpades},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfHearts},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfSpades},
-            HandData{.rank = LeducHandRankID::PairOfQueens, .index = LeducHandIndexID::QueenOfSpades}
+        std::array<RankedHand, 5> {
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfHearts)},
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfSpades)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfHearts)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfSpades)},
+            RankedHand{.rank = LeducHandRankID::PairOfQueens, .info = getHandInfo(LeducHandIndexID::QueenOfSpades)}
         },
 
         // Board = Qs
-        std::array<HandData, 5>{
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfHearts},
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfSpades},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfHearts},
-            HandData{.rank = LeducHandRankID::KingHigh, .index = LeducHandIndexID::KingOfSpades},
-            HandData{.rank = LeducHandRankID::PairOfQueens, .index = LeducHandIndexID::QueenOfHearts}
+        std::array<RankedHand, 5>{
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfHearts)},
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfSpades)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfHearts)},
+            RankedHand{.rank = LeducHandRankID::KingHigh, .info = getHandInfo(LeducHandIndexID::KingOfSpades)},
+            RankedHand{.rank = LeducHandRankID::PairOfQueens, .info = getHandInfo(LeducHandIndexID::QueenOfHearts)}
         },
 
         // Board = Kh
-        std::array<HandData, 5> {
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfHearts},
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfSpades},
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfHearts},
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfSpades},
-            HandData{.rank = LeducHandRankID::PairOfKings, .index = LeducHandIndexID::KingOfSpades}
+        std::array<RankedHand, 5> {
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfHearts)},
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfSpades)},
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfHearts)},
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfSpades)},
+            RankedHand{.rank = LeducHandRankID::PairOfKings, .info = getHandInfo(LeducHandIndexID::KingOfSpades)}
         },
 
         // Board = Ks
-        std::array<HandData, 5> {
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfHearts},
-            HandData{.rank = LeducHandRankID::JackHigh, .index = LeducHandIndexID::JackOfSpades},
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfHearts},
-            HandData{.rank = LeducHandRankID::QueenHigh, .index = LeducHandIndexID::QueenOfSpades},
-            HandData{.rank = LeducHandRankID::PairOfKings, .index = LeducHandIndexID::KingOfHearts}
+        std::array<RankedHand, 5> {
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfHearts)},
+            RankedHand{.rank = LeducHandRankID::JackHigh, .info = getHandInfo(LeducHandIndexID::JackOfSpades)},
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfHearts)},
+            RankedHand{.rank = LeducHandRankID::QueenHigh, .info = getHandInfo(LeducHandIndexID::QueenOfSpades)},
+            RankedHand{.rank = LeducHandRankID::PairOfKings, .info = getHandInfo(LeducHandIndexID::KingOfHearts)}
         }
     };
 

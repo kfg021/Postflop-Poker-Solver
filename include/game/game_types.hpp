@@ -59,11 +59,21 @@ enum class Suit : std::uint8_t {
     Spades
 };
 
-struct HandData {
-    HandRank rank;
-    int index;
+struct HandInfo {
+    std::int16_t index;
+    CardID card0;
+    CardID card1;
 
-    auto operator<=>(const HandData&) const = default;
+    auto operator<=>(const HandInfo&) const = default;
+};
+
+static constexpr HandInfo InvalidHand = { .index = -1, .card0 = InvalidCard, .card1 = InvalidCard };
+
+struct RankedHand {
+    HandRank rank;
+    HandInfo info;
+
+    auto operator<=>(const RankedHand&) const = default;
 };
 
 template <typename T>

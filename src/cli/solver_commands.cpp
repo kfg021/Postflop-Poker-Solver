@@ -594,7 +594,7 @@ bool handleStrategy(SolverContext& context, const std::string& argument) {
     auto getStrategyForHand = [&context](CardSet hand) -> std::optional<Strategy> {
         const Node& node = context.tree->allNodes[context.nodePath.back().index];
         Player playerToAct = node.state.playerToAct;
-        const auto& rangeHands = context.rules->getRangeHands(playerToAct);
+        const auto rangeHands = context.rules->getRangeHands(playerToAct);
 
         // Find out which index in the current player's range this hand corresponds to
         int handIndex = -1;
