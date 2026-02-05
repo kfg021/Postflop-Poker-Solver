@@ -86,7 +86,7 @@ board: "9s, 8h, 3s"
 
 # Game tree configuration
 tree:
-  starting-wager-per-player: 50   # The amount each active player has already contributed to the pot.
+  starting-wager-per-player: 50   # The amount each active player has already contributed to the pot. Note that this value is half the total starting pot traditionally used in solver configurations.
   dead-money-in-pot: 0            # Money in the pot from players who have already folded.
   effective-stack-remaining: 100  # The smallest remaining stack size for an active player.
   use-isomorphism: true           # Enable suit isomorphism optimization.
@@ -269,26 +269,30 @@ Leduc Poker is a simplified two-round poker game with a 6-card deck (two suits, 
 
 ### Hold'em
 
-This solver was compared against two popular open source solvers:
+This solver was benchmarked against the popular open-source solvers [WASM Postflop](https://wasm-postflop.pages.dev/) and [TexasSolver](https://github.com/bupticybee/TexasSolver). We also tested against the Rust engine behind WASM Postflop, [postflop-solver](https://github.com/b-inary/postflop-solver). All solves used the configuration found in [examples/flop-3bet-pot-large-spr.yml](examples/flop-3bet-pot-large-spr.yml).
 
-- **WASM Postflop**: [https://wasm-postflop.pages.dev/](https://wasm-postflop.pages.dev/)
-- **TexasSolver**: [https://bupticybee.github.io/texassolver_page/](https://bupticybee.github.io/texassolver_page/)
-
-using the configuration in [examples/flop-3bet-pot-large-spr.yml](examples/flop-3bet-pot-large-spr.yml).
+*(Each solver has slightly different settings. To ensure a fair comparison, configurations were standardized by disabling optional features such as all-in thresholding, bet merging, and raise limits that are implemented differently / not implemented at all across solvers. Isomorphism was enabled since it does not change the structure of the game tree and all solvers being tested support it.)*
 
 #### Performance
 
 Solving on my Intel MacBookPro using 6 threads and 0.3% target exploitability:
 
-| Solver        | Solve time (s) | Iterations | Iterations / s | Tree memory usage (GB) |
-|---------------|----------------|------------|----------------|------------------------|
-| This solver   | 130.07         | 190        | 1.46           | 1.44                   |
-| WASM Postflop | 119.62         | 150        | 1.25           | 1.50                   |
-| TexasSolver   | 238.94         | 141        | 0.59           | 2.90                   |
+| Solver           | Solve time (s) | Iterations | Iterations / s | Estimated tree size (GB)    | Actual process memory (GB) |
+|------------------|----------------|------------|----------------|-----------------------------|----------------------------|
+| This solver      | 101.58         | 190        | 1.87           | 1.44                        | 1.48                       |
+| WASM Postflop    | 101.05         | 150        | 1.48           | 1.50                        | 1.59                       |  
+| postflop-solver  | 79.67          | 150        | 1.88           | 1.51                        | 1.46                       |
+| TexasSolver      | 238.94         | 141        | 0.59           | 2.90                        | 2.04                       |
+
+*(Performance results will vary based on hardware, operating system, and compiler.)*
 
 The results confirm the solver's high-performance design, placing it firmly among modern, competitive open-source solutions. It demonstrates a strong overall profile, delivering fast solving speeds while maintaining excellent memory efficiency. This makes it a robust and practical tool for tackling complex game trees.
 
-*(Performance can vary based on hardware, compiler, and the specific scenario being solved.)*
+**Notes and observations:**
+* The variation in the number of iterations required to converge is due to differing implementations and parameter choices within the DCFR algorithm.
+* WASM Postflop runs about 20% slower than postflop-solver despite using the same engine, likely caused by the overhead of the WASM JIT compiler.
+* WASM Postflop's performance is highly dependent on browser. The WASM test was performed in Chrome; other browsers like Firefox were up to 20% slower.
+* *Estimated tree size* is a guess for the memory usage, reported by the solver itself. *Actual process memory* is the RAM usage of the running process, reported by the OS. TexasSolver significantly overestimates its memory usage, while the other three solvers provide much more accurate estimates.
 
 #### Expected Value
 * This solver outputs OOP and IP EVs of $0.86725$ and $-0.86725$, respectively:
