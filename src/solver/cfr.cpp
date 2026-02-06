@@ -464,8 +464,6 @@ void traverseDecision(
     auto heroToActTraining = [
         &decisionNode,
         &constants,
-        &rules,
-        &villainReachProbs,
         &outputExpectedValues,
         &tree,
         &allocator,
@@ -535,8 +533,6 @@ void traverseDecision(
     auto heroToActExpectedValue = [
         &decisionNode,
         &constants,
-        &rules,
-        &villainReachProbs,
         &outputExpectedValues,
         &tree,
         &allocator,
@@ -568,8 +564,6 @@ void traverseDecision(
     auto heroToActBestResponse = [
         &decisionNode,
         &constants,
-        &rules,
-        &villainReachProbs,
         &outputExpectedValues,
         &tree,
         &allocator,
@@ -603,7 +597,6 @@ void traverseDecision(
     auto villainToAct = [
         &decisionNode,
         &constants,
-        &rules,
         &villainReachProbs,
         &outputExpectedValues,
         &tree,
