@@ -625,13 +625,6 @@ void traverseDecision(
             writeAverageStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
         }
 
-        ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), numActions * villainRangeSize);
-        for (int action = 0; action < numActions; ++action) {
-            for (int hand = 0; hand < villainRangeSize; ++hand) {
-                newVillainReachProbs[action * villainRangeSize + hand] = villainReachProbs[hand] * strategy[action * villainRangeSize + hand];
-            }
-        }
-
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
         calculateActionEVs(newOutputExpectedValues.getData(), strategy.getData());
 
