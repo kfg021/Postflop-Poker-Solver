@@ -13,6 +13,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <ranges>
 #include <span>
 #include <utility>
@@ -38,6 +39,12 @@ struct TraversalConstants {
     Player hero;
     DiscountParams params;
 };
+
+constexpr bool isCfr(TraversalMode mode) {
+    return mode == TraversalMode::VanillaCfr
+        || mode == TraversalMode::CfrPlus
+        || mode == TraversalMode::DiscountedCfr;
+}
 
 int getThreadIndex() {
     #ifdef _OPENMP
@@ -215,6 +222,7 @@ void traverseTree(
     const Node& node,
     const TraversalConstants& constants,
     const IGameRules& rules,
+    std::span<const float> heroReachProbs,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree,
@@ -226,6 +234,7 @@ void traverseChance(
     const Node& chanceNode,
     const TraversalConstants& constants,
     const IGameRules& rules,
+    std::span<const float> heroReachProbs,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree,
@@ -236,6 +245,7 @@ void traverseChance(
         &constants,
         &rules,
         &tree,
+        &heroReachProbs,
         &villainReachProbs,
         &allocator
     ](int cardIndex, std::span<float> newOutputExpectedValues) -> void {
@@ -252,11 +262,24 @@ void traverseChance(
         // Hero and villain both have a hand
         int chanceCardReachFactor = getSetSize(chanceNode.availableCards) - (2 * GameHandSize);
 
-        const auto villainValidHands = rules.getValidHands(villain, nextNode.state.currentBoard);
+        // We only need to calculate hero reach probs during CFR traversal because we only use them to update strategy sums
+        std::optional<ScopedVector<float>> newHeroReachProbs;
+        std::span<const float> newHeroReachProbsData;
+        if constexpr (isCfr(Mode)) {
+            const auto heroValidHands = rules.getValidHands(constants.hero, nextNode.state.currentBoard);
+            newHeroReachProbs.emplace(allocator, getThreadIndex(), heroRangeSize);
+            std::fill(newHeroReachProbs->begin(), newHeroReachProbs->end(), 0.0f);
+            for (HandInfo heroHandInfo : heroValidHands) {
+                assert(heroHandInfo != InvalidHand);
+                assert(areHandAndCardDisjoint<GameHandSize>(heroHandInfo, chanceCard));
+                (*newHeroReachProbs)[heroHandInfo.index] = heroReachProbs[heroHandInfo.index] / static_cast<float>(chanceCardReachFactor);
+            }
+            newHeroReachProbsData = newHeroReachProbs->getData();
+        }
 
+        const auto villainValidHands = rules.getValidHands(villain, nextNode.state.currentBoard);
         ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), villainRangeSize);
         std::fill(newVillainReachProbs.begin(), newVillainReachProbs.end(), 0.0f);
-
         for (HandInfo villainHandInfo : villainValidHands) {
             assert(villainHandInfo != InvalidHand);
             assert(areHandAndCardDisjoint<GameHandSize>(villainHandInfo, chanceCard));
@@ -265,7 +288,7 @@ void traverseChance(
 
         auto evCardRangeBegin = newOutputExpectedValues.begin() + cardIndex * heroRangeSize;
         auto evCardRangeEnd = evCardRangeBegin + heroRangeSize;
-        traverseTree<GameHandSize, Mode>(nextNode, constants, rules, newVillainReachProbs.getData(), { evCardRangeBegin, evCardRangeEnd }, tree, allocator);
+        traverseTree<GameHandSize, Mode>(nextNode, constants, rules, newHeroReachProbsData, newVillainReachProbs.getData(), { evCardRangeBegin, evCardRangeEnd }, tree, allocator);
     };
 
     assert(chanceNode.nodeType == NodeType::Chance);
@@ -365,16 +388,17 @@ void traverseDecision(
     const Node& decisionNode,
     const TraversalConstants& constants,
     const IGameRules& rules,
+    std::span<const float> heroReachProbs,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree,
     StackAllocator<float>& allocator
 ) {
-    // TODO: Strategy is unused in calculateActionEVHero, but we need to provide it for calculateActionEVVillain
     auto calculateActionEVs = [
         &decisionNode,
         &constants,
         &rules,
+        &heroReachProbs,
         &villainReachProbs,
         &tree,
         &allocator
@@ -383,23 +407,38 @@ void traverseDecision(
             &decisionNode,
             &constants,
             &rules,
+            &heroReachProbs,
             &villainReachProbs,
             &tree,
             &allocator,
-            &newOutputExpectedValues
+            &newOutputExpectedValues,
+            &strategy
         ](int action) -> void {
             int heroRangeSize = tree.rangeSize[constants.hero];
+
+            // For the hero we modify heroReachProbs and keep villainReachProbs the same
+            // We only need to calculate hero reach probs during CFR traversal because we only use them to update strategy sums
+            std::optional<ScopedVector<float>> newHeroReachProbs;
+            std::span<const float> newHeroReachProbsData;
+            if constexpr (isCfr(Mode)) {
+                assert(!strategy.empty());
+                newHeroReachProbs.emplace(allocator, getThreadIndex(), heroRangeSize);
+                for (int hand = 0; hand < heroRangeSize; ++hand) {
+                    (*newHeroReachProbs)[hand] = heroReachProbs[hand] * strategy[action * heroRangeSize + hand];
+                }
+                newHeroReachProbsData = newHeroReachProbs->getData();
+            }
+
             auto evActionRangeBegin = newOutputExpectedValues.begin() + action * heroRangeSize;
             auto evActionRangeEnd = evActionRangeBegin + heroRangeSize;
-
-            // For the hero we copy the villain reach probs from the previous level
-            traverseTree<GameHandSize, Mode>(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, villainReachProbs, { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
+            traverseTree<GameHandSize, Mode>(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, newHeroReachProbsData, villainReachProbs, { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
         };
 
         auto calculateActionEVVillain = [
             &decisionNode,
             &constants,
             &rules,
+            &heroReachProbs,
             &villainReachProbs,
             &tree,
             &allocator,
@@ -413,7 +452,7 @@ void traverseDecision(
             int heroRangeSize = tree.rangeSize[constants.hero];
             int villainRangeSize = tree.rangeSize[villain];
 
-            // For the villain we need to modify the villain reach probs
+            // For the villain we modify villainReachProbs and keep heroReachProbs the same
             ScopedVector<float> newVillainReachProbs(allocator, getThreadIndex(), villainRangeSize);
             for (int hand = 0; hand < villainRangeSize; ++hand) {
                 newVillainReachProbs[hand] = villainReachProbs[hand] * strategy[action * villainRangeSize + hand];
@@ -421,7 +460,7 @@ void traverseDecision(
 
             auto evActionRangeBegin = newOutputExpectedValues.begin() + action * heroRangeSize;
             auto evActionRangeEnd = evActionRangeBegin + heroRangeSize;
-            traverseTree<GameHandSize, Mode>(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, newVillainReachProbs.getData(), { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
+            traverseTree<GameHandSize, Mode>(tree.allNodes[decisionNode.childrenOffset + action], constants, rules, heroReachProbs, newVillainReachProbs.getData(), { evActionRangeBegin, evActionRangeEnd }, tree, allocator);
         };
 
         auto calculateActionEV = [
@@ -464,6 +503,7 @@ void traverseDecision(
     auto heroToActTraining = [
         &decisionNode,
         &constants,
+        &heroReachProbs,
         &outputExpectedValues,
         &tree,
         &allocator,
@@ -482,7 +522,7 @@ void traverseDecision(
         writeCurrentStrategyToBuffer(currentStrategy.getData(), decisionNode, tree, allocator);
 
         ScopedVector<float> newOutputExpectedValues(allocator, getThreadIndex(), numActions * heroRangeSize);
-        calculateActionEVs(newOutputExpectedValues.getData(), {});
+        calculateActionEVs(newOutputExpectedValues.getData(), currentStrategy.getData());
 
         // Calculate expected value of strategy
         for (int action = 0; action < numActions; ++action) {
@@ -504,8 +544,7 @@ void traverseDecision(
                 float actionExpectedValue = newOutputExpectedValues[action * heroRangeSize + hand];
                 float regret = actionExpectedValue - strategyExpectedValue;
 
-                // TODO: Do we need to weight by hero reach probs?
-                float strategy = currentStrategy[action * heroRangeSize + hand];
+                float strategy = heroReachProbs[hand] * currentStrategy[action * heroRangeSize + hand];
 
                 if constexpr (Mode == TraversalMode::VanillaCfr) {
                     regretSum += regret;
@@ -616,9 +655,7 @@ void traverseDecision(
         // Calculate strategy
         ScopedVector<float> strategy(allocator, getThreadIndex(), numActions * villainRangeSize);
 
-        if constexpr (Mode == TraversalMode::VanillaCfr
-            || Mode == TraversalMode::CfrPlus
-            || Mode == TraversalMode::DiscountedCfr) {
+        if constexpr (isCfr(Mode)) {
             writeCurrentStrategyToBuffer(strategy.getData(), decisionNode, tree, allocator);
         }
         else {
@@ -638,9 +675,7 @@ void traverseDecision(
     };
 
     if (constants.hero == decisionNode.state.playerToAct) {
-        if constexpr (Mode == TraversalMode::VanillaCfr
-            || Mode == TraversalMode::CfrPlus
-            || Mode == TraversalMode::DiscountedCfr) {
+        if constexpr (isCfr(Mode)) {
             heroToActTraining();
         }
         else if constexpr (Mode == TraversalMode::ExpectedValue) {
@@ -871,6 +906,7 @@ void traverseTree(
     const Node& node,
     const TraversalConstants& constants,
     const IGameRules& rules,
+    std::span<const float> heroReachProbs,
     std::span<const float> villainReachProbs,
     std::span<float> outputExpectedValues,
     Tree& tree,
@@ -880,10 +916,10 @@ void traverseTree(
 
     switch (node.nodeType) {
         case NodeType::Chance:
-            traverseChance<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
+            traverseChance<GameHandSize, Mode>(node, constants, rules, heroReachProbs, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Decision:
-            traverseDecision<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree, allocator);
+            traverseDecision<GameHandSize, Mode>(node, constants, rules, heroReachProbs, villainReachProbs, outputExpectedValues, tree, allocator);
             break;
         case NodeType::Fold:
             traverseFold<GameHandSize, Mode>(node, constants, rules, villainReachProbs, outputExpectedValues, tree);
@@ -900,14 +936,26 @@ void traverseTree(
 template <TraversalMode Mode>
 void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rules, std::span<float> outputExpectedValues, Tree& tree, StackAllocator<float>& allocator) {
     Player villain = getOpposingPlayer(constants.hero);
-    const auto initialRangeWeights = rules.getInitialRangeWeights(villain);
 
     int heroRangeSize = tree.rangeSize[constants.hero];
     int villainRangeSize = tree.rangeSize[villain];
 
+    // We only need to calculate hero reach probs during CFR traversal because we only use them to update strategy sums
+    std::optional<ScopedVector<float>> heroReachProbs;
+    std::span<const float> heroReachProbsData;
+    if constexpr (isCfr(Mode)) {
+        const auto heroInitialRangeWeights = rules.getInitialRangeWeights(constants.hero);
+        heroReachProbs.emplace(allocator, getThreadIndex(), heroRangeSize);
+        for (int hand = 0; hand < heroRangeSize; ++hand) {
+            (*heroReachProbs)[hand] = heroInitialRangeWeights[hand];
+        }
+        heroReachProbsData = heroReachProbs->getData();
+    }
+
+    const auto villainInitialRangeWeights = rules.getInitialRangeWeights(villain);
     ScopedVector<float> villainReachProbs(allocator, getThreadIndex(), villainRangeSize);
     for (int hand = 0; hand < villainRangeSize; ++hand) {
-        villainReachProbs[hand] = initialRangeWeights[hand];
+        villainReachProbs[hand] = villainInitialRangeWeights[hand];
     }
 
     switch (tree.gameHandSize) {
@@ -916,7 +964,8 @@ void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rul
                 tree.allNodes[tree.getRootNodeIndex()],
                 constants,
                 rules,
-                villainReachProbs,
+                heroReachProbsData,
+                villainReachProbs.getData(),
                 outputExpectedValues,
                 tree,
                 allocator
@@ -929,7 +978,8 @@ void traverseFromRoot(const TraversalConstants& constants, const IGameRules& rul
                 tree.allNodes[tree.getRootNodeIndex()],
                 constants,
                 rules,
-                villainReachProbs,
+                heroReachProbsData,
+                villainReachProbs.getData(),
                 outputExpectedValues,
                 tree,
                 allocator
