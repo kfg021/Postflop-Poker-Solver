@@ -279,7 +279,7 @@ Solving on my Intel MacBookPro using 6 threads and 0.3% target exploitability:
 
 | Solver           | Solve time (s) | Iterations | Iterations / s | Estimated tree size (GB)    | Actual process memory (GB) |
 |------------------|----------------|------------|----------------|-----------------------------|----------------------------|
-| This solver      | 101.58         | 190        | 1.87           | 1.44                        | 1.48                       |
+| This solver      | 89.79          | 170        | 1.89           | 1.44                        | 1.48                       |
 | WASM Postflop    | 101.05         | 150        | 1.48           | 1.50                        | 1.59                       |  
 | postflop-solver  | 79.67          | 150        | 1.88           | 1.51                        | 1.46                       |
 | TexasSolver      | 238.94         | 141        | 0.59           | 2.90                        | 2.04                       |
@@ -295,11 +295,11 @@ The results confirm the solver's high-performance design, placing it firmly amon
 * *Estimated tree size* is a guess for the memory usage, reported by the solver itself. *Actual process memory* is the RAM usage of the running process, reported by the OS. TexasSolver significantly overestimates its memory usage, while the other three solvers provide much more accurate estimates.
 
 #### Expected Value
-* This solver outputs OOP and IP EVs of $0.86725$ and $-0.86725$, respectively:
+* This solver outputs OOP and IP EVs of $0.86698$ and $-0.86698$, respectively:
   ```
   Calculating expected value of final strategy...
-  Player 0 expected value: 0.86725
-  Player 1 expected value: -0.86725
+  Player 0 expected value: 0.86698
+  Player 1 expected value: -0.86698
   ```
 
 * WASM Postflop reports an OOP EV of $5.868$ and an IP EV of $4.132$. WASM Postflop's EVs are relative to the starting wager, so the comparable EVs are $5.868 - 5 = 0.868$ and $4.132 - 5 = -0.868$, which match this solver.
@@ -330,11 +330,11 @@ Player to act: OOP
 +------+---------+-------+-------+-------+-------+
 | Hand | Weight  | [0]   | [1]   | [2]   | [3]   |
 +------+---------+-------+-------+-------+-------+
-| AsAh | 0.872   | 0.000 | 0.535 | 0.072 | 0.393 |
-| AsAd | 1.000   | 0.000 | 0.006 | 0.290 | 0.705 |
+| AsAh | 0.870   | 0.000 | 0.509 | 0.086 | 0.404 |
+| AsAd | 1.000   | 0.000 | 0.008 | 0.289 | 0.703 |
 ...
 +------+---------+-------+-------+-------+-------+
-| all  | 105.740 | 0.400 | 0.382 | 0.050 | 0.168 |
+| all  | 105.733 | 0.401 | 0.379 | 0.050 | 0.170 |
 +------+---------+-------+-------+-------+-------+
 > 
 ```
@@ -343,7 +343,7 @@ Below is a comparison of the strategies found by each of the three solvers for a
 
 | Solver        | Weight | Fold% | Call% | Raise% | All-in% |
 |---------------|--------|-------|-------|--------|---------|
-| This solver   | 105.7  | 40.0  | 38.2  | 5.0    | 16.8    |
+| This solver   | 105.7  | 40.1  | 37.9  | 5.0    | 17.0    |
 | WASM Postflop | 105.4  | 42.9  | 36.2  | 6.2    | 14.6    |
 | TexasSolver   | 108.8  | 41.7  | 32.1  | 3.2    | 23.1    |
 
