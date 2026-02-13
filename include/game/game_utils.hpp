@@ -53,7 +53,7 @@ constexpr CardID swapCardSuits(CardID cardID, Suit x, Suit y) {
 
 constexpr CardSet cardIDToSet(CardID cardID) {
     assert(cardID < 52);
-    return (1LL << cardID);
+    return (1ULL << cardID);
 }
 
 constexpr int getSetSize(CardSet cardSet) {

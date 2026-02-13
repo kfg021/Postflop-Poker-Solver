@@ -128,7 +128,7 @@ GameState Holdem::getInitialGameState() const {
 }
 
 CardSet Holdem::getDeck() const {
-    static constexpr CardSet Deck = (1LL << holdem::DeckSize) - 1;
+    static constexpr CardSet Deck = (1ULL << holdem::DeckSize) - 1;
     return Deck;
 }
 
