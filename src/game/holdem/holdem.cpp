@@ -545,6 +545,9 @@ void Holdem::buildHandTables() {
                 int handRankTableSize = holdem::DeckSize * playerRangeSize;
                 m_handRanks[player].resize(handRankTableSize);
 
+                #ifdef _OPENMP
+                #pragma omp parallel for num_threads(m_settings.numThreads) schedule(dynamic)
+                #endif
                 for (CardID riverCard = 0; riverCard < holdem::DeckSize; ++riverCard) {
                     int handRankOffset = riverCard * playerRangeSize;
 
@@ -567,6 +570,9 @@ void Holdem::buildHandTables() {
                 int handRankTableSize = holdem::NumPossibleTwoCardHands * playerRangeSize;
                 m_handRanks[player].resize(handRankTableSize);
 
+                #ifdef _OPENMP
+                #pragma omp parallel for num_threads(m_settings.numThreads) collapse(2) schedule(dynamic)
+                #endif
                 for (CardID turnCard = 0; turnCard < holdem::DeckSize; ++turnCard) {
                     for (CardID riverCard = turnCard + 1; riverCard < holdem::DeckSize; ++riverCard) {
                         CardSet runout = cardIDToSet(turnCard) | cardIDToSet(riverCard);

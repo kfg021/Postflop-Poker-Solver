@@ -257,6 +257,7 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     context.numThreads = 1;
     std::cout << "OpenMP was not found, using one thread.\n";
     #endif
+    settings.numThreads = context.numThreads;
 
     // Load target exploitability
     loadOptionalField(context.targetPercentExploitability, input, { "solver", "target-exploitability" }, 0.3f);

@@ -33,6 +33,7 @@ public:
         int effectiveStackRemaining;
         int deadMoney;
         bool useChanceCardIsomorphism;
+        int numThreads;
 
         // TODO:
         // Add all-in threshold

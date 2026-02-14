@@ -29,7 +29,8 @@ protected:
             .startingPlayerWagers = 12,
             .effectiveStackRemaining = 360,
             .deadMoney = 3,
-            .useChanceCardIsomorphism = true
+            .useChanceCardIsomorphism = true,
+            .numThreads = 1
         };
     }
 };
