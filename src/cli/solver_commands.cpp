@@ -12,12 +12,12 @@
 #include "solver/tree.hpp"
 #include "util/fixed_vector.hpp"
 #include "util/result.hpp"
+#include "util/scoped_timer.hpp"
 #include "util/stack_allocator.hpp"
 #include "util/string_utils.hpp"
 
 #include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <optional>
@@ -44,10 +44,13 @@ void buildTreeSkeletonIfNeeded(SolverContext& context) {
     assert(isContextValid(context));
 
     if (!context.tree->isTreeSkeletonBuilt()) {
-        std::cout << "Tree skeleton not yet built, building...\n" << std::flush;
-        context.tree->buildTreeSkeleton(*context.rules);
-        std::cout << "Finished building tree skeleton.\n\n";
+        {
+            ScopedTimer timer{ "Tree skeleton not yet built, building...", "Finished building tree skeleton" };
+            context.tree->buildTreeSkeleton(*context.rules);
+        }
+        std::cout << "\n";
     }
+
 }
 
 bool isTreeSolved(SolverContext& context) {
@@ -266,9 +269,10 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
 
     std::cout << "Successfully loaded Holdem settings.\n\n";
 
-    std::cout << "Building Holdem lookup tables...\n";
-    context.rules = std::make_unique<Holdem>(settings);
-    std::cout << "Successfully built lookup tables.\n";
+    {
+        ScopedTimer timer{ "Building Holdem lookup tables...", "Finished building lookup tables" };
+        context.rules = std::make_unique<Holdem>(settings);
+    }
 
     context.tree = std::make_unique<Tree>();
 
@@ -478,7 +482,6 @@ bool handleSolve(SolverContext& context) {
     };
 
     auto runCfr = [&context, &getStartingPot](StackAllocator<float>& allocator) -> std::optional<CfrResult> {
-        auto start = std::chrono::steady_clock::now();
         std::optional<CfrResult> resultOption;
         float startingPot = static_cast<float>(getStartingPot());
 
@@ -508,11 +511,6 @@ bool handleSolve(SolverContext& context) {
             }
         }
 
-        auto end = std::chrono::steady_clock::now();
-        auto msElapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        float secondsElapsed = msElapsed.count() / 1000.0f;
-        std::cout << "Training completed in " << formatFixedPoint(secondsElapsed, 3) << "s.\n";
-
         return resultOption;
     };
 
@@ -523,9 +521,11 @@ bool handleSolve(SolverContext& context) {
 
     buildTreeSkeletonIfNeeded(context);
 
-    std::cout << "Allocating memory...\n" << std::flush;
-    context.tree->initCfrVectors();
-    std::cout << "Finished allocating memory.\n\n";
+    {
+        ScopedTimer timer{ "Allocating memory...", "Finished allocating memory" };
+        context.tree->initCfrVectors();
+    }
+    std::cout << "\n";
 
     std::optional<CfrResult> resultOption;
 
@@ -541,7 +541,10 @@ bool handleSolve(SolverContext& context) {
                 << formatFixedPoint(context.targetPercentExploitability, 5)
                 << "% Maximum iterations: " << context.maxIterations << "\n" << std::flush;
 
-            resultOption = runCfr(allocator);
+            {
+                ScopedTimer timer{ {}, "Finished training" };
+                resultOption = runCfr(allocator);
+            }
         }
     }
     #else
@@ -551,12 +554,15 @@ bool handleSolve(SolverContext& context) {
         << formatFixedPoint(context.targetPercentExploitability, 5)
         << "% Maximum iterations: " << context.maxIterations << "\n" << std::flush;
 
-    resultOption = runCfr(allocator);
+    {
+        ScopedTimer timer{ {}, "Finished training" };
+        resultOption = runCfr(allocator);
+    }
     #endif
 
     if (resultOption) {
         std::cout << "Target exploitability percentage reached after iteration " << resultOption->iteration << ".\n\n";
-    }
+}
     else {
         std::cout << "Target exploitability percentage not reached.\n\n";
     }
@@ -937,7 +943,6 @@ bool handleBack(SolverContext& context) {
     // Print node info for new node
     return handleNodeInfo(context);
 }
-
 } // namespace
 
 bool registerAllCommands(CliDispatcher& dispatcher, SolverContext& context) {

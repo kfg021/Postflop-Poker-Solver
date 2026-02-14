@@ -39,6 +39,7 @@ add_library(postflop_solver_core STATIC
     src/game/holdem/holdem.cpp
     src/solver/cfr.cpp
     src/solver/tree.cpp
+    src/util/scoped_timer.cpp
     src/util/string_utils.cpp
 )
 
