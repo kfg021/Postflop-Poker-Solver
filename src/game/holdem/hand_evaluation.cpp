@@ -4,8 +4,8 @@
 #include "game/game_utils.hpp"
 #include "util/fixed_vector.hpp"
 
-#include <algorithm>
 #include <array>
+#include <bit>
 #include <cassert>
 #include <cstdint>
 
@@ -20,7 +20,7 @@ enum class HandType : std::uint8_t {
     FullHouse,
     FourOfAKind,
     StraightFlush,
-    RoyalFlush,
+    RoyalFlush
 };
 
 struct HandStrength {
