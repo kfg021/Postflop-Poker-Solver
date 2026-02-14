@@ -161,8 +161,8 @@ bool handleSetupHoldem(SolverContext& context, const std::string& argument) {
     try {
         input = YAML::LoadFile(filePath);
     }
-    catch (const YAML::Exception& e) {
-        std::cerr << "Error: Could not load settings file. " << e.what() << "\n";
+    catch (const YAML::Exception&) {
+        std::cerr << "Error: Could not load settings file. Invalid file name: " << filePath << "\n";
         return false;
     }
 
@@ -562,7 +562,7 @@ bool handleSolve(SolverContext& context) {
 
     if (resultOption) {
         std::cout << "Target exploitability percentage reached after iteration " << resultOption->iteration << ".\n\n";
-}
+    }
     else {
         std::cout << "Target exploitability percentage not reached.\n\n";
     }
