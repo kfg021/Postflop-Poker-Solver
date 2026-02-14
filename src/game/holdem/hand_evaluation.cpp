@@ -102,7 +102,7 @@ HandRank getFiveCardHandRank(CardSet hand) {
                 quads.pushBack(value);
                 break;
             default:
-                assert(false);
+                assert(count == 0);
                 break;
         }
     }
