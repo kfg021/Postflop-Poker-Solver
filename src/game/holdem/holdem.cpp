@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -493,9 +492,7 @@ std::string Holdem::getActionName(ActionID actionID, int betRaiseSize) const {
 }
 
 void Holdem::buildHandTables() {
-    std::unordered_map<CardSet, HandRank> seenFiveCardHandRanks;
-
-    auto insertSevenCardHandRank = [this, &seenFiveCardHandRanks](Player player, CardSet board, int handRankOffset, int rangeIndex) -> void {
+    auto insertSevenCardHandRank = [this](Player player, CardSet board, int handRankOffset, int rangeIndex) -> void {
         m_handRanks[player][handRankOffset + rangeIndex] = { .rank = 0, .info = getHandInfo(player, rangeIndex) };
 
         if (getSetSize(board) != 7) return;
@@ -512,17 +509,7 @@ void Holdem::buildHandTables() {
             for (int j = i + 1; j < 7; ++j) {
                 CardSet cardsToIgnore = cardIDToSet(sevenCardArray[i]) | cardIDToSet(sevenCardArray[j]);
                 CardSet fiveCardHand = board & ~cardsToIgnore;
-
-                HandRank fiveCardHandRanking;
-                auto it = seenFiveCardHandRanks.find(fiveCardHand);
-                if (it != seenFiveCardHandRanks.end()) {
-                    fiveCardHandRanking = it->second;
-                }
-                else {
-                    fiveCardHandRanking = getFiveCardHandRank(fiveCardHand);
-                    seenFiveCardHandRanks.emplace(fiveCardHand, fiveCardHandRanking);
-                }
-
+                HandRank fiveCardHandRanking = getFiveCardHandRank(fiveCardHand);
                 handRanking = std::max(handRanking, fiveCardHandRanking);
             }
         }

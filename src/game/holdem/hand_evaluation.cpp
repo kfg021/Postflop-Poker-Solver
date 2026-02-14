@@ -8,7 +8,6 @@
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <utility>
 
 namespace {
 enum class HandType : std::uint8_t {
@@ -64,73 +63,113 @@ HandRank convertHandStrengthToInt(const HandStrength& handStrength) {
 HandRank getFiveCardHandRank(CardSet hand) {
     assert(getSetSize(hand) == 5);
 
-    std::array<std::pair<int, Value>, 13> valueFrequencies;
+    struct ValueFrequency {
+        int count;
+        Value value;
+
+        auto operator<=>(const ValueFrequency&) const = default;
+    };
+
+    std::array<ValueFrequency, 13> valueFrequencies;
     for (int i = 0; i < 13; ++i) {
-        valueFrequencies[i] = { 0, static_cast<Value>(i) };
+        valueFrequencies[i] = { .count = 0, .value = static_cast<Value>(i) };
     }
 
     CardSet temp = hand;
     for (int i = 0; i < 5; ++i) {
         int valueID = static_cast<int>(getCardValue(popLowestCardFromSet(temp)));
-        ++valueFrequencies[valueID].first;
+        ++valueFrequencies[valueID].count;
     }
     assert(temp == 0);
-    std::sort(valueFrequencies.begin(), valueFrequencies.end(), std::greater<std::pair<int, Value>>());
+
+    FixedVector<Value, 5> singles;
+    FixedVector<Value, 2> pairs;
+    FixedVector<Value, 1> trips;
+    FixedVector<Value, 1> quads;
+    for (int i = 12; i >= 0; --i) {
+        auto [count, value] = valueFrequencies[i];
+        switch (count) {
+            case 1:
+                singles.pushBack(value);
+                break;
+            case 2:
+                pairs.pushBack(value);
+                break;
+            case 3:
+                trips.pushBack(value);
+                break;
+            case 4:
+                quads.pushBack(value);
+                break;
+            default:
+                assert(false);
+                break;
+        }
+    }
 
     HandStrength handStrength;
-    if (valueFrequencies[0].first == 4) {
+    if (quads.size() == 1) {
+        assert(singles.size() == 1);
         handStrength = {
             .handType = HandType::FourOfAKind,
-            .kickers = { valueFrequencies[0].second, valueFrequencies[1].second }
+            .kickers = { quads[0], singles[0] }
         };
     }
-    else if (valueFrequencies[0].first == 3 && valueFrequencies[1].first == 2) {
+    else if (trips.size() == 1 && pairs.size() == 1) {
         handStrength = {
             .handType = HandType::FullHouse,
-            .kickers = { valueFrequencies[0].second, valueFrequencies[1].second }
+            .kickers = { trips[0], pairs[0] }
         };
     }
-    else if (valueFrequencies[0].first == 3) {
+    else if (trips.size() == 1) {
+        assert(singles.size() == 2);
         handStrength = {
             .handType = HandType::ThreeOfAKind,
-            .kickers = { valueFrequencies[0].second, valueFrequencies[1].second, valueFrequencies[2].second }
+            .kickers = { trips[0], singles[0], singles[1] }
         };
     }
-    else if (valueFrequencies[0].first == 2 && valueFrequencies[1].first == 2) {
+    else if (pairs.size() == 2) {
+        assert(singles.size() == 1);
         handStrength = {
             .handType = HandType::TwoPair,
-            .kickers = { valueFrequencies[0].second, valueFrequencies[1].second, valueFrequencies[2].second }
+            .kickers = { pairs[0], pairs[1], singles[0] }
         };
     }
-    else if (valueFrequencies[0].first == 2) {
+    else if (pairs.size() == 1) {
+        assert(singles.size() == 3);
         handStrength = {
             .handType = HandType::Pair,
-            .kickers = { valueFrequencies[0].second, valueFrequencies[1].second, valueFrequencies[2].second, valueFrequencies[3].second }
+            .kickers = { pairs[0], singles[0], singles[1], singles[2] }
         };
     }
     else {
-        // Check for straights
-        std::array<Value, 5> sortedCardValues;
+        std::uint16_t cardValues = 0;
         CardSet temp = hand;
         for (int i = 0; i < 5; ++i) {
-            sortedCardValues[i] = getCardValue(popLowestCardFromSet(temp));
+            int cardValueID = static_cast<int>(getCardValue(popLowestCardFromSet(temp)));
+            cardValues |= (1 << cardValueID);
         }
         assert(temp == 0);
-        std::reverse(sortedCardValues.begin(), sortedCardValues.end());
 
-        bool isRegularStraight = (static_cast<int>(sortedCardValues[0]) - static_cast<int>(sortedCardValues[4]) == 4);
-        bool isWheelStraight = (sortedCardValues[0] == Value::Ace) && (sortedCardValues[1] == Value::Five);
+        static constexpr std::uint16_t RegularStraightMask = 0x001F;
+        bool isRegularStraight = false;
+        for (int i = 0; i < 9; ++i) {
+            isRegularStraight |= (cardValues == (RegularStraightMask << i));
+        }
 
-        // Check for flushes
+        static constexpr std::uint16_t WheelStraightMask = 0x100F;
+        bool isWheelStraight = (cardValues == WheelStraightMask);
+
         bool isFlush = false;
         for (Suit suit : { Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades }) {
             isFlush |= getSetSize(filterCardsWithSuit(hand, suit)) == 5;
         }
 
-        // Check for straight flushes
         bool isRegularStraightFlush = isRegularStraight && isFlush;
         bool isWheelStraightFlush = isWheelStraight && isFlush;
-        bool isRoyalFlush = isRegularStraightFlush && (sortedCardValues[0] == Value::Ace);
+
+        bool cardValuesContainAce = (cardValues >> static_cast<int>(Value::Ace)) & 1;
+        bool isRoyalFlush = isRegularStraightFlush && cardValuesContainAce;
 
         if (isRoyalFlush) {
             handStrength = {
@@ -139,39 +178,41 @@ HandRank getFiveCardHandRank(CardSet hand) {
             };
         }
         else if (isRegularStraightFlush) {
+            Value highestValue = static_cast<Value>(15 - std::countl_zero(cardValues));
             handStrength = {
                 .handType = HandType::StraightFlush,
-                .kickers = { sortedCardValues[0] }
+                .kickers = { highestValue }
             };
         }
         else if (isWheelStraightFlush) {
             handStrength = {
                 .handType = HandType::StraightFlush,
-                .kickers = { sortedCardValues[1] }
+                .kickers = { Value::Five }
             };
         }
         else if (isFlush) {
             handStrength = {
                 .handType = HandType::Flush,
-                .kickers = sortedCardValues
+                .kickers = singles
             };
         }
         else if (isRegularStraight) {
+            Value highestValue = static_cast<Value>(15 - std::countl_zero(cardValues));
             handStrength = {
                 .handType = HandType::Straight,
-                .kickers = { sortedCardValues[0] }
+                .kickers = { highestValue }
             };
         }
         else if (isWheelStraight) {
             handStrength = {
                 .handType = HandType::Straight,
-                .kickers = { sortedCardValues[1] }
+                .kickers = { Value::Five }
             };
         }
         else {
             handStrength = {
                 .handType = HandType::HighCard,
-                .kickers = sortedCardValues
+                .kickers = singles
             };
         }
     }
