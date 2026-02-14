@@ -14,7 +14,7 @@
 // TODO: Remove template and allow all trivally copyable types at once
 template<typename T>
 class StackAllocator {
-static_assert(std::is_trivially_copyable_v<T>);
+    static_assert(std::is_trivially_copyable_v<T>);
 public:
     static constexpr int MaxNumThreads = 64;
 
@@ -78,7 +78,7 @@ public:
     using const_pointer = const T*;
     using iterator = typename std::span<T>::iterator;
 
-    ScopedVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocatingThread{ allocatingThread }, m_allocator{ allocator }, m_data{ allocator.allocate(allocatingThread, size) } {}
+    ScopedVector(StackAllocator<T>& allocator, int allocatingThread, std::size_t size) : m_allocator{ allocator }, m_allocatingThread{ allocatingThread }, m_data{ allocator.allocate(allocatingThread, size) } {}
 
     ~ScopedVector() {
         m_allocator.deallocate(m_allocatingThread, m_data);
