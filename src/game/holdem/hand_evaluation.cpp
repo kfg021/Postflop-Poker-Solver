@@ -63,22 +63,12 @@ HandRank convertHandStrengthToInt(const HandStrength& handStrength) {
 HandRank getFiveCardHandRank(CardSet hand) {
     assert(getSetSize(hand) == 5);
 
-    struct ValueFrequency {
-        int count;
-        Value value;
-
-        auto operator<=>(const ValueFrequency&) const = default;
-    };
-
-    std::array<ValueFrequency, 13> valueFrequencies;
-    for (int i = 0; i < 13; ++i) {
-        valueFrequencies[i] = { .count = 0, .value = static_cast<Value>(i) };
-    }
-
+    std::array<int, 13> valueCounts = {};
     CardSet temp = hand;
     for (int i = 0; i < 5; ++i) {
         int valueID = static_cast<int>(getCardValue(popLowestCardFromSet(temp)));
-        ++valueFrequencies[valueID].count;
+        assert(valueID >= 0 && valueID < 13);
+        ++valueCounts[valueID];
     }
     assert(temp == 0);
 
@@ -87,7 +77,8 @@ HandRank getFiveCardHandRank(CardSet hand) {
     FixedVector<Value, 1> trips;
     FixedVector<Value, 1> quads;
     for (int i = 12; i >= 0; --i) {
-        auto [count, value] = valueFrequencies[i];
+        Value value = static_cast<Value>(i);
+        int count = valueCounts[i];
         switch (count) {
             case 1:
                 singles.pushBack(value);
