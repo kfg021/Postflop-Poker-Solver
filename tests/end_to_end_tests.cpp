@@ -7,30 +7,26 @@
 #include "solver/tree.hpp"
 #include "util/stack_allocator.hpp"
 
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
 namespace {
-    static constexpr int KuhnIterations = 100000;
-    static constexpr int LeducIterations = 10000;
+static constexpr int KuhnIterations = 100000;
+static constexpr int LeducIterations = 10000;
 
-    // https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
-    static constexpr float KuhnPlayer0ExpectedValue = -1.0f / 18.0f;
+// https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
+static constexpr float KuhnPlayer0ExpectedValue = -1.0f / 18.0f;
 
-    // Lanctot, M., Zambaldi, V., Gruslys, A., Lazaridou, A., Tuyls, K., Perolat, J., Silver, D., & Graepel, T. (2017).
-    // A Unified Game-Theoretic Approach to Multiagent Reinforcement Learning.
-    // https://doi.org/10.48550/arXiv.1711.00832
-    static constexpr float LeducPlayer0ExpectedValue = -0.0856f;
+// Lanctot, M., Zambaldi, V., Gruslys, A., Lazaridou, A., Tuyls, K., Perolat, J., Silver, D., & Graepel, T. (2017).
+// A Unified Game-Theoretic Approach to Multiagent Reinforcement Learning.
+// https://doi.org/10.48550/arXiv.1711.00832
+static constexpr float LeducPlayer0ExpectedValue = -0.0856f;
 
-    static constexpr float StrategyEpsilon = 1e-3f;
-    static constexpr float ExploitabilityEpsilon = 1e-2f;
+static constexpr float StrategyEpsilon = 1e-3f;
+static constexpr float ExploitabilityEpsilon = 1e-2f;
 
-    static constexpr int NumParallelThreads = 6;
+static constexpr int NumParallelThreads = 6;
 
-    DiscountParams getTestingDiscountParams(int index) {
-        return getDiscountParams(1.5f, 0.0f, 2.0f, index + 1);
-    }
+DiscountParams getTestingDiscountParams(int index) {
+    return getDiscountParams(1.5f, 0.0f, 2.0f, index + 1);
+}
 } // namespace
 
 TEST(EndToEndTest, Kuhn) {
@@ -182,9 +178,7 @@ TEST(EndToEndTest, LeducWithIsomorphismParallel) {
     tree.initCfrVectors();
 
     StackAllocator<float> allocator(NumParallelThreads);
-    omp_set_num_threads(NumParallelThreads);
-
-    #pragma omp parallel
+    #pragma omp parallel num_threads(NumParallelThreads)
     {
         #pragma omp single
         {
@@ -253,9 +247,7 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
         tree.initCfrVectors();
 
         StackAllocator<float> allocator(NumParallelThreads);
-        omp_set_num_threads(NumParallelThreads);
-
-        #pragma omp parallel
+        #pragma omp parallel num_threads(NumParallelThreads)
         {
             #pragma omp single
             {
@@ -278,4 +270,4 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
     #else
     GTEST_SKIP() << "OMP not found, skipping parallel test.";
     #endif
-    }
+}

@@ -530,10 +530,8 @@ bool handleSolve(SolverContext& context) {
     std::optional<CfrResult> resultOption;
 
     #ifdef _OPENMP
-    omp_set_num_threads(context.numThreads);
     StackAllocator<float> allocator(context.numThreads);
-
-    #pragma omp parallel
+    #pragma omp parallel num_threads(context.numThreads)
     {
         #pragma omp single
         {
