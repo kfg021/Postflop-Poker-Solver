@@ -225,8 +225,7 @@ FixedVector<ActionID, MaxNumActions> Holdem::getValidActions(const GameState& st
         }
     };
 
-    NodeType nodeType = getNodeType(state);
-    assert(nodeType == NodeType::Decision);
+    assert(getNodeType(state) == NodeType::Decision);
 
     switch (static_cast<Action>(state.lastAction)) {
         case Action::StreetStart: {

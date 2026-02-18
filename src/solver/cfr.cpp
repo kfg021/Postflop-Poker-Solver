@@ -515,7 +515,6 @@ void traverseDecision(
         assert(numActions > 0);
 
         int heroRangeSize = tree.rangeSize[constants.hero];
-        int villainRangeSize = tree.rangeSize[getOpposingPlayer(constants.hero)];
 
         // Calculate current strategy
         ScopedVector<float> currentStrategy(allocator, getThreadIndex(), numActions * heroRangeSize);
@@ -583,7 +582,6 @@ void traverseDecision(
         assert(numActions > 0);
 
         int heroRangeSize = tree.rangeSize[constants.hero];
-        int villainRangeSize = tree.rangeSize[getOpposingPlayer(constants.hero)];
 
         // Calculate average strategy
         ScopedVector<float> averageStrategy(allocator, getThreadIndex(), numActions * heroRangeSize);

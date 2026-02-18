@@ -166,7 +166,7 @@ std::span<const RankedHand> KuhnPoker::getValidSortedHandRanks(Player /*player*/
     return SortedHandRanks;
 }
 
-int KuhnPoker::getHandIndexAfterSuitSwap(Player /*player*/, int handIndex, Suit /*x*/, Suit /*y*/) const {
+int KuhnPoker::getHandIndexAfterSuitSwap(Player /*player*/, int /*handIndex*/, Suit /*x*/, Suit /*y*/) const {
     // Kuhn poker only has one suit and no isomorphisms
     return -1;
 }
