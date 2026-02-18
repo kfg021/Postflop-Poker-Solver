@@ -18,14 +18,14 @@ include(FetchContent)
 
 FetchContent_Declare(
     replxx
-    GIT_REPOSITORY https://github.com/AmokHuginnsson/replxx.git
-    GIT_TAG release-0.0.4
+    URL https://github.com/AmokHuginnsson/replxx/archive/refs/tags/release-0.0.4.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 FetchContent_Declare(
     yaml-cpp
-    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-    GIT_TAG yaml-cpp-0.9.0
+    URL https://github.com/jbeder/yaml-cpp/archive/refs/tags/yaml-cpp-0.9.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 FetchContent_MakeAvailable(replxx yaml-cpp)
