@@ -25,93 +25,93 @@ public:
     using iterator = typename std::array<T, Capacity>::iterator;
     using const_iterator = typename std::array<T, Capacity>::const_iterator;
 
-    FixedVector() : m_buffer{}, m_size{ 0 } {}
+    constexpr FixedVector() : m_buffer{}, m_size{ 0 } {}
 
-    FixedVector(std::initializer_list<T> initList) : m_buffer{}, m_size{ static_cast<Size>(initList.size()) } {
+    constexpr FixedVector(std::initializer_list<T> initList) : m_buffer{}, m_size{ static_cast<Size>(initList.size()) } {
         assert(initList.size() <= Capacity);
         std::copy(initList.begin(), initList.end(), m_buffer.begin());
     }
 
-    FixedVector(const std::array<T, Capacity>& buffer) : m_buffer{ buffer }, m_size{ Capacity } {}
-    FixedVector(std::array<T, Capacity>&& buffer) : m_buffer{ std::move(buffer) }, m_size{ Capacity } {}
+    constexpr FixedVector(const std::array<T, Capacity>& buffer) : m_buffer{ buffer }, m_size{ Capacity } {}
+    constexpr FixedVector(std::array<T, Capacity>&& buffer) : m_buffer{ std::move(buffer) }, m_size{ Capacity } {}
 
-    FixedVector(std::size_t size, const T& data) : m_buffer{}, m_size{ static_cast<Size>(size) } {
+    constexpr FixedVector(std::size_t size, const T& data) : m_buffer{}, m_size{ static_cast<Size>(size) } {
         assert(size <= Capacity);
         std::fill(m_buffer.begin(), m_buffer.begin() + m_size, data);
     }
-    FixedVector(std::size_t size, T&& data) : m_buffer{}, m_size{ static_cast<Size>(size) } {
+    constexpr FixedVector(std::size_t size, T&& data) : m_buffer{}, m_size{ static_cast<Size>(size) } {
         assert(size <= Capacity);
         std::fill(m_buffer.begin(), m_buffer.begin() + m_size, std::move(data));
     }
-    FixedVector(std::size_t size) : m_buffer{}, m_size{ static_cast<Size>(size) } {
+    constexpr FixedVector(std::size_t size) : m_buffer{}, m_size{ static_cast<Size>(size) } {
         assert(size <= Capacity);
     }
 
-    iterator begin() {
+    constexpr iterator begin() {
         return m_buffer.begin();
     }
 
-    iterator end() {
+    constexpr iterator end() {
         return m_buffer.begin() + m_size;
     }
 
-    const_iterator begin() const {
+    constexpr const_iterator begin() const {
         return m_buffer.begin();
     }
 
-    const_iterator end() const {
+    constexpr const_iterator end() const {
         return m_buffer.begin() + m_size;
     }
 
-    const_iterator cbegin() const {
+    constexpr const_iterator cbegin() const {
         return m_buffer.cbegin();
     }
 
-    const_iterator cend() const {
+    constexpr const_iterator cend() const {
         return m_buffer.cbegin() + m_size;
     }
 
-    std::size_t size() const {
+    constexpr std::size_t size() const {
         return static_cast<std::size_t>(m_size);
     }
 
-    void pushBack(const T& data) {
+    constexpr void pushBack(const T& data) {
         assert(m_size < Capacity);
         m_buffer[m_size] = data;
         ++m_size;
     }
 
-    void pushBack(T&& data) {
+    constexpr void pushBack(T&& data) {
         assert(m_size < Capacity);
         m_buffer[m_size] = std::move(data);
         ++m_size;
     }
 
-    void popBack() {
+    constexpr void popBack() {
         assert(m_size > 0);
         --m_size;
     }
 
-    const T& back() const {
+    constexpr const T& back() const {
         assert(m_size > 0);
         return m_buffer[m_size - 1];
     }
 
-    const T& operator[](std::size_t index) const {
+    constexpr const T& operator[](std::size_t index) const {
         assert(index < m_size);
         return m_buffer[index];
     }
 
-    T& operator[](std::size_t index) {
+    constexpr T& operator[](std::size_t index) {
         assert(index < m_size);
         return m_buffer[index];
     }
 
-    bool contains(const T& data) const {
+    constexpr bool contains(const T& data) const {
         return std::find(this->begin(), this->end(), data) != this->end();
     }
 
-    auto operator<=>(const FixedVector& rhs) const {
+    constexpr auto operator<=>(const FixedVector& rhs) const {
         return std::lexicographical_compare_three_way(
             this->begin(), this->end(),
             rhs.begin(), rhs.end(),
