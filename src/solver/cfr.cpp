@@ -1132,7 +1132,9 @@ float calculateExploitabilityFast(const IGameRules& rules, Tree& tree, StackAllo
     float player0BestResponseEV = bestResponseEV(Player::P0, rules, tree, allocator);
     float player1BestResponseEV = bestResponseEV(Player::P1, rules, tree, allocator);
     float exploitability = (player0BestResponseEV + player1BestResponseEV - tree.deadMoney) / 2.0f;
-    return exploitability;
+    
+    // Exploitability is always >= 0, but sometimes our approximation is slightly negative
+    return std::max(exploitability, 0.0f);
 }
 
 // TODO: This is basically the same as writeAverageStrategyToBuffer
