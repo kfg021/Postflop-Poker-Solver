@@ -3,6 +3,8 @@
 #include "game/game_types.hpp"
 #include "game/kuhn_poker.hpp"
 #include "game/leduc_poker.hpp"
+#include "game/holdem/holdem_parser.hpp"
+#include "game/holdem/holdem.hpp"
 #include "solver/cfr.hpp"
 #include "solver/tree.hpp"
 #include "util/stack_allocator.hpp"
@@ -10,6 +12,7 @@
 namespace {
 static constexpr int KuhnIterations = 100000;
 static constexpr int LeducIterations = 10000;
+static constexpr int HoldemIterations = 50;
 
 // https://en.wikipedia.org/wiki/Kuhn_poker#Optimal_strategy
 static constexpr float KuhnPlayer0ExpectedValue = -1.0f / 18.0f;
@@ -24,8 +27,38 @@ static constexpr float ExploitabilityEpsilon = 1e-2f;
 
 static constexpr int NumParallelThreads = 6;
 
+#ifdef _OPENMP
+static constexpr int NumHoldemThreads = NumParallelThreads;
+#else
+static constexpr int NumHoldemThreads = 1;
+#endif
+
 DiscountParams getTestingDiscountParams(int index) {
     return getDiscountParams(1.5f, 0.0f, 2.0f, index + 1);
+}
+
+Holdem::Settings getHoldemTestSettings() {
+    CardSet testingCommunityCards = buildCommunityCardsFromString("9s, 8h, 3s").getValue();
+
+    PlayerArray<Holdem::Range> testingRanges = {
+        buildRangeFromString("AA, KK, QQ, AK, AQs, A5s", testingCommunityCards).getValue(),
+        buildRangeFromString("QQ, JJ, TT, 99, AKo, AQ, AJs, ATs, KQs, KJs, KTs, QJs, JTs, T9s", testingCommunityCards).getValue(),
+    };
+
+    static constexpr FixedVector<int, holdem::MaxNumBetSizes> BetSizes = { 50 };
+    static constexpr FixedVector<int, holdem::MaxNumRaiseSizes> RaiseSizes = { 50 };
+
+    return {
+        .ranges = testingRanges,
+        .startingCommunityCards = testingCommunityCards,
+        .betSizes = { { BetSizes, BetSizes, BetSizes },  { BetSizes, BetSizes, BetSizes } },
+        .raiseSizes = { { RaiseSizes, RaiseSizes, RaiseSizes },  { RaiseSizes, RaiseSizes, RaiseSizes } },
+        .startingPlayerWagers = 50,
+        .effectiveStackRemaining = 100,
+        .deadMoney = 0,
+        .useChanceCardIsomorphism = true,
+        .numThreads = NumHoldemThreads
+    };
 }
 } // namespace
 
@@ -270,4 +303,50 @@ TEST(EndToEndTest, LeducSerialAndParallelAreIdentical) {
     #else
     GTEST_SKIP() << "OMP not found, skipping parallel test.";
     #endif
+}
+
+TEST(EndToEndTest, HoldemWithoutDeadMoney) {
+    Holdem holdemRules(getHoldemTestSettings());
+    Tree tree;
+    tree.buildTreeSkeleton(holdemRules);
+    tree.initCfrVectors();
+
+    StackAllocator<float> allocator(NumHoldemThreads);
+
+    for (int i = 0; i < HoldemIterations; ++i) {
+        for (Player hero : { Player::P0, Player::P1 }) {
+            discountedCfr(hero, holdemRules, getTestingDiscountParams(i), tree, allocator);
+        }
+    }
+
+    static constexpr float HoldemTestExpectedValue = 19.0f; // EV of this scenario was empirically found to be around 19. Cross-checked with WASMPostflop.
+
+    float player0ExpectedValue = expectedValue(Player::P0, holdemRules, tree, allocator);
+    float player1ExpectedValue = expectedValue(Player::P1, holdemRules, tree, allocator);
+    EXPECT_NEAR(player0ExpectedValue, HoldemTestExpectedValue, 0.1f);
+    EXPECT_NEAR(player1ExpectedValue, -HoldemTestExpectedValue, 0.1f);
+}
+
+TEST(EndToEndTest, HoldemWithDeadMoney) {
+    static constexpr int DeadMoney = 10;
+    Holdem::Settings testSettings = getHoldemTestSettings();
+    testSettings.deadMoney = DeadMoney;
+
+    Holdem holdemRules(testSettings);
+    Tree tree;
+    tree.buildTreeSkeleton(holdemRules);
+    tree.initCfrVectors();
+
+    StackAllocator<float> allocator(NumHoldemThreads);
+
+    for (int i = 0; i < HoldemIterations; ++i) {
+        for (Player hero : { Player::P0, Player::P1 }) {
+            discountedCfr(hero, holdemRules, getTestingDiscountParams(i), tree, allocator);
+        }
+    }
+
+    // Scenarios with dead money are constant sum
+    float player0ExpectedValue = expectedValue(Player::P0, holdemRules, tree, allocator);
+    float player1ExpectedValue = expectedValue(Player::P1, holdemRules, tree, allocator);
+    EXPECT_NEAR(player0ExpectedValue + player1ExpectedValue, DeadMoney, 0.1f);
 }
