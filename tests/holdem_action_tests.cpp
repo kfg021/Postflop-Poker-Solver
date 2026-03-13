@@ -24,14 +24,14 @@ protected:
             buildRangeFromString("AA, KK:0.25, QQ, T9s:0.33, 27o:0.99", testingCommunityCards).getValue(),
         };
 
-        FixedVector<int, holdem::MaxNumBetSizes> betSizes{ 33, 100, 150 };
-        FixedVector<int, holdem::MaxNumRaiseSizes> raiseSizes{ 50, 100 };
+        static constexpr FixedVector<int, holdem::MaxNumBetSizes> BetSizes = { 33, 100, 150 };
+        static constexpr FixedVector<int, holdem::MaxNumRaiseSizes> RaiseSizes = { 50, 100 };
 
         testSettings = {
             .ranges = testingRanges,
             .startingCommunityCards = testingCommunityCards,
-            .betSizes = { { betSizes, betSizes, betSizes },  { betSizes, betSizes, betSizes } },
-            .raiseSizes = { { raiseSizes, raiseSizes, raiseSizes },  { raiseSizes, raiseSizes, raiseSizes } },
+            .betSizes = { { BetSizes, BetSizes, BetSizes },  { BetSizes, BetSizes, BetSizes } },
+            .raiseSizes = { { RaiseSizes, RaiseSizes, RaiseSizes },  { RaiseSizes, RaiseSizes, RaiseSizes } },
             .startingPlayerWagers = 12,
             .effectiveStackRemaining = 360,
             .deadMoney = 3,
